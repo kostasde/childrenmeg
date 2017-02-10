@@ -10,10 +10,9 @@ function [ STUDY, ALLEEG ] = eeglab_process( toplevel, varargin )
 % Usage:
 % >> [STUDY, ALLEEG] = eeglab_process(toplevel, key0, val0, ...);
 %
-% NOTE: eeglab must be added to path to use this function
-%
-% Optional Key/Value pairs: 
-%   'filter' -
+% NOTE: eeglab must be added to path to use this function, and depending on
+% on what is in your path, run eeglab (no need to keep it open, it just adds
+% some functions that are used to your path.
 % 
 
 % ------------------------------------
@@ -25,6 +24,7 @@ EP_LABEL_CHOICES = {'Trial_prompt', 'VOnset'};
 DEFAULT_EP_LABEL = EP_LABEL_CHOICES{1};
 % Seconds window around event above for epoch
 DEFAULT_EP_WINDOW = [-0.5, 1.5];
+MEGEEG_CHANNELS = 37:187;
 
 % Experiment types
 EXPERIMENT_TYPES = {'PA', 'PDK', 'MO', 'VG'};
@@ -36,6 +36,7 @@ decoded = finputcheck(varargin, {
     'downsample',   'integer', [],                   DEFAULT_DOWNSAMPLE;
     'epoch_label',  'string',  {},                   DEFAULT_EP_LABEL;
     'ica',          'string',  {'none', 'subject', 'group'}, 'none';
+    'ica_chan',     'integer', [],                   MEGEEG_CHANNELS;
     'epoch_window', 'integer', [],                   DEFAULT_EP_WINDOW;
     'subjects',     'cell',    {{}},                 {'all'};
     'destination',  'string',  {},                   toplevel;
@@ -88,7 +89,7 @@ for i = 1:length(decoded.subjects)
         % Otherwise create and process
         % Read dataset
         try
-            EEG = pop_ctf_read([toplevel decoded.subjects{i} '/' experiments(j).name], 'megeeg');
+            EEG = pop_ctf_read([toplevel decoded.subjects{i} '/' experiments(j).name], 'all');
         catch ME
             warning('Failed to read: %s experiment: %s\n', decoded.subjects{i}, experiment);
             continue
@@ -105,11 +106,17 @@ for i = 1:length(decoded.subjects)
         % Epoch the data
         EEG = pop_epoch(EEG, {decoded.epoch_label}, decoded.epoch_window);
         EEG = eeg_checkset(EEG);
+        
+        % Extract Acoustic data and save as new field (MUST BE DONE BEFORE
+        % RESAMPLING, DON'T WANT 200Hz Audio!)
+        acousticData = extractAcousticSignal(EEG.data, EEG.srate);
+        EEG.acoustic = acousticData;
 
         % Run an individual ICA if that is specified
         if strcmp(decoded.ica, 'subject')
-            EEG = pop_runica(EEG);
+            EEG = pop_runica(EEG, 'chanind', decoded.ica_chan);
         end
+        EEG.icachansind = decoded.ica_chan;
         
         % Resample
         EEG = pop_resample(EEG, decoded.downsample);

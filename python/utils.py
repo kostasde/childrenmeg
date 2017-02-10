@@ -2,6 +2,8 @@ import sys
 import re
 import time
 
+import shutil
+from pathlib import Path
 from plumbum import cli, local, colors, TEE
 from wavelets import extractwaveletcoef
 
@@ -77,3 +79,32 @@ def find_completed(toplevel):
             completed[subject.name] = {test.name: test.list() for test in subject if len(test.list()) > 0}
 
     return completed
+
+
+def loopandsmile(toplevellist, config:Path, preserve=False, savemat=True):
+    """
+    Loop through the assumed directory structure and run opensmile on each epoch.
+    :param toplevellist:
+    :param config:
+    :param preserve:
+    :param savemat:
+    :return:
+    """
+    for subject in toplevellist:
+        for experiment in subject.iterdir():
+            for epoch in [x for x in experiment.iterdir() if x.suffix == '.csv']:
+                # make a back up, might break under windows?
+                if not preserve:
+                    shutil.copy(epoch.as_posix(), epoch.with_suffix('.bak').as_posix())
+                shutil.copy(epoch.as_posix(), epoch.with_suffix('.temp').as_posix())
+
+                # Extract features to the same name as input file
+                opensmile_extract_features(config.absolute().as_posix(),
+                                           epoch.absolute().with_suffix('.temp').as_posix(),
+                                           epoch.absolute().as_posix())
+                epoch.with_suffix('.temp').unlink()
+
+                if savemat:
+                    mat_compress(epoch.absolute().as_posix(), epoch.absolute().with_suffix('.mat').as_posix())
+                    # remove original
+                    epoch.unlink()
