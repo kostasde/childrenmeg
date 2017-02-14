@@ -5,8 +5,8 @@ addpath('/opt/MATLAB/R2016a/extern/eeglab13_6_5b/');
 % Add path for any libs being used
 addpath('../libs/voicebox_tools/');
 
-subjects = {'CC007', 'CC021', 'CC025', 'CC028', 'CC067', 'CC084', 'CC092'};
-destination = '/mnt/elephant_sized_space/FEATURES_2';
+subjects = {'all'};
+destination = '/mnt/elephant_sized_space/ALL';
 MEGEEG_CHANNELS = 37:187;
 
 % Create datasets and study to contain them

@@ -4,7 +4,7 @@ import time
 
 import shutil
 from pathlib import Path
-from plumbum import cli, local, colors, TEE
+from plumbum import cli, local, colors, TEE, ProcessExecutionError
 from wavelets import extractwaveletcoef
 
 MATLAB_DIR = '../MATLAB/'
@@ -79,6 +79,33 @@ def find_completed(toplevel):
             completed[subject.name] = {test.name: test.list() for test in subject if len(test.list()) > 0}
 
     return completed
+
+
+def run_catch_fail(function, *args, autotries=2, failedon=None):
+    """
+    This function will run the function provided, and catch unexpected error codes. It will automatically try the
+    function again for the number of provided autotries, then wait for the user to respond.
+    """
+    while True:
+        try:
+            stdout = function(*args)
+        except ProcessExecutionError as e:
+            if autotries != 0:
+                autotries -= 1
+                time.sleep(60)
+                continue
+            if failedon is not None:
+                print('Failed on: ' + failedon)
+            print('STDOUT: ', e.stdout)
+            with colors.red:
+                print('STDERR: ', e.stderr)
+                print('ERRNO: ', e.errno)
+            if cli.terminal.ask('Try again'):
+                continue
+            if cli.terminal.ask('Skip?'):
+                break
+            print('Exiting...')
+            exit(-1)
 
 
 def loopandsmile(toplevellist, config:Path, preserve=False, savemat=True):

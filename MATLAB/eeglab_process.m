@@ -59,9 +59,9 @@ if decoded.destination(end) ~= '/', decoded.destination = [decoded.destination '
 if isempty(strfind(decoded.studyname, '.study')), decoded.studyname = [decoded.studyname '.study']; end
 
 % Check first to see if doing all subjects
-if length(decoded.subjects) == 1 && strcmp(decoded.subjects{1}, 'all') == 0
+if length(decoded.subjects) == 1 && strcmp(decoded.subjects{1}, 'all')
     fprintf(['Preprocessing all subjects in: ', toplevel, '\n']);
-    names = dir(toplevel);
+    names = dir([toplevel 'CC*/']);
     decoded.subjects = {names.name};
 end
 
@@ -109,7 +109,16 @@ for i = 1:length(decoded.subjects)
         
         % Extract Acoustic data and save as new field (MUST BE DONE BEFORE
         % RESAMPLING, DON'T WANT 200Hz Audio!)
-        acousticData = extractAcousticSignal(EEG.data, EEG.srate);
+        % If fails create error file, have empty entry in datasets
+        try
+            acousticData = extractAcousticSignal(EEG.data, EEG.srate);
+        catch ME
+            warning(ME.message);
+            fileID = fopen([EEG.filepath experiment '.error'], 'w');
+            fprintf(fileID, ME.message);
+            datasets{length(datasets)+1} = [];
+            continue
+        end
         EEG.acoustic = acousticData;
 
         % Run an individual ICA if that is specified
@@ -152,7 +161,9 @@ else
     % Create a study out of the datasets
     commands = {};
     for index = 1:length(datasets)
-        commands{length(commands)+1} = {'index' index 'load' datasets{index}};
+        if ~isempty(datasets{index}) 
+            commands{length(commands)+1} = {'index' index 'load' datasets{index}};
+        end
     end
     [STUDY, ALLEEG] = std_editset([], [], 'commands', commands);
     STUDY.filepath = decoded.destination;

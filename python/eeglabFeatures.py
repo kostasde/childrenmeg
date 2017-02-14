@@ -38,9 +38,9 @@ if __name__ == '__main__':
         exit(-1)
 
     if not args.no_meg:
-        loopandsmile([(x / 'MEG') for x in toplevel.iterdir() if x.is_dir()], meg_config,
-                     args.no_preserve, args.save_mat)
+        run_catch_fail(loopandsmile, [(x / 'MEG') for x in toplevel.iterdir() if x.is_dir()], meg_config,
+                     args.no_preserve, args.save_mat, autotries=20)
 
     if not args.no_audio:
-        loopandsmile([(x / 'Audio') for x in toplevel.iterdir() if x.is_dir()], audio_config,
-                     args.no_preserve, args.save_mat)
+        run_catch_fail(loopandsmile, [(x / 'Audio') for x in toplevel.iterdir() if x.is_dir()], audio_config,
+                     args.no_preserve, args.save_mat, autotries=20)
