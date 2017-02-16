@@ -4,7 +4,7 @@ import time
 
 import shutil
 from pathlib import Path
-from plumbum import cli, local, colors, TEE, ProcessExecutionError
+from plumbum import cli, local, colors, TEE, FG, ProcessExecutionError, ProcessTimedOut
 from wavelets import extractwaveletcoef
 
 MATLAB_DIR = '../MATLAB/'
@@ -50,16 +50,16 @@ def preprocess(subject, audioonly=False):
         return matlab_nogui[cmd] & TEE
 
 
-def mat_compress(infile, outfile):
+def mat_compress(infile, outfile, timeout=None):
     with local.cwd(MATLAB_DIR):
         cmd = "in_file='%s';out_file='%s';matCompress" % (infile, outfile)
-        return matlab_nogui[cmd] & TEE
+        return matlab_nogui[cmd] & FG(timeout=timeout)
         # return matlab_cmd(mat_no_gui.replace(MATLAB_REPLACE_TOKEN, ))
 
 
-def opensmile_extract_features(config, input_csv, output_csv):
+def opensmile_extract_features(config, input_csv, output_csv, timeout=None):
     exec_args = open_smile['-C', config, '-I', input_csv, '-O', output_csv]
-    return exec_args & TEE
+    return exec_args & TEE(timeout=timeout)
 
 
 def find_completed(toplevel):
@@ -88,11 +88,12 @@ def run_catch_fail(function, *args, autotries=2, failedon=None):
     """
     while True:
         try:
-            stdout = function(*args)
-        except ProcessExecutionError as e:
+            return function(*args)
+        except (ProcessExecutionError, ProcessTimedOut) as e:
             if autotries != 0:
+                print('Failed! Autotrying...')
                 autotries -= 1
-                time.sleep(60)
+                time.sleep(10)
                 continue
             if failedon is not None:
                 print('Failed on: ' + failedon)
@@ -119,6 +120,7 @@ def loopandsmile(toplevellist, config:Path, preserve=False, savemat=True):
     """
     for subject in toplevellist:
         for experiment in subject.iterdir():
+            print('Subject:', subject, 'Experiment:', experiment)
             for epoch in [x for x in experiment.iterdir() if x.suffix == '.csv']:
                 # make a back up, might break under windows?
                 if not preserve:
@@ -128,10 +130,11 @@ def loopandsmile(toplevellist, config:Path, preserve=False, savemat=True):
                 # Extract features to the same name as input file
                 opensmile_extract_features(config.absolute().as_posix(),
                                            epoch.absolute().with_suffix('.temp').as_posix(),
-                                           epoch.absolute().as_posix())
+                                           epoch.absolute().as_posix(), timeout=30)
                 epoch.with_suffix('.temp').unlink()
 
                 if savemat:
-                    mat_compress(epoch.absolute().as_posix(), epoch.absolute().with_suffix('.mat').as_posix())
+                    mat_compress(epoch.absolute().as_posix(), epoch.absolute().with_suffix('.mat').as_posix(),
+                                 timeout=10)
                     # remove original
                     epoch.unlink()

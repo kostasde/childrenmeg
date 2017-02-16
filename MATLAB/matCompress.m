@@ -10,8 +10,13 @@ fprintf('Loading: %s\n', in_file);
 features = importdata(in_file,';',1);
 % Transpose temp so that each frame is a contiguous set of rows after
 % reshaping the data into a single vector
-header = features.colheaders;
-features = features.data;%reshape(features.data', [1, numel(features.data)]);
+try
+    header = features.colheaders;
+    features = features.data;%reshape(features.data', [1, numel(features.data)]);
+catch ME
+    fprintf('Failed to load. Most likely because empty file...\n');
+    exit;
+end
 save(out_file, 'features', 'header');
 fprintf('Saved to: %s\n', out_file);
 
