@@ -11,6 +11,9 @@ function [ Rho, Pval ] = featureCorrelation( toplevel, varargin )
 % some functions that are used to your path.
 %   
 
+% REMOVE THE VESTIGIAL CRAP SOON
+
+
 % Decode key/value arguments
 decoded = finputcheck(varargin, {
     'splitcond',        'boolean',  [0 1],          0
@@ -52,6 +55,7 @@ for i=1:length(subjects)
         fprintf('%s, ', acond(j).name);       
         aepochs = dir([toplevel subjects(i).name '/Audio/' acond(j).name '/*.mat']);
         mepochs = dir([toplevel subjects(i).name '/MEG/' acond(j).name '/*.mat']);
+        
         if isempty(aepochs)
             fprintf('\n');
             continue
@@ -60,13 +64,20 @@ for i=1:length(subjects)
             continue
         end
         
+        % Create real paths for the files
+        for k=1:length(mepochs)
+            mepochs(k).paths = fullfile(mepochs(k).folder, mepochs(k).name);
+        end
+        
         if decoded.splitcond, c = acond(j).name; else c = 'all'; end
         if isempty(strmatch(c, fieldnames(data)))
-            data = setfield(data, c, struct('meg', {}, 'audio', {})); 
+            data = setfield(data, c, struct('meg', [], 'audio', [])); 
+            currentdata = getfield(data, c);
+            currentdata.meg = {mepochs.paths};
+        else
+            currentdata = getfield(data, c);
+            currentdata.meg = [currentdata.meg mepochs.paths];
         end
-        currentdata = getfield(data, c);
-        currentdata.meg = [currentdata.meg mepochs];
-        currentdata.audio = [currentdata.audio aepochs];
                 
         % update main datastructure
         data = setfield(data, c, currentdata);
@@ -81,11 +92,14 @@ if decoded.splitcond
     Pval = struct();
     for i=2:length(conditions)
         c = getfield(data, char(conditions(i)));
-        
+        %fprintf('Checking consistency..\n');
+        %checkfiles(c);
+        fprintf('Creating Tall matrix for %s...\n', char(conditions(i)));
         [r, p] = tallCorr(c);
         
         Rho = setfield(Rho, char(conditions(i)), r);
         Pval = setfield(Pval, char(conditions(i)), p);
+        save('correlations.mat', 'Rho', 'Pval');
     end
 else
     [Rho, Pval] = tallCorr(data.all);
@@ -93,15 +107,32 @@ end
 
 end
 
+function [] = checkfiles(st)
+% Silly check that needs to be done beacuse datastore reader function cant
+% do the error checking...
+for i=1:length(st.meg)
+    try
+        reader(st.meg{i});
+        fprintf('%.2f', i/length(st.meg));
+    catch E
+        fprintf('Inconsistency: %s, removing.\n', st.meg{i});
+        st.meg{i} = [];
+    end 
+end
+end
+
 function [r, p] = tallCorr(filestruct)
 
-dsa = datastore(filestruct.audio);
-dsm = datastore(filestruct.meg);
+ds = fileDatastore(filestruct.meg, 'ReadFcn', @reader);
 
-ta = table2array(tall(dsa));
-tm = table2array(tall(dsm));
+t = tall(ds);
+%t = t(~cellfun(@isempty, t));
 
-[r, p] = corr(tm, ta);
+t = cell2underlying(t);
+
+[r, p] = corr(t.MEG, t.Audio);
+
+[r, p] = gather(r, p);
 
 end
 
