@@ -18,7 +18,9 @@ decoded = finputcheck(varargin, {
 
 if isstr(decoded), error('varargin malformatted'); end;
 
-data = struct('all', struct('meg',[],'audio',[]));
+% Main struct that will be used to hold the list of files and tall arrays
+% For each condition that correlations will be performed for.
+data = struct('all', struct('meg',{},'audio',{}));
 
 % Ensure path has '/' ending
 if toplevel(end) ~= '/', toplevel = [toplevel '/']; end
@@ -60,28 +62,12 @@ for i=1:length(subjects)
         
         if decoded.splitcond, c = acond(j).name; else c = 'all'; end
         if isempty(strmatch(c, fieldnames(data)))
-            data = setfield(data, c, struct('meg', [], 'audio', [])); 
+            data = setfield(data, c, struct('meg', {}, 'audio', {})); 
         end
         currentdata = getfield(data, c);
-        
-        % Go through all epoch files
-        for k=1:length(aepochs)
-            fprintf('.');
-            audiodata = load([toplevel subjects(i).name '/Audio/'...
-                acond(j).name '/' aepochs(k).name], 'features');
-            megdata = load([toplevel subjects(i).name '/MEG/'...
-                acond(j).name '/' mepochs(k).name], 'features');
-            
-            try
-                currentdata.meg = [currentdata.meg; megdata.features];
-                currentdata.audio = [currentdata.audio; audiodata.features];
-            catch ME
-                fprintf('\nWARNING: Mismatch in features!!! Not including this\n');
-                continue
-            end
-        end
-        fprintf('\n');
-        
+        currentdata.meg = [currentdata.meg mepochs];
+        currentdata.audio = [currentdata.audio aepochs];
+                
         % update main datastructure
         data = setfield(data, c, currentdata);
         fprintf('\n');
@@ -95,14 +81,27 @@ if decoded.splitcond
     Pval = struct();
     for i=2:length(conditions)
         c = getfield(data, char(conditions(i)));
-        [r, p] = corr(c.meg, c.audio);
+        
+        [r, p] = tallCorr(c);
         
         Rho = setfield(Rho, char(conditions(i)), r);
         Pval = setfield(Pval, char(conditions(i)), p);
     end
 else
-    [Rho, Pval] = corr(data.all.meg, data.all.audio);
+    [Rho, Pval] = tallCorr(data.all);
 end
+
+end
+
+function [r, p] = tallCorr(filestruct)
+
+dsa = datastore(filestruct.audio);
+dsm = datastore(filestruct.meg);
+
+ta = table2array(tall(dsa));
+tm = table2array(tall(dsm));
+
+[r, p] = corr(tm, ta);
 
 end
 
