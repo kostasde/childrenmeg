@@ -8,7 +8,7 @@ function [ xlabels, ylabels ] = correlationFigure( A, meglabels, audiolabels, nu
 % numticks - The number of highest value points to label on the axis
 
 if length(size(A)) ~= 2, fprintf('A must be 2 dimensions\n'); return; end
-B = abs(A);
+B = abs(A)';
 
 figure;
 get(gca);

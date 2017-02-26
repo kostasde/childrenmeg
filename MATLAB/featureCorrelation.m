@@ -13,13 +13,16 @@ function [ Rho, Pval ] = featureCorrelation( toplevel, varargin )
 
 % REMOVE THE VESTIGIAL CRAP SOON
 
-
 % Decode key/value arguments
 decoded = finputcheck(varargin, {
     'splitcond',        'boolean',  [0 1],          0
     }); 
 
 if isstr(decoded), error('varargin malformatted'); end;
+
+% Subjects table
+subjectref = load('/mnt/elephant_sized_space/ALL/subject_table.mat');
+subjectref = subjectref.subject_table;
 
 % Main struct that will be used to hold the list of files and tall arrays
 % For each condition that correlations will be performed for.
@@ -36,7 +39,10 @@ end
 subjects = dir([toplevel 'CC*']);
 for i=1:length(subjects)
     fprintf('Loading %s...\n', subjects(i).name);
-    if ~isdir([toplevel subjects(i).name '/Audio/'])
+    if ~any(cell2mat(strfind(subjectref{:,'ID'}, subjects(i).name)))
+        fprintf('No meta-data for %s, skipping.\n', subjects(i).name);
+        continue
+    elseif ~isdir([toplevel subjects(i).name '/Audio/'])
         fprintf('No Audio directory, skipping.\n');
         continue
     elseif ~isdir([toplevel subjects(i).name '/MEG/'])
@@ -95,14 +101,23 @@ if decoded.splitcond
         %fprintf('Checking consistency..\n');
         %checkfiles(c);
         fprintf('Creating Tall matrix for %s...\n', char(conditions(i)));
-        [r, p] = tallCorr(c);
-        
+        fprintf('Mutual Features Correlations\n');
+        [r, p] = tallCorr(c, {'MEG'}, {'Audio'});
         Rho = setfield(Rho, char(conditions(i)), r);
         Pval = setfield(Pval, char(conditions(i)), p);
+        
+        fprintf('Age Correlations\n');
+        [r, p] = tallCorr(c, {'MEG', 'Audio'}, {'age'});
+        % Silly hack
+        r = r(:, 1);
+        p = p(:, 1);
+        Rho = setfield(Rho, strcat(char(conditions(i)), '_AGE'), r);
+        Pval = setfield(Pval, strcat(char(conditions(i)), '_AGE'), p);
+        
         save('correlations.mat', 'Rho', 'Pval');
     end
 else
-    [Rho, Pval] = tallCorr(data.all);
+    [Rho, Pval] = tallCorr(data.all, 0);
 end
 
 end
@@ -121,7 +136,7 @@ for i=1:length(st.meg)
 end
 end
 
-function [r, p] = tallCorr(filestruct)
+function [r, p] = tallCorr(filestruct, X, Y)
 
 ds = fileDatastore(filestruct.meg, 'ReadFcn', @reader);
 
@@ -130,7 +145,7 @@ t = tall(ds);
 
 t = cell2underlying(t);
 
-[r, p] = corr(t.MEG, t.Audio);
+[r, p] = corr(t{:, X}, t{:, Y});
 
 [r, p] = gather(r, p);
 

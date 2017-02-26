@@ -5,7 +5,8 @@ import time
 import shutil
 from pathlib import Path
 from plumbum import cli, local, colors, TEE, FG, ProcessExecutionError, ProcessTimedOut
-from wavelets import extractwaveletcoef
+import matlab.engine as mtlb
+#from wavelets import extractwaveletcoef
 
 MATLAB_DIR = '../MATLAB/'
 CONFIG_DIR = '../configs/'
@@ -51,10 +52,18 @@ def preprocess(subject, audioonly=False):
 
 
 def mat_compress(infile, outfile, timeout=None):
-    with local.cwd(MATLAB_DIR):
-        cmd = "in_file='%s';out_file='%s';matCompress" % (infile, outfile)
-        return matlab_nogui[cmd] & FG(timeout=timeout)
-        # return matlab_cmd(mat_no_gui.replace(MATLAB_REPLACE_TOKEN, ))
+    try:
+        mtlbeng.workspace['in_file'] = infile
+        mtlbeng.workspace['out_file'] = outfile
+        mtlbeng.matCompress(nargout=0)
+    # pretty stupid, FIXME
+    except (NameError, AttributeError):
+        print('Failed to use MATLAB python API')
+        print('Falling back to command line matlab')
+        with local.cwd(MATLAB_DIR):
+            cmd = "in_file='%s';out_file='%s';matCompress" % (infile, outfile)
+            return matlab_nogui[cmd] & FG(timeout=timeout)
+            # return matlab_cmd(mat_no_gui.replace(MATLAB_REPLACE_TOKEN, ))
 
 
 def opensmile_extract_features(config, input_csv, output_csv, timeout=None):
@@ -118,6 +127,12 @@ def loopandsmile(toplevellist, config:Path, preserve=False, savemat=True):
     :param savemat:
     :return:
     """
+    if savemat:
+        print('Starting MATLAB...')
+        mtlbeng = mtlb.start_matlab()
+        mtlbeng.addpath(MATLAB_DIR, nargout=0)
+        print('MATLAB ready!')
+
     for subject in toplevellist:
         for experiment in subject.iterdir():
             print('Subject:', subject, 'Experiment:', experiment)
@@ -138,3 +153,8 @@ def loopandsmile(toplevellist, config:Path, preserve=False, savemat=True):
                                  timeout=10)
                     # remove original
                     epoch.unlink()
+
+    if savemat:
+        print('Exiting MATLAB...')
+        mtlbeng.exit()
+        print('Done.')
