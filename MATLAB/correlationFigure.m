@@ -32,11 +32,14 @@ y = unique(y);
     
 ax.XTick = x;
 ax.YTick = y;
+
+if ~isempty(meglabels) && ~isempty(audiolabels)
+    ax.XTickLabel = meglabels(x);
+    ax.YTickLabel = audiolabels(y);
     
-ax.XTickLabel = meglabels(x);
-ax.YTickLabel = audiolabels(y);
-xlabels = meglabels(x);
-ylabels = audiolabels(y);
+    xlabels = meglabels(x);
+    ylabels = audiolabels(y);
+end
 
 end
 

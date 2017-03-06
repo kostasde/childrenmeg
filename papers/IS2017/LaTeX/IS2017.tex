@@ -31,63 +31,54 @@
 
 We approach the problem of  
 
-\section{Experimental Data}
+\section{Methods}
 
-Overview of dataset and experiments run
+%Overview of experiments, data processing and analysis performed
+
+\subsection{Experiments}
+
+Four tests were conducted for work on age and sex related developmental language differences {Pang...}. Two consisted of children repeatedly producing vocalizations when prompted..., a test where subjects kept there mouths open and did not vocalize... and finally a verb generation task where... The subjects were prompted to produce a response X times for each experiment, and experiments were repeated when.
 
 \subsection{Subjects}
 
-The dataset is made up of 4 tests performed with 70 (36 boys and 34 girls) healthy native English speaking children. Their ages ranged from 4.1-18.4 years of age, with a standard deviation of <FILL>. [The children's speech was also verified to show no signs of articulartory difficulties through observation].
+There were 70 (36 boys and 34 girls) healthy native English speaking children who performed the experiment. Their ages ranged from 4.1-18.4 years of age, with a standard deviation of <FILL>. [The children's speech was also verified to show no signs of articulartory difficulties through observation?].
 
-\subsubsection{Data Collection and Preparation}
+\begin{itemize}
+\item Reference in some way to other Pang papers
+\item Additional information about handedness and intelligence measures?
+\end{itemize}
 
-Participants were tested in a magnetically shielded room in the Neuromagnetic Lab at the Hospital for Sick Children, using a CTF 151-channel whole-head MEG system (MEG International Services Ltd., Coquitlam, BC, Canada). The system recorded the 151 MEG channels and a single audio channel with a sampling rate of 4kHz. The MEG signals were then resampled at 200Hz, and band pass filtered between 0.5Hz and 100 Hz.
+\subsection{Data Collection and Preparation}
+
+Participants were tested in a magnetically shielded room in the Neuromagnetic Lab at the Hospital for Sick Children, using a CTF 151-channel whole-head MEG system (MEG International Services Ltd., Coquitlam, BC, Canada). The system recorded the 151 MEG channels and a single audio channel with a sampling rate of 4kHz. The MEG signals were resampled at 200Hz, and band pass filtered between 0.5Hz and 100 Hz.
+
+Removal of ocular artifacts was performed... -Rui probably here-
+
+Independent component analysis (ICA) (explain or reference here?) was then used to determine statistically independent sub-components of the MEG recordings across all subjects. This was done by appending MEG recordings for all subjects into a single 151 channel matrix for each of the 4 tests performed using the EEGLAB toolbox {EEGLAB} for Matlab {?}. ICA was performed using EEGLAB's implementation of the logistic infomax ICA algorithm {EEGLAB ICA section reference}.
+
+The weight matrix produced by the ICA for each test condition was applied to each subject's recordings per respective test and the recordings (both MEG and audio separately) were separated into epochs that correspond to -500ms to +1500ms windows around each prompt a subject received to perform a test.
+
+Features were then extracted from all epochs using openSMILE. 
+
+\subsection{Analysis Performed}
+
+The analysis that was performed fell into two categories, in one the features extracted were checked for correlations in an attempt to demonstrate evidence for , in the other models were learned using regularized linear regression to predict 
+
+\section{Results}
+
+\subsection{Correlations}
+
+\subsubsection{MEG vs. Audio Features}
+
+\subsubsection{All Features vs. Age}
+
+\subsection{Regression}
 
 \section{Discussion}
 
-This is the discussion. This is the discussion. This is the discussion. Is there any discussion?
+\subsection{Significance}
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras consequat mollis odio, nec venenatis enim auctor sed. Integer tincidunt fringilla lectus eget condimentum. In eget sapien id eros dapibus interdum vel ac quam. Aenean vitae rutrum erat. Aenean et risus pharetra, lacinia augue ut, fermentum ante. Integer dui arcu, interdum at ornare a, faucibus quis est. Mauris quis quam felis. Etiam pulvinar massa et turpis lacinia, eu posuere mi iaculis. Fusce at velit quis leo dignissim porttitor.
-
-Fusce ut nunc eu sapien venenatis finibus a vel ligula. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Ut quam eros, volutpat at gravida consectetur, rutrum ut leo. Aenean cursus euismod feugiat. Cras hendrerit, ligula eu feugiat malesuada, neque turpis auctor lacus, sit amet accumsan neque orci a quam. Mauris suscipit ultrices mattis. Nulla at interdum metus, id pharetra diam. Curabitur at vestibulum sem, sed elementum massa. Donec iaculis et arcu ut rutrum. Fusce gravida, mauris porta volutpat eleifend, enim mauris eleifend orci, eu ultrices leo purus vitae metus. In pretium dolor ut magna dictum, at imperdiet lectus porta.
-
-Quisque mollis lectus id risus pretium mattis. Morbi scelerisque posuere est, id efficitur urna luctus non. Praesent quam lacus, facilisis id ante eu, vehicula maximus ex. Nullam mollis in arcu vitae efficitur. Aliquam molestie eleifend ante, in pretium velit ultrices ac. Etiam laoreet nec sem non pulvinar. Integer ligula felis, interdum non lacus id, malesuada imperdiet turpis.
-
-Aenean sit amet volutpat nisi. Aliquam eu erat quis tortor ultrices laoreet. Vivamus fermentum semper metus, non faucibus libero euismod vitae. Sed efficitur porta congue. Aenean in faucibus nisi. Donec suscipit augue vitae orci consequat, sit amet aliquet felis varius. Duis efficitur lacinia dolor sit amet lobortis. Curabitur erat sapien, molestie nec nisi eu, dignissim accumsan ipsum. Fusce id nibh nec risus dictum posuere in ac magna. Donec malesuada massa sed erat lacinia cursus. Suspendisse ornare augue nec volutpat consequat.
-
-Vestibulum et vulputate nisi, a malesuada mi. Nam pellentesque arcu sapien, at placerat odio imperdiet ut. Curabitur nec venenatis tellus, vel aliquet nisi. Curabitur vel ligula sit amet metus auctor pretium. Nullam nulla mi, blandit a mattis id, vulputate sit amet enim. Proin mollis fringilla dictum. Proin lacinia orci purus.
-
-Curabitur porttitor bibendum dolor, nec consectetur sapien pulvinar id. Donec eleifend, est vel dignissim pretium, tortor augue euismod nunc, id fermentum erat felis ac neque. Morbi id lectus ultricies, rutrum justo eu, sollicitudin risus. Suspendisse lobortis efficitur nisi sit amet pellentesque. Ut eget augue at mi aliquet mattis. Proin et feugiat erat, sit amet sodales eros. Integer sed elit quis est mattis ullamcorper. Pellentesque lectus nisi, vulputate a imperdiet tincidunt, auctor nec orci. Pellentesque sagittis nisl orci, vitae placerat massa lacinia nec. Sed egestas magna sed augue sollicitudin luctus. Praesent interdum bibendum tortor, eu porta purus. Aliquam convallis velit id mi fermentum, sed ornare eros cursus.
-
-Quisque congue leo a fringilla pharetra. Phasellus sed tempor est, sed auctor purus. Morbi vel lacus ullamcorper, auctor mauris id, pulvinar lorem. Suspendisse potenti. Nam porta, purus non eleifend bibendum, erat metus pellentesque elit, non luctus nibh nunc ornare nisl. Sed rutrum lacinia nisi ac suscipit. Curabitur non blandit augue. Integer viverra, ipsum vel molestie euismod, sem quam tempus massa, eget efficitur ante turpis non metus. Quisque efficitur posuere velit in iaculis. Cras imperdiet varius urna vitae vestibulum. Donec accumsan eget nisi sed pellentesque. Vestibulum id quam ut urna volutpat ullamcorper gravida sit amet libero. Aliquam bibendum, ligula vitae porta malesuada, arcu diam congue erat, a pharetra diam sem vulputate tortor. Etiam luctus iaculis leo cursus tristique.
-
-Mauris mattis sem dolor, sit amet ullamcorper arcu tincidunt ac. Vestibulum at blandit tortor. Quisque bibendum congue leo, vitae eleifend massa. Vestibulum vitae odio elit. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Ut sagittis quam vel felis ornare, in gravida felis tempor. Donec molestie dui quis leo venenatis blandit. Nunc sit amet finibus metus. Cras ut lectus ex.
-
-Suspendisse commodo libero vel leo tincidunt, a tempus mauris porta. Integer varius eros ac sapien lacinia vehicula. Donec porttitor, lacus faucibus rhoncus venenatis, neque quam imperdiet nunc, id consectetur metus purus quis sapien. Phasellus interdum nulla vel euismod posuere. Vestibulum finibus magna vel finibus mollis. Curabitur mollis turpis tortor, hendrerit vulputate justo egestas quis. Nam dignissim luctus leo non elementum. Phasellus a metus at leo malesuada bibendum. Mauris quis eleifend magna, nec vehicula ex. Donec venenatis urna fermentum commodo vehicula. Ut mattis scelerisque aliquam. Vivamus pulvinar erat metus, id tempus mi vulputate quis.
-
-Fusce lobortis a urna eget blandit. Vivamus in eleifend neque, at sollicitudin lectus. Quisque faucibus egestas lorem, in commodo diam maximus eu. Morbi finibus ante ac felis porttitor euismod. Donec lobortis aliquam ipsum sit amet luctus. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Etiam rutrum neque sapien, eget luctus turpis iaculis pulvinar. Duis quis pulvinar nunc, nec bibendum ligula. Phasellus suscipit sagittis lacus molestie laoreet. Pellentesque lacus diam, tincidunt a aliquam vitae, aliquet non justo.
-
-Etiam lectus lacus, commodo eget consectetur eget, auctor vitae leo. Praesent vitae erat in diam blandit semper vitae et eros. Maecenas auctor pharetra nibh eget egestas. Donec accumsan ut risus eget rhoncus. Nam placerat, erat sit amet gravida mollis, purus arcu accumsan diam, tempus pharetra risus mi ac sapien. Ut et tortor porta, pulvinar elit vitae, tempor mi. Nam interdum, nisl non pharetra molestie, turpis neque commodo ligula, sit amet pretium nisl nibh quis ante. Quisque et ex eget velit lobortis suscipit. Integer aliquam finibus molestie. Sed pellentesque neque eu turpis aliquet, mattis ornare enim finibus. In hac habitasse platea dictumst.
-
-Integer congue quis justo a posuere. Quisque porta, ante et dignissim suscipit, arcu mauris ultrices libero, nec sollicitudin purus lacus a enim. Aliquam feugiat eget lacus molestie sodales. Duis blandit placerat nunc, et venenatis turpis dictum vel. Nulla facilisi. Nam ullamcorper, tellus eu posuere mattis, arcu lacus dictum nulla, vel mattis nisi sem posuere tellus. Etiam quis eros condimentum lectus lobortis eleifend. In ex lacus, sodales scelerisque egestas ac, aliquam nec purus. Nunc sit amet magna non libero ullamcorper dictum. Phasellus porta faucibus tempus. Praesent blandit tortor sed tellus ornare consectetur. Sed sed nisi id neque porta varius eu eu velit. Curabitur varius convallis justo id facilisis. Mauris auctor velit nec aliquam cursus.
-
-Integer suscipit scelerisque leo sed faucibus. Ut commodo nulla luctus diam posuere egestas. Integer ut augue ac velit ullamcorper tempus. Pellentesque in mi rhoncus, sodales sem quis, commodo sem. Aenean dapibus euismod diam id rhoncus. Nullam vehicula placerat eros consectetur luctus. Aliquam auctor ipsum vitae egestas imperdiet. Ut nulla lacus, imperdiet quis urna vel, ornare imperdiet tortor. Mauris nec diam ac nunc laoreet volutpat at id turpis. Nulla eu neque a risus feugiat iaculis ac vel risus. Ut tempus elementum lorem eget porta. Nullam et ullamcorper urna. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Phasellus eget dui vitae nulla hendrerit ultrices quis rutrum leo.
-
-Proin consectetur lacus sit amet eleifend varius. Etiam eu blandit risus. Curabitur pellentesque urna sed dolor congue mattis. Vestibulum ut velit posuere, feugiat leo a, dignissim massa. Proin eu nulla risus. Fusce luctus bibendum est, sit amet venenatis nisi finibus non. Donec ultricies ornare nunc at lobortis. Nam a auctor metus. Vestibulum pretium condimentum turpis ac mattis. Curabitur semper sagittis rhoncus. Duis molestie facilisis mattis. Sed pharetra lorem id tortor efficitur, sed maximus leo posuere. Quisque suscipit molestie convallis. Duis imperdiet placerat congue. Morbi placerat, velit ut tempor porta, ex nisi imperdiet purus, non feugiat ex velit nec nulla.
-
-Phasellus mattis at erat eget lobortis. Vivamus sodales odio non erat luctus faucibus. Curabitur aliquam luctus nulla quis consectetur. Fusce vulputate finibus vulputate. Cras at condimentum massa. Duis vestibulum ipsum ac tortor lobortis fringilla. Cras non neque at nunc pellentesque mollis. Sed quis erat mauris. Ut dapibus sem lectus, quis imperdiet diam bibendum et. Maecenas quis venenatis ante. Nunc blandit a risus sed scelerisque. Praesent cursus est sit amet nisi tempus, quis placerat libero rutrum. Phasellus lacinia nisi quis consequat mollis. Phasellus sagittis aliquam lacus.
-
-Sed dolor quam, posuere nec nunc eget, feugiat lobortis ligula. Fusce lacinia fermentum dolor, luctus dapibus ex venenatis feugiat. In hac habitasse platea dictumst. Nullam vitae ligula dignissim, interdum turpis quis, tincidunt metus. Nullam in nisl vitae mauris egestas porta. Nam fringilla aliquet sapien, non dapibus nunc sollicitudin id. Nunc hendrerit felis et vehicula consequat. Praesent varius libero id volutpat iaculis. Aliquam vel dui imperdiet, pharetra augue sed, iaculis nulla. Quisque mollis orci nec odio eleifend, eget laoreet nunc feugiat. Cras varius tortor a fringilla gravida.
-
-Sed posuere erat eu dolor consequat euismod. Donec imperdiet, tellus nec convallis commodo, lorem sem lobortis purus, a lacinia massa ipsum vitae nisl. Vivamus auctor tellus in urna iaculis luctus. In dui nibh, posuere a erat a, lobortis finibus nulla. Sed vel suscipit nisi. Nunc eget nibh risus. Sed posuere tempus eleifend. Nullam ac lacinia ligula, ut blandit erat. In at est sed turpis consequat rutrum. Nunc eget lectus venenatis, convallis ligula non, mollis orci. Aliquam sit amet ligula turpis. Sed finibus laoreet elit nec molestie.
-
-Mauris in nisi et neque euismod aliquam ut eget felis. Sed eget dictum tellus, finibus rutrum nibh. Fusce placerat augue a faucibus semper. Nam sed nisl ligula. Vivamus ante augue, faucibus at risus ut, hendrerit viverra risus. Etiam justo eros, dignissim a nunc sed, porta mollis erat. Fusce in sem accumsan, laoreet nibh porta, porttitor orci. Donec venenatis vehicula ante eget dictum.
-
-Aliquam fermentum a metus pellentesque cursus. Vivamus eleifend ultricies tellus, vel scelerisque diam. Sed hendrerit est at elit suscipit placerat. Praesent nec pretium erat. Quisque blandit nunc in felis bibendum consequat. Aliquam quis orci consectetur nulla luctus ullamcorper. Suspendisse finibus luctus erat a dapibus.
-
-Aliquam bibendum egestas vestibulum. Nunc molestie porttitor quam facilisis rhoncus. Pellentesque volutpat ipsum pulvinar odio eleifend, eget pellentesque ipsum convallis. Nullam at augue vehicula, accumsan nibh in, tempor eros. Donec ut lacus tellus. Aenean laoreet ipsum at mauris sollicitudin, sit amet semper mi tincidunt. Aliquam at finibus purus, sed placerat eros. Suspendisse non sagittis nunc. Sed hendrerit enim ac egestas congue.
-
-Praesent convallis massa vitae tortor viverra hendrerit. Curabitur vitae metus et lacus consectetur convallis. Donec ligula libero, aliquam sit amet purus ut, pellentesque rutrum massa. Curabitur egestas ultricies leo, eget dignissim est placerat a. Morbi egestas dapibus quam vitae congue. Praesent ut convallis leo. Cras lacus sem, bibendum eget finibus ac, cursus eget turpis.
+Frank wants to write section outlining caveats
 
 \section{Conclusions}
 
