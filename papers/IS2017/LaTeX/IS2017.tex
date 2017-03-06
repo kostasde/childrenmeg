@@ -15,21 +15,21 @@
 \maketitle
 % 
 \begin{abstract}
-  For your paper to be published in the conference proceedings, you must use this document as both an instruction set and as a template into which you can type your own text. If your paper does not conform to the required format, you will be asked to fix it.
 
-  Please do not reuse your past papers as a template. To prepare your paper for submission, please always download a fresh copy of this template from the conference website and please read the format instructions in this template before you use it for your paper.
-
-  Conversion to PDF may cause problems in the resulting PDF or expose problems in your source document. Before submitting your final paper in PDF, check that the format in your paper PDF conforms to this template. Specifically, check the appearance of the title and author block, the appearance of section headings, document margins, column width, column spacing, and other features such as figure numbers, table numbers and equation number. In summary, you must proofread your final paper in PDF before submission.
+Lorem Ipsum
   
-  The maximum number of pages is 5. The 5\textsuperscript{th} page may be used exclusively for references. The references should begin on an earlier page immediately after the Acknowledgements section, and continue onto the 5\textsuperscript{th} page. If no space is available on an earlier page, then the references may begin on the 5\textsuperscript{th} page.
-
-  Index terms should be included as shown below.
 \end{abstract}
-\noindent\textbf{Index Terms}: speech recognition, human-computer interaction, computational paralinguistics
+\noindent\textbf{Index Terms}: Brain Computer Interfaces, Speech Production
 
 \section{Introduction}
 
-We approach the problem of  
+% temporary itemized list of things to cover
+\begin{itemize}
+\item Goal is building models that relate brain activity to speech production
+\item Tie in to Broca's area
+\item Tie in to Frank's work with co-articulator measurements/models for speech production??
+\item Approach from a machine-learning/data-driven perspective
+\end{itemize}  
 
 \section{Methods}
 
@@ -37,15 +37,15 @@ We approach the problem of
 
 \subsection{Experiments}
 
-Four tests were conducted for work on age and sex related developmental language differences {Pang...}. Two consisted of children repeatedly producing vocalizations when prompted..., a test where subjects kept there mouths open and did not vocalize... and finally a verb generation task where... The subjects were prompted to produce a response X times for each experiment, and experiments were repeated when.
+The experiments performed consisted of four tests conducted for work on age and sex related developmental language differences {Pang...}. Two consisted of children repeatedly producing vocalizations when prompted..., a test where subjects kept there mouths open and did not vocalize... and finally a verb generation task where... The subjects were prompted to produce a response X times for each experiment.
 
 \subsection{Subjects}
 
-There were 70 (36 boys and 34 girls) healthy native English speaking children who performed the experiment. Their ages ranged from 4.1-18.4 years of age, with a standard deviation of <FILL>. [The children's speech was also verified to show no signs of articulartory difficulties through observation?].
+There were 70 (36 boys and 34 girls) healthy native English speaking children who performed the experiment. Their ages ranged from 4.1-18.4 years of age, with a standard deviation of <FILL>. (The children's speech was also verified to show no signs of articulartory difficulties through observation?).
 
 \begin{itemize}
-\item Reference in some way to other Pang papers
-\item Additional information about handedness and intelligence measures?
+\item How much more tie in to Pang papers?
+\item Additional information about handedness and intelligence measures? Relating to Broca's area typically in dominant hemisphere?
 \end{itemize}
 
 \subsection{Data Collection and Preparation}
@@ -54,25 +54,54 @@ Participants were tested in a magnetically shielded room in the Neuromagnetic La
 
 Removal of ocular artifacts was performed... -Rui probably here-
 
-Independent component analysis (ICA) (explain or reference here?) was then used to determine statistically independent sub-components of the MEG recordings across all subjects. This was done by appending MEG recordings for all subjects into a single 151 channel matrix for each of the 4 tests performed using the EEGLAB toolbox {EEGLAB} for Matlab {?}. ICA was performed using EEGLAB's implementation of the logistic infomax ICA algorithm {EEGLAB ICA section reference}.
+Independent component analysis (ICA) (explain a little bit, or just reference here?) was then used to determine statistically independent sub-components of the MEG recordings across all subjects. This was done by appending MEG recordings for all subjects into a single 151 channel matrix for each of the 4 tests performed using the EEGLAB toolbox {EEGLAB} for Matlab {?}. ICA was performed using EEGLAB's implementation of the logistic infomax ICA algorithm {EEGLAB ICA section reference}.
 
 The weight matrix produced by the ICA for each test condition was applied to each subject's recordings per respective test and the recordings (both MEG and audio separately) were separated into epochs that correspond to -500ms to +1500ms windows around each prompt a subject received to perform a test.
 
-Features were then extracted from all epochs using openSMILE. 
+Features were then extracted from all epochs using openSMILE.
+
+\begin{itemize}
+\item 50ms windows with 25ms overlap
+\item Number of features for each data mode
+\item General feature categories, ie. statistical moments: mean, deviation, kurtosis..., FFT mag, energy,
+  LPC, jitter, shimmer...
+\item Why did we choose these features? Are we saying kitchen sink approach?
+\end{itemize}
 
 \subsection{Analysis Performed}
 
-The analysis that was performed fell into two categories, in one the features extracted were checked for correlations in an attempt to demonstrate evidence for , in the other models were learned using regularized linear regression to predict 
+The analysis that was performed fell into two categories, in the first: features extracted were checked for correlations in an attempt to demonstrate evidence for predictive possibility, in the second: regularized linear regression models were learned to predict a subject's age.
+
+\subsubsection{Correlation}
+
+We used standard Pearson correlation to determine correlation between MEG and Audio features for each of our test conditions. Correlations were analyzed by plotting a map of correlation coefficients with p < 0.01. Additionally we also compared correlation between a combination of both feature sets and subject age.
+
+\subsubsection{Linear Regression}
+
+Three linear regression models to predict age were trained using the \textit{Audio}, \textit{MEG} and \textit{Audio+MEG (Fusion)} datasets respectively. Ten-fold cross-validation was used, such that each dataset was divided into 10 approximately equal groups, and each group had an approximately equivalent and nearly uniform distribution of points from each subject. A held out test set was used to report performance.
+
+Would we put a regression formula here?
 
 \section{Results}
 
 \subsection{Correlations}
 
+Big caveat with all the correlation material is that it represents correlations between ICA transformed data.
+
 \subsubsection{MEG vs. Audio Features}
+
+\begin{itemize}
+\item Could use the correlation figures I have been generating.
+\end{itemize}
+
 
 \subsubsection{All Features vs. Age}
 
+Do we want to just list the most correlated features here?
+
 \subsection{Regression}
+
+Table comparing mean and deviation test performance for the three different models.
 
 \section{Discussion}
 
@@ -82,11 +111,11 @@ Frank wants to write section outlining caveats
 
 \section{Conclusions}
 
-Authors must proofread their PDF file prior to submission to ensure it is correct. Authors should not rely on proofreading the Word file. Please proofread the PDF file before it is submitted.
+Lorem Ipsum
 
 \section{Acknowledgements}
 
-The ISCA Board would like to thank the organizing committees of the past INTERSPEECH conferences for their help and for kindly providing the template files.
+Lorem Ipsum
 
 
 \bibliographystyle{IEEEtran}

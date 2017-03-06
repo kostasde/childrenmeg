@@ -1,14 +1,19 @@
-function [ xlabels, ylabels ] = correlationFigure( A, meglabels, audiolabels, numticks, plot_title )
+function [ xlabels, ylabels ] = correlationFigure( r, p, meglabels, audiolabels, numticks, p_max, plot_title )
 %CORRELATIONFIGURE Generate a figure showing a visualiztion of the provided
 % matrix
 %
-% A  - matrix n x m, where m is dimension of meg features, and n the audio
+% p  - matrix n x m, where m is dimension of meg features, and n the audio
 % meglabels - The labels for the meg features
 % audiolabels - The labels for the audio features
 % numticks - The number of highest value points to label on the axis
 
-if length(size(A)) ~= 2, fprintf('A must be 2 dimensions\n'); return; end
-B = abs(A)';
+if length(size(r)) ~= 2, fprintf('A must be 2 dimensions\n'); return; end
+B = abs(r)';
+
+if ~isempty(p)
+    % Ignore entries that have p value higher than tolerated
+    B(p > p_max) = nan;
+end
 
 figure;
 get(gca);
