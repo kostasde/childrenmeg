@@ -61,7 +61,7 @@ if isempty(strfind(decoded.studyname, '.study')), decoded.studyname = [decoded.s
 % Check first to see if doing all subjects
 if length(decoded.subjects) == 1 && strcmp(decoded.subjects{1}, 'all')
     fprintf(['Preprocessing all subjects in: ', toplevel, '\n']);
-    names = dir([toplevel 'CC*/']);
+    names = dir([toplevel 'CC*']);
     decoded.subjects = {names.name};
 end
 

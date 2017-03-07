@@ -1,17 +1,16 @@
 % This is the top level script that will output the data that is needed.
 
-% Put path to eeglab here
-addpath('/opt/MATLAB/R2016a/extern/eeglab13_6_5b/');
 % Add path for any libs being used
 addpath('../libs/voicebox_tools/');
 
 subjects = {'all'};
-destination = '/mnt/elephant_sized_space/ALL';
+toplevel = '';
+destination = '';
 MEGEEG_CHANNELS = 37:187;
 
 % Create datasets and study to contain them
-[STUDY, ALLEEG] = eeglab_process('/mnt/elephant_sized_space/LizPang/Children/',...
-    'subjects', subjects, 'destination', destination);
+[STUDY, ALLEEG] = eeglab_process(toplevel, 'subjects', subjects,...
+    'destination', destination);
 pop_savestudy(STUDY, ALLEEG, 'filepath', STUDY.filepath, 'filename', STUDY.filename);
 
 % If icaact not available calculate, if no ICA weights, perform ICA
