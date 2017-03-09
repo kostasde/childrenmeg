@@ -88,7 +88,6 @@ for i = 1:length(decoded.subjects)
         
         % Otherwise create and process
         % Read dataset
-        [toplevel decoded.subjects{i} '/' experiments(j).name]
         try
             EEG = pop_ctf_read([toplevel decoded.subjects{i} '/' experiments(j).name], 'all');
         catch ME
@@ -132,6 +131,13 @@ for i = 1:length(decoded.subjects)
         EEG = pop_resample(EEG, decoded.downsample);
         EEG = eeg_checkset(EEG);
         
+        % Filtering out EOG signals using BSS methods
+        % eigratio - determines the number of principal components that will
+        %           be kept in the pre-processing PCA step which is performed before 
+        %            any BSS algorithm
+        % eog_fd - fractional dimensions as criterion
+        % range - specifies the minimum and maximum number of components 
+        %         that are to be marked as artifactual in each analysis window.
         EEG = pop_autobsseog(EEG, 440, 440, 'sobi', {'eigratio',1e6}, 'eog_fd', {'range',[2,73]});
         EEG = eeg_checkset(EEG);
         
