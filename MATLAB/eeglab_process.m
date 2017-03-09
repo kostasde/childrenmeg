@@ -88,6 +88,7 @@ for i = 1:length(decoded.subjects)
         
         % Otherwise create and process
         % Read dataset
+        [toplevel decoded.subjects{i} '/' experiments(j).name]
         try
             EEG = pop_ctf_read([toplevel decoded.subjects{i} '/' experiments(j).name], 'all');
         catch ME
@@ -129,6 +130,9 @@ for i = 1:length(decoded.subjects)
         
         % Resample
         EEG = pop_resample(EEG, decoded.downsample);
+        EEG = eeg_checkset(EEG);
+        
+        EEG = pop_autobsseog(EEG, 440, 440, 'sobi', {'eigratio',1e6}, 'eog_fd', {'range',[2,73]});
         EEG = eeg_checkset(EEG);
         
         % Save, and remember path
