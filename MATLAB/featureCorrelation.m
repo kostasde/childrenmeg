@@ -15,7 +15,8 @@ function [ Rho, Pval ] = featureCorrelation( toplevel, varargin )
 
 % Decode key/value arguments
 decoded = finputcheck(varargin, {
-    'splitcond',        'boolean',  [0 1],          0
+    'splitcond',        'boolean',  [0 1],          0,
+    'conditions',       'cell',     {{}},  {'MO', 'PA', 'PDK', 'VG'}
     }); 
 
 if isstr(decoded), error('varargin malformatted'); end;
@@ -58,6 +59,10 @@ for i=1:length(subjects)
         continue
     end
     for j=1:length(acond)
+        if ~any(strcmp(acond(j).name, decoded.conditions))
+            fprintf('Found condition %s, not listed in conditions, skipping...\n', acond(j).name);
+            continue
+        end
         fprintf('%s, ', acond(j).name);       
         aepochs = dir([toplevel subjects(i).name '/Audio/' acond(j).name '/*.mat']);
         mepochs = dir([toplevel subjects(i).name '/MEG/' acond(j).name '/*.mat']);
@@ -69,7 +74,6 @@ for i=1:length(subjects)
             fprintf('Unequal number of audio and MEG epochs, skipping.\n');
             continue
         end
-        
         % Create real paths for the files
         for k=1:length(mepochs)
             mepochs(k).paths = fullfile(mepochs(k).folder, mepochs(k).name);

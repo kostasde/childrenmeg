@@ -152,8 +152,3 @@ def loopandsmile(toplevellist, config:Path, preserve=False, savemat=True):
                                  timeout=10)
                     # remove original
                     epoch.unlink()
-
-    if savemat:
-        print('Exiting MATLAB...')
-        mtlbeng.exit()
-        print('Done.')
