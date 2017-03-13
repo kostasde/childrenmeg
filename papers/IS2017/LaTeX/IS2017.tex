@@ -56,7 +56,7 @@ There were 70 (36 boys and 34 girls) healthy native English speaking children wh
 
 Participants were tested in a magnetically shielded room in the Neuromagnetic Lab at the Hospital for Sick Children, using a CTF 151-channel whole-head MEG system (MEG International Services Ltd., Coquitlam, BC, Canada). The system recorded the 151 MEG channels and a single audio channel with a sampling rate of 4kHz. The MEG signals were resampled at 200Hz, and band pass filtered between 0.5Hz and 100 Hz.
 
-Removal of ocular artifacts was performed... -Rui probably here-
+Muscular artifacts, and in particular ocular artifacts are a significant source of MEG signal contamination. Simple rejections of epoched data would result in nontrivial loss of collected information. Removal of electro-ocular (EOG) artifacts was therefore performed using automated Blind Source Separation (BSS) method and examining signal complexities measured by fractal dimensions. Auto-BSS filters EOG artifacts using the SOBI algorithm in AAR's implemention.
 
 Independent component analysis (ICA) (explain a little bit, or just reference here?) was then used to determine statistically independent sub-components of the MEG recordings across all subjects. This was done by appending MEG recordings for all subjects into a single 151 channel matrix for each of the 4 tests performed using the EEGLAB toolbox \cite{Delorme04eeglab} for MATLAB.
 
@@ -144,5 +144,6 @@ Lorem Ipsum
 \bibliographystyle{IEEEtran/bibtex/IEEEtran}
 
 \bibliography{IS2017}
+
 
 \end{document}
