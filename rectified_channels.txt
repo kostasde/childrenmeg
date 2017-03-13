@@ -1,0 +1,16 @@
+suspected EOG channels rectified as measured by kurtosis
+
+20
+64
+72
+76
+118
+196
+198
+219
+220
+
+aar74
+198
+199
+219
