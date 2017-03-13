@@ -103,18 +103,15 @@ for i = 1:length(decoded.subjects)
         EEG.subject = decoded.subjects{i};
         EEG.condition = experiment;
         
-        % Epoch the data
-        EEG = pop_epoch(EEG, {decoded.epoch_label}, decoded.epoch_window);
-        EEG = eeg_checkset(EEG);
-        
         % Extract Acoustic data and save as new field (MUST BE DONE BEFORE
         % RESAMPLING, DON'T WANT 200Hz Audio!)
         % If fails create error file, have empty entry in datasets
         try
-            acousticData = extractAcousticSignal(EEG.data, EEG.srate);
+            EEG4000 = pop_epoch(EEG, {decoded.epoch_label}, decoded.epoch_window);
+            acousticData = extractAcousticSignal(EEG4000.data, EEG4000.srate);
         catch ME
             warning(ME.message);
-            fileID = fopen([EEG.filepath experiment '.error'], 'w');
+            fileID = fopen([EEG.filepath experiment '.error'], 'a+');
             fprintf(fileID, ME.message);
             datasets{length(datasets)+1} = [];
             continue
@@ -131,14 +128,25 @@ for i = 1:length(decoded.subjects)
         EEG = pop_resample(EEG, decoded.downsample);
         EEG = eeg_checkset(EEG);
         
-        % Filtering out EOG signals using BSS methods
-        % eigratio - determines the number of principal components that will
-        %           be kept in the pre-processing PCA step which is performed before 
-        %            any BSS algorithm
-        % eog_fd - fractional dimensions as criterion
-        % range - specifies the minimum and maximum number of components 
-        %         that are to be marked as artifactual in each analysis window.
-        EEG = pop_autobsseog(EEG, 440, 440, 'sobi', {'eigratio',1e6}, 'eog_fd', {'range',[2,73]});
+        % Epoch the data
+        EEG = pop_epoch(EEG, {decoded.epoch_label}, decoded.epoch_window);
+        EEG = eeg_checkset(EEG);
+        
+        try
+            % Filtering out EOG signals using BSS methods
+            % eigratio - determines the number of principal components that will
+            %           be kept in the pre-processing PCA step which is performed before 
+            %            any BSS algorithm
+            % eog_fd - fractional dimensions as criterion
+            % range - specifies the minimum and maximum number of components 
+            %         that are to be marked as artifactual in each analysis window.
+            EEG = pop_autobsseog(EEG, 440, 440, 'sobi', {'eigratio',1e6}, 'eog_fd', {'range',[2,73]});
+        catch ME
+            warning(ME.message);
+            fileID = fopen([EEG.filepath experiment '.error'], 'a+');
+            fprintf(fileID, ME.message);
+        end
+        
         EEG = eeg_checkset(EEG);
         
         % Save, and remember path

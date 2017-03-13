@@ -4,8 +4,8 @@
 addpath('../libs/voicebox_tools/');
 
 subjects = {'all'};
-toplevel = '';
-destination = '';
+toplevel = '/mnt/elephant_sized_space/LizPang/Children';
+destination = '/mnt/elephant_sized_space/ALL2';
 MEGEEG_CHANNELS = 37:187;
 
 % Create datasets and study to contain them
@@ -14,9 +14,9 @@ MEGEEG_CHANNELS = 37:187;
 pop_savestudy(STUDY, ALLEEG, 'filepath', STUDY.filepath, 'filename', STUDY.filename);
 
 % If icaact not available calculate, if no ICA weights, perform ICA
-if isempty([ALLEEG.icaact]) && ~isempty([ALLEEG.icaweights])
+if any(cellfun(@isempty, {ALLEEG.icaact})) && ~any(cellfun(@isempty, {ALLEEG.icaweights}))
     std_checkset(STUDY, ALLEEG);
-elseif isempty([ALLEEG.icaweights])
+elseif any(cellfun(@isempty, {ALLEEG.icaweights}))
     ALLEEG = pop_runica(ALLEEG, 'icatype', 'runica', 'chanind', ...
         MEGEEG_CHANNELS, 'concatcond', 'on');
     for i=1:length(ALLEEG)
@@ -36,7 +36,9 @@ for i=1:length(ALLEEG)
 %   if exist(meg_outdir) == 2 && exist(audio_outdir) == 2, continue; end
    mkdir(meg_outdir);
    mkdir(audio_outdir);
-   assert(size(EEG.icaact, 3) == size(EEG.acoustic, 2), 'Audio and MEG trial numbers must match!');
+   if size(EEG.icaact, 3) ~= size(EEG.acoustic, 2)
+       warning('%s: Audio and MEG trial numbers must match!', EEG.setname);
+   end
    for j=1:size(EEG.icaact, 3)
        % transpose for opensmile
       csvwrite(strcat(meg_outdir, 'epoch_', int2str(j), '.csv'), EEG.icaact(:,:,j)');

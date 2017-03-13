@@ -3,7 +3,8 @@
 
 if (exist('in_file') ~= 1) | (exist('out_file') ~= 1)
 	fprintf('Need to define in_file and out_file\n');
-	exit;
+    return;
+	%exit;
 end
 
 fprintf('Loading: %s\n', in_file);
@@ -15,9 +16,10 @@ try
     features = features.data;%reshape(features.data', [1, numel(features.data)]);
 catch ME
     fprintf('Failed to load. Most likely because empty file...\n');
-    exit;
+    return;
+    %exit;
 end
 save(out_file, 'features', 'header');
 fprintf('Saved to: %s\n', out_file);
 
-exit;
+%exit;

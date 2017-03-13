@@ -28,6 +28,10 @@ mkdir = local['mkdir']['-p']
 rm = local['rm']['-r']
 
 matlab_cmd = local['matlab']
+print('Starting MATLAB...')
+mtlbeng = mtlb.start_matlab()
+mtlbeng.addpath(MATLAB_DIR, nargout=0)
+print('MATLAB ready!')
 matlab_nogui = matlab_cmd['-nojvm']['-nodisplay']['-nosplash']['-r']
 open_smile = local['SMILExtract']
 
@@ -127,11 +131,6 @@ def loopandsmile(toplevellist, config:Path, preserve=False, savemat=True):
     :param savemat:
     :return:
     """
-    if savemat:
-        print('Starting MATLAB...')
-        mtlbeng = mtlb.start_matlab()
-        mtlbeng.addpath(MATLAB_DIR, nargout=0)
-        print('MATLAB ready!')
 
     for subject in toplevellist:
         for experiment in subject.iterdir():
