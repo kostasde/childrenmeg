@@ -25,15 +25,11 @@
 
 \section{Introduction}
 
-Synchronization of neural oscillations between distributed brain regions has proven to be an effective mechanistic explanation for various cognitive and perceptual processes \cite{Fries2015} \cite{Uhlhass2009} \cite{NeuralSync}. A little bit more about brain synchronization and processing?. Doesburg et. al. \cite{Doesburg2016} observe an increased synchrony during verb-generation (VG) tasks in children and adolescents, and observe a significant increase in the number of synchronous regions with older adolescents over younger children. Furthermore \cite{Yu2014} notice distinct profiles of desynchrony around verb-generation tasks for children within five age ranges (4-6, 7-9, 10-12, 13-15, 16-18 years of age). These findings indicate the possibility of inferring a child's age from observed MEG data, provided the ability to convey synchronicity and coordinated activity. The extraction of common spectral features such as the fast fourier transform (FFT) magnitude and features like signal energy have shown some success in being sensitive to different persons in electroencephalographic (EEG) experiments \cite{Nguyen2012} \cite{Poulos2001}, which could suggest some 
- 
-VOT differs significantly in different ages
-
-Segway to feature extraction and EEG+opensmile person identification
+Synchronization of neural oscillations between distributed brain regions has proven to be an effective mechanistic explanation for various cognitive and perceptual processes \cite{Fries2015} \cite{Nakasaki1989} \cite{NeuralSync}. A little bit more about brain synchronization and processing?. Doesburg et. al. \cite{Doesburg2016} observe an increased synchrony during verb-generation (VG) tasks in children and adolescents, and observe a significant increase in the number of synchronous regions with older adolescents over younger children. Furthermore \cite{Yu2014} notice distinct profiles of desynchrony around verb-generation tasks for children within five age ranges (4-6, 7-9, 10-12, 13-15, 16-18 years of age). These findings indicate the possibility of inferring a child's age from observed MEG data, provided the ability to convey synchronicity and coordinated activity. The extraction of common spectral features such as the fast fourier transform (FFT) magnitude and features like signal energy have shown some success with various classifiers in accurately differentiating different persons from electroencephalographic (EEG) experiments \cite{Nguyen2012} \cite{Poulos2001}. Something on MEG vs. EEG?
 
 MEG tends to be more accurate and more appropriate vs. EEG?
 
-We hypothesized that the accuracy of a regression model trained using a combined dataset of MEG and audio features would be greater than that of models trained with only audio and MEG respectively.
+We hypothesized that the accuracy of a regression model trained using a combined dataset of MEG and audio features would be greater than that of models trained with only audio and MEG respectively. Furthermore this would likely be due to the fact that the MEG data would represent the synchronicity and 
 
 \section{Methods}
 
@@ -41,11 +37,11 @@ We hypothesized that the accuracy of a regression model trained using a combined
 
 \subsection{Experiments}
 
-The experiments performed consisted of four tests conducted for work on age and sex related developmental language differences {Pang...}. Two consisted of children repeatedly producing vocalizations when prompted..., a test where subjects kept there mouths open and did not vocalize... and finally a verb generation task where... The subjects were prompted to produce a response X times for each experiment.
+The experiments performed consisted of four tests conducted for work on age and sex related developmental language differences {Pang...}. Two consisted of children repeatedly producing vocalizations when prompted..., a test where subjects kept there mouths open and did not vocalize... and finally a verb generation task where... The subjects were prompted to produce a response  times for each experiment.
 
 \subsection{Subjects}
 
-There were 70 (36 boys and 34 girls) healthy native English speaking children who performed the experiment. Their ages ranged from 4.1-18.4 years of age, with a standard deviation of <FILL>. (The children's speech was also verified to show no signs of articulartory difficulties through observation?).
+There were 70 (36 boys and 34 girls) healthy native English speaking children who performed the experiment. Their ages ranged from 4.1-18.4 years of age. (The children's speech was also verified to show no signs of articulartory difficulties through observation?).
 
 \begin{itemize}
 \item How much more tie in to Pang papers?
@@ -65,7 +61,7 @@ The weight matrix produced by the ICA for each test condition was applied to eac
 Features were then extracted from all epochs using openSMILE \cite{Eyben13-RDI}. 
 
 \begin{itemize}
-\item 50ms windows with 25ms overlap REFERENCE ON SPECTRAL FEATURE OVERLAP
+\item 50ms windows with 25ms overlap  
 \item Number of features for each data mode
 \item General feature categories, ie. statistical moments: mean, deviation, kurtosis..., FFT mag, energy,
   LPC, jitter, shimmer...
@@ -82,7 +78,7 @@ We used standard Pearson correlation to determine correlation between MEG and Au
 
 \subsubsection{Linear Regression}
 
-Three linear regression models to predict age were trained using the \textit{Audio}, \textit{MEG} and \textit{Audio+MEG (Fusion)} datasets respectively. Ten-fold cross-validation was used, such that each dataset was divided into 10 approximately equal groups, and each group had an approximately equivalent and nearly uniform distribution of points from each subject. A held out test set was used to report performance.
+Three linear regression models to predict age were trained using the \textit{Audio}, \textit{MEG} and \textit{Audio+MEG (Fusion)} datasets respectively. Ten-fold cross-validation was used, such that each dataset was divided into 10 approximately equal groups, and each group had an approximately equivalent and nearly uniform distribution of points from each subject. A held out test set was used to report performance. Bayesian parameter optimization (using Hyperopt \cite{Bergstra2013}) of the first fold was used to determine an appropriate learning rate and regularization factor.
 
 Would we put a regression formula here?
 
@@ -90,9 +86,16 @@ Would we put a regression formula here?
 
 \subsection{Components}
 
-Plotting the dominant components derived from the ICA, we notice that for VG, PA and PDK measurements the components
+Plotting the dominant components derived from the ICA, we notice that for VG, PA and PDK measurements the components strongly select for activity localized around sensors located in the center-left of the frontal area. !! Placeholder, might not be using this anymore... 
 
-\subsection{Correlations}
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{PA_components.png}
+  \caption{Component weights for PDK condition, plotted over a scalp map using \cite{Delorme04eeglab}. Note that ICA may have signs flipped.}
+  \label{fig:components} 
+\end{figure}
+
+\subsection{Correlations} 
 
 \subsubsection{MEG vs. Audio Features}
 
@@ -105,21 +108,21 @@ We compare the correlations
 
 \subsubsection{All Features vs. Age}
 
-Do we want to just list the most correlated features here?
+ShDo we want to just list the most correlated features here?
 
 \subsection{Regression}
 
-Here we consider the weights that 
+Here, talk about weights of the linear regression model, see features X,Y,Z for times t1... are the largest weights...
 
 \begin{table}[t]
-  \caption{Root mean squared error (RMSE) in years of ten-fold cross validation for Audio, MEG, and Fusion datasets.}
+  \caption{Root mean squared error (RMSE) in years, of ten-fold cross validation for Audio, MEG, and Fusion datasets.}
   \label{tab:xvalreg}
   \centering
   \begin{tabular}{ r@{}l  r }
     \toprule
     \multicolumn{1}{c}{\textbf{Dataset}} & \multicolumn{1}{c}{\textbf{Mean}} & \multicolumn{1}{c}{\textbf{Deviation}} \\
     \midrule
-    Audio~~~                        & $3.129$           &     $0.561$      \\
+    Audio~~~                        & $3.129$         &     $0.561$   \\
     MEG~~~                          & NaN             &      NaN      \\
     Fusion~~~                       & Nan             &      NaN      \\
     \bottomrule
@@ -127,6 +130,8 @@ Here we consider the weights that
 \end{table}
 
 \section{Discussion}
+
+Could say something about potential difficulty of relying on synchronicity due to the fact that correlated firing does not imply as much as once thought \cite{Moreno-Bote2014}. 
 
 \subsection{Significance}
 
