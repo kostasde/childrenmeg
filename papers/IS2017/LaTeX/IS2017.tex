@@ -3,7 +3,7 @@
 
 \usepackage{INTERSPEECH_v2}
 
-\title{Paper Template for INTERSPEECH}
+\title{Predicting Age Using Synchronized MEG and Speech Recordings of Children}
 \name{Author Name$^1$, Co-author Name$^2$}
 \address{
   $^1$Author Affiliation, Sweden\\
@@ -16,8 +16,8 @@
 % 
 \begin{abstract}
 
-  Evidence suggests that there is a correlation between the synchronization of different brain areas and the development of language in children. We attempt to predict the age of children (4-18 years old) using synchronized magnetoencephalographic (MEG) and audio recordings of a verb generation, and syllable production task. We extract time-windowed features from both MEG and audio recordings to capture time and frequency domain signal characteristics, then investigate the correlations between audio and brain recording feautres. We show .. correlation stuff.. We then use regularized linear regression to predict the age of subjects using audio, MEG and MEG+audio feature sets, and show .. improved predictive power.. 
-  
+  Evidence suggests that there is a correlation between the synchronization of different brain areas and the development of language in children. We attempt to predict the age of children (4-18 years old) using synchronized magnetoencephalographic (MEG) and audio recordings of a verb generation, and syllable production task. We extract time-windowed features from both MEG and audio recordings to capture time and frequency domain signal characteristics, then investigate the correlations between audio and brain recording feautres. We show .. our correlation results here .. We then use regularized linear regression to predict the age of subjects using audio, MEG and MEG+audio feature sets, and show .. regression results here .. 
+   
 \end{abstract}
 
 
@@ -25,16 +25,15 @@
 
 \section{Introduction}
 
-Synchronization of neural oscillations have proven many times to be an effective mechanistic explanation for various cognitive and perceptual processes \cite{Fries2015} \cite{Uhlhass2009} \cite{NeuralSync}. A little bit more about the idea in my words. Doesburg et. al. \cite{Doesburg2016} show that  
+Synchronization of neural oscillations between distributed brain regions has proven to be an effective mechanistic explanation for various cognitive and perceptual processes \cite{Fries2015} \cite{Uhlhass2009} \cite{NeuralSync}. A little bit more about brain synchronization and processing?. Doesburg et. al. \cite{Doesburg2016} observe an increased synchrony during verb-generation (VG) tasks in children and adolescents, and observe a significant increase in the number of synchronous regions with older adolescents over younger children. Furthermore \cite{Yu2014} notice distinct profiles of desynchrony around verb-generation tasks for children within five age ranges (4-6, 7-9, 10-12, 13-15, 16-18 years of age). These findings indicate the possibility of inferring a child's age from observed MEG data, provided the ability to convey synchronicity and coordinated activity. The extraction of common spectral features such as the fast fourier transform (FFT) magnitude and features like signal energy have shown some success in being sensitive to different persons in electroencephalographic (EEG) experiments \cite{Nguyen2012} \cite{Poulos2001}, which could suggest some 
+ 
+VOT differs significantly in different ages
 
-% temporary itemized list of things to cover
-\begin{itemize}
-\item MEG and general BCI discussion
-\item Goal is building models that relate brain activity to speech production
-\item Tie in to Broca's area
-\item Tie in to Frank's work with co-articulator measurements/models for speech production??
-\item Approach from a machine-learning/data-driven perspective
-\end{itemize}  
+Segway to feature extraction and EEG+opensmile person identification
+
+MEG tends to be more accurate and more appropriate vs. EEG?
+
+We hypothesized that the accuracy of a regression model trained using a combined dataset of MEG and audio features would be greater than that of models trained with only audio and MEG respectively.
 
 \section{Methods}
 
@@ -59,14 +58,14 @@ Participants were tested in a magnetically shielded room in the Neuromagnetic La
 
 Removal of ocular artifacts was performed... -Rui probably here-
 
-Independent component analysis (ICA) (explain a little bit, or just reference here?) was then used to determine statistically independent sub-components of the MEG recordings across all subjects. This was done by appending MEG recordings for all subjects into a single 151 channel matrix for each of the 4 tests performed using the EEGLAB toolbox {EEGLAB} for Matlab {?}. ICA was performed using EEGLAB's implementation of the logistic infomax ICA algorithm {EEGLAB ICA section reference}.
+Independent component analysis (ICA) (explain a little bit, or just reference here?) was then used to determine statistically independent sub-components of the MEG recordings across all subjects. This was done by appending MEG recordings for all subjects into a single 151 channel matrix for each of the 4 tests performed using the EEGLAB toolbox \cite{Delorme04eeglab} for MATLAB.
 
 The weight matrix produced by the ICA for each test condition was applied to each subject's recordings per respective test and the recordings (both MEG and audio separately) were separated into epochs that correspond to -500ms to +1500ms windows around each prompt a subject received to perform a test.
 
-Features were then extracted from all epochs using openSMILE.
+Features were then extracted from all epochs using openSMILE \cite{Eyben13-RDI}. 
 
 \begin{itemize}
-\item 50ms windows with 25ms overlap
+\item 50ms windows with 25ms overlap REFERENCE ON SPECTRAL FEATURE OVERLAP
 \item Number of features for each data mode
 \item General feature categories, ie. statistical moments: mean, deviation, kurtosis..., FFT mag, energy,
   LPC, jitter, shimmer...
@@ -79,7 +78,7 @@ The analysis that was performed fell into two categories, in the first: features
 
 \subsubsection{Correlation}
 
-We used standard Pearson correlation to determine correlation between MEG and Audio features for each of our test conditions. Correlations were analyzed by plotting a map of correlation coefficients with p < 0.01. Additionally we also compared correlation between a combination of both feature sets and subject age.
+We used standard Pearson correlation to determine correlation between MEG and Audio features for each of our test conditions. Correlations were analyzed by plotting a map of correlation coefficients with $p < 0.01$. Additionally we also compared correlation between a combination of both feature sets and subject age.
 
 \subsubsection{Linear Regression}
 
@@ -89,11 +88,15 @@ Would we put a regression formula here?
 
 \section{Results}
 
+\subsection{Components}
+
+Plotting the dominant components derived from the ICA, we notice that for VG, PA and PDK measurements the components
+
 \subsection{Correlations}
 
-Big caveat with all the correlation material is that it represents correlations between ICA transformed data.
-
 \subsubsection{MEG vs. Audio Features}
+
+We compare the correlations 
 
 \begin{itemize}
 \item Could use the correlation figures I have been generating.
@@ -106,7 +109,22 @@ Do we want to just list the most correlated features here?
 
 \subsection{Regression}
 
-Table comparing mean and deviation test performance for the three different models.
+Here we consider the weights that 
+
+\begin{table}[t]
+  \caption{Root mean squared error (RMSE) in years of ten-fold cross validation for Audio, MEG, and Fusion datasets.}
+  \label{tab:xvalreg}
+  \centering
+  \begin{tabular}{ r@{}l  r }
+    \toprule
+    \multicolumn{1}{c}{\textbf{Dataset}} & \multicolumn{1}{c}{\textbf{Mean}} & \multicolumn{1}{c}{\textbf{Deviation}} \\
+    \midrule
+    Audio~~~                        & $3.129$           &     $0.561$      \\
+    MEG~~~                          & NaN             &      NaN      \\
+    Fusion~~~                       & Nan             &      NaN      \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 \section{Discussion}
 
@@ -123,27 +141,8 @@ Lorem Ipsum
 Lorem Ipsum
 
 
-\bibliographystyle{IEEEtran}
+\bibliographystyle{IEEEtran/bibtex/IEEEtran}
 
-\bibliography{mybib}
-
-% \begin{thebibliography}{9}
-% \bibitem[1]{Davis80-COP}
-%   S.\ B.\ Davis and P.\ Mermelstein,
-%   ``Comparison of parametric representation for monosyllabic word recognition in continuously spoken sentences,''
-%   \textit{IEEE Transactions on Acoustics, Speech and Signal Processing}, vol.~28, no.~4, pp.~357--366, 1980.
-% \bibitem[2]{Rabiner89-ATO}
-%   L.\ R.\ Rabiner,
-%   ``A tutorial on hidden Markov models and selected applications in speech recognition,''
-%   \textit{Proceedings of the IEEE}, vol.~77, no.~2, pp.~257-286, 1989.
-% \bibitem[3]{Hastie09-TEO}
-%   T.\ Hastie, R.\ Tibshirani, and J.\ Friedman,
-%   \textit{The Elements of Statistical Learning -- Data Mining, Inference, and Prediction}.
-%   New York: Springer, 2009.
-% \bibitem[4]{YourName17-XXX}
-%   F.\ Lastname1, F.\ Lastname2, and F.\ Lastname3,
-%   ``Title of your INTERSPEECH 2017 publication,''
-%   in \textit{Interspeech 2017 -- 18\textsuperscript{th} Annual Conference of the International Speech Communication Association, August 20?24, Stockholm, Sweden, Proceedings, Proceedings}, 2017, pp.~100--104.
-% \end{thebibliography}
+\bibliography{IS2017}
 
 \end{document}
