@@ -16,15 +16,19 @@
 % 
 \begin{abstract}
 
-Lorem Ipsum
+Evidence suggests that there is a correlation between the synchronization of different brain areas and the development of language in children. We attempt to predict the age of children (4-18 years old) using synchronized magnetoencephalographic (MEG) and audio recordings of a verb generation, and syllable production task.
+Time windowed feature extraction is used heavily in time series data like speech and acoustic processing, we use this approach on brain-wave data to capture its time and frequency domain characteristics in a similar way. We investigate the correlations between audio and brain recording features, and use regularized linear regression to predict age from audio, MEG, and MEG+audio feature sets.
   
 \end{abstract}
-\noindent\textbf{Index Terms}: Brain Computer Interfaces, Speech Production
+
+
+\noindent\textbf{Index Terms}: Brain Computer Interfaces, BCI, Speech Production
 
 \section{Introduction}
 
 % temporary itemized list of things to cover
 \begin{itemize}
+\item MEG and general BCI discussion
 \item Goal is building models that relate brain activity to speech production
 \item Tie in to Broca's area
 \item Tie in to Frank's work with co-articulator measurements/models for speech production??
@@ -52,7 +56,7 @@ There were 70 (36 boys and 34 girls) healthy native English speaking children wh
 
 Participants were tested in a magnetically shielded room in the Neuromagnetic Lab at the Hospital for Sick Children, using a CTF 151-channel whole-head MEG system (MEG International Services Ltd., Coquitlam, BC, Canada). The system recorded the 151 MEG channels and a single audio channel with a sampling rate of 4kHz. The MEG signals were resampled at 200Hz, and band pass filtered between 0.5Hz and 100 Hz.
 
-EOG artifacts are a significant source of MEG signal contamination. Simple rejections of epoched data would result in nontrivial loss of collected information. Removal of electro-ocular (EOG) artifacts was therefore performed using automated Blind Source Separation (BSS) method and examining signal complexities measured by fractal dimensions. Auto-BSS filters EOG artifacts using the SOBI algorithm in AAR's implemention. 
+EOG artifacts are a significant source of MEG signal contamination. Simple rejections of epoched data would result in nontrivial loss of collected information. Removal of electro-ocular (EOG) artifacts was therefore performed using automated Blind Source Separation (BSS) method and examining signal complexities measured by fractal dimensions. Auto-BSS filters EOG artifacts using the SOBI algorithm in AAR's implemention. (TODO: REF)
 
 Independent component analysis (ICA) (explain a little bit, or just reference here?) was then used to determine statistically independent sub-components of the MEG recordings across all subjects. This was done by appending MEG recordings for all subjects into a single 151 channel matrix for each of the 4 tests performed using the EEGLAB toolbox {EEGLAB} for Matlab {?}. ICA was performed using EEGLAB's implementation of the logistic infomax ICA algorithm {EEGLAB ICA section reference}.
 
@@ -135,7 +139,7 @@ Lorem Ipsum
 %   T.\ Hastie, R.\ Tibshirani, and J.\ Friedman,
 %   \textit{The Elements of Statistical Learning -- Data Mining, Inference, and Prediction}.
 %   New York: Springer, 2009.
-% \bibitem[4]{Herrero06}
+% \bibitem[4]{Hastie09-TEO}
 %   Gomez-Herrero, G.\ et al,
 %   ``Automatic Removal of Ocular Artifacts in the EEG without an EOG Reference Channel,''
 %   \textit{Proceedings of the 7th Nordic Signal Processing Symposium}, 2006
