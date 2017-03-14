@@ -3,21 +3,23 @@
 
 \usepackage{INTERSPEECH_v2}
 
-\title{Predicting Age Using Synchronized MEG and Speech Recordings of Children}
+\title{Predicting age using synchronized MEG and speech recordings of children}
 \name{Author Name$^1$, Co-author Name$^2$}
 \address{
   $^1$Author Affiliation, Sweden\\
   $^2$Co-author Affiliation, Australia}
 \email{author@university.edu, coauthor@company.com}
 
+\usepackage{soul,color}
+\newcommand{\FR}[1]{{\small \textcolor{red}{\hl{#1}}}}
+
 \begin{document}
 
 \maketitle
 % 
 \begin{abstract}
-
-  Evidence suggests that there is a correlation between the synchronization of different brain areas and the development of language in children. We attempt to predict the age of children (4-18 years old) using synchronized magnetoencephalographic (MEG) and audio recordings of a verb generation, and syllable production task. We extract time-windowed features from both MEG and audio recordings to capture time and frequency domain signal characteristics, then investigate the correlations between audio and brain recording feautres. We show .. our correlation results here .. We then use regularized linear regression to predict the age of subjects using audio, MEG and MEG+audio feature sets, and show .. regression results here .. 
-   
+% FR: 
+Evidence suggests that there is a correlation between the synchronization of different brain areas and the development of language in children. In order to explore this correlation, we attempt to predict the age of children (4-18 years old) using synchronized magneto-encephalographic (MEG) and audio recordings of verb generation and syllable production tasks. We extract time-windowed features from both MEG and audio recordings to capture time and frequency domain signal characteristics, then investigate the correlations between audio and brain recording features \FR{results here}. We also use regularized linear regression to predict the age of subjects using audio, MEG and MEG+audio feature sets, and show \FR{regression results here}. 
 \end{abstract}
 
 
@@ -25,7 +27,7 @@
 
 \section{Introduction}
 
-Synchronization of neural oscillations between distributed brain regions has proven to be an effective mechanistic explanation for various cognitive and perceptual processes \cite{Fries2015} \cite{Nakasaki1989} \cite{NeuralSync}. A little bit more about brain synchronization and processing?. Doesburg et. al. \cite{Doesburg2016} observe an increased synchrony during verb-generation (VG) tasks in children and adolescents, and observe a significant increase in the number of synchronous regions with older adolescents over younger children. Furthermore \cite{Yu2014} notice distinct profiles of desynchrony around verb-generation tasks for children within five age ranges (4-6, 7-9, 10-12, 13-15, 16-18 years of age). These findings indicate the possibility of inferring a child's age from observed MEG data, provided the ability to convey synchronicity and coordinated activity. The extraction of common spectral features such as the fast fourier transform (FFT) magnitude and features like signal energy have shown some success with various classifiers in accurately differentiating different persons from electroencephalographic (EEG) experiments \cite{Nguyen2012} \cite{Poulos2001}. Something on MEG vs. EEG?
+The synchronization of neural oscillations between distributed brain regions has been an effective mechanistic explanation for various cognitive and perceptual processes \cite{Fries2015,Nakasaki1989,NeuralSync}. \FR{Yes -- 1 more sentence about brain synchronization and processing. A broad definition.}. For example, Doesburg {\em et al.} \cite{Doesburg2016} observed an increased synchrony during verb-generation (VG) tasks in children and adolescents \FR{relative to adults?}, and observed a significant increase in the number of synchronous regions with older adolescents, compared with younger children. Furthermore, Yu {\em et al.} \cite{Yu2014} noticed distinct profiles of de-synchrony in VG tasks for children within five age ranges (i.e., 4-6, 7-9, 10-12, 13-15, and 16-18 years of age). These findings indicate the possibility of inferring a child's age from observed MEG data, provided the ability to convey synchronicity and coordinated activity. The extraction of common spectral features such as the fast Fourier transform (FFT) magnitude and features like signal energy have shown some success with various classifiers in accurately differentiating different persons from electroencephalographic (EEG) experiments \cite{Nguyen2012} \cite{Poulos2001}. Something on MEG vs. EEG?
 
 MEG tends to be more accurate and more appropriate vs. EEG?
 
