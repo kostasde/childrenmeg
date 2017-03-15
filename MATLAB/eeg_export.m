@@ -5,6 +5,7 @@ function [ output_args ] = eeg_export( ALLEEG , destination, ind )
 [ALLEEG, EEG, CURRENTSET] = pop_newset(ALLEEG, ALLEEG, 1, 'retrieve', ind, 'study', 1);
 EEG = eeg_checkset(EEG);
 fprintf('Loaded %s\nExporting...\n', EEG.setname);
+MEGEEG_CHANNELS = 37:187;
 
 %meg_outdir = strcat(EEG.filepath, '/MEG/', EEG.condition, '/');
 %audio_outdir = strcat(EEG.filepath, '/Audio/', EEG.condition, '/');
