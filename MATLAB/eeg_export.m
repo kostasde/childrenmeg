@@ -1,4 +1,4 @@
-function [ output_args ] = eeg_export( ALLEEG , ind )
+function [ output_args ] = eeg_export( ALLEEG , destination, ind )
 %EEG_EXPORT Summary of this function goes here
 %   Detailed explanation goes here
 
