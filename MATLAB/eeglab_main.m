@@ -23,19 +23,12 @@ elseif any(cellfun(@isempty, {ALLEEG.icaweights}))
        cond = STUDY.condition(i);
        ind = find(contains({ALLEEG.condition}, cond));
        DAT = [];
+       
+       ALLEEG = pop_runica(ALLEEG, 'dataset', ind, 'concatenate', 'on', 'chanind', MEGEEG_CHANNELS);
+       
        for j = 1:length(ind)
           [ALLEEG, EEG, CURRENSET] = pop_newset(ALLEEG, ALLEEG, 1, 'retrieve', ind(j), 'study', 1);
-          DAT = [DAT reshape(EEG.data(MEGEEG_CHANNELS, :,:), length(MEGEEG_CHANNELS), [])];
-       end
-       [weights, sphere] = binica(DAT, 'lrate', exp(-9), 'maxsteps', 60);
-       for j = 1:length(ind)
-          [ALLEEG, EEG, CURRENSET] = pop_newset(ALLEEG, ALLEEG, 1, 'retrieve', ind(j), 'study', 1);
-          EEG.icaweights = weights;
-          EEG.icasphere = sphere;
-          EEG.icachansind = MEGEEG_CHANNELS;
-          
           EEG = eeg_checkset(EEG);
-          
           eeg_export(ALLEEG, j);
        end       
     end
