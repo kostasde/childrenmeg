@@ -1,7 +1,7 @@
 from utils import *
 import argparse
 from pathlib import Path
-import shutil
+from threading import Thread
 
 # Command line arguments
 parser = argparse.ArgumentParser(
@@ -14,10 +14,13 @@ parser.add_argument('--audio-config', '-ac', default=DEFAULT_ACOUSTIC_CONFIG, ty
                     help='openSMILE config file to use for audio')
 parser.add_argument('--save-mat', '-z', action='store_true',
                     help='Save the output as a compressed .mat file')
+parser.add_argument('--save-pickle', help='Save the output as a pickled numpy array', action='store_true')
 parser.add_argument('--no-preserve', '-n', action='store_true',
                     help='Do not preserve the original activations')
 parser.add_argument('--no-meg', action='store_true', help='Do not extract MEG features')
 parser.add_argument('--no-audio', action='store_true', help='Do not extract audio features')
+
+parser.add_argument('--threads', type=int, default=1, choices=range(1, 5), help='Number of threads to use to process')
 
 
 if __name__ == '__main__':

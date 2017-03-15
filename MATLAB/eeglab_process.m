@@ -39,6 +39,7 @@ decoded = finputcheck(varargin, {
     'ica_chan',     'integer', [],                   MEGEEG_CHANNELS;
     'epoch_window', 'integer', [],                   DEFAULT_EP_WINDOW;
     'subjects',     'cell',    {{}},                 {'all'};
+    'experiments',  'cell',    {{}},                 EXPERIMENT_TYPES;
     'destination',  'string',  {},                   toplevel;
     'studyname',    'string',  {},                   'smallstudy'
     }); 
@@ -74,22 +75,28 @@ for i = 1:length(decoded.subjects)
         continue
     end
     
-    experiments = dir([toplevel decoded.subjects{i} '/*.ds']);
+    experiments = decoded.experiments;
     for j = 1:length(experiments)
-        experiment = char(regexp(experiments(j).name, '(?<=[_-]).*(?=([.]))', 'match'));
+        experiment = experiments{j};
         wb = waitbar(i/length(decoded.subjects), wb, [decoded.subjects{i} ' : ' experiment]);
         
         % Check if dataset already exists
-        if exist([decoded.destination char(decoded.subjects{i}) '/' char(experiment) '.set']) == 2
+        f = fullfile(decoded.destination, decoded.subjects{i}, strcat(char(experiment), '.set'));
+        if exist(f) == 2
             fprintf('Skipping existing dataset: %s_%s.set \n', char(decoded.subjects{i}), experiment);
-            datasets{length(datasets)+1} = char([decoded.destination decoded.subjects{i} '/' experiment '.set']);
+            datasets{length(datasets)+1} = f;
             continue
         end
         
+        % Check if data for experiment and subject exists
+        f = fullfile(toplevel, decoded.subjects{i}, ...
+            strcat(decoded.subjects{i}, '_', experiment, '.ds'));
+        if exist(f) ~= 7, break; end;
+    
         % Otherwise create and process
         % Read dataset
         try
-            EEG = pop_ctf_read([toplevel decoded.subjects{i} '/' experiments(j).name], 'all');
+            EEG = pop_ctf_read(f, 'all');
         catch ME
             warning('Failed to read: %s experiment: %s\n', decoded.subjects{i}, experiment);
             continue
@@ -130,6 +137,7 @@ for i = 1:length(decoded.subjects)
         
         % Epoch the data
         EEG = pop_epoch(EEG, {decoded.epoch_label}, decoded.epoch_window);
+        EEG = pop_rmbase(EEG, [decoded.epoch_window(1)*1000 0], []);
         EEG = eeg_checkset(EEG);
         
         try

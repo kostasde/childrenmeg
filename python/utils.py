@@ -4,6 +4,8 @@ import time
 
 import shutil
 from pathlib import Path
+import numpy as np
+import pandas as pd
 from plumbum import cli, local, colors, TEE, FG, ProcessExecutionError, ProcessTimedOut
 import matlab.engine as mtlb
 #from wavelets import extractwaveletcoef
@@ -122,7 +124,7 @@ def run_catch_fail(function, *args, autotries=2, failedon=None):
             exit(-1)
 
 
-def loopandsmile(toplevellist, config:Path, preserve=False, savemat=True):
+def loopandsmile(toplevellist, config:Path, preserve=False, savemat=True, savepick=True):
     """
     Loop through the assumed directory structure and run opensmile on each epoch.
     :param toplevellist:
@@ -147,8 +149,16 @@ def loopandsmile(toplevellist, config:Path, preserve=False, savemat=True):
                                            epoch.absolute().as_posix(), timeout=30)
                 epoch.with_suffix('.temp').unlink()
 
+                if savepick:
+                    print('Saving', subject, experiment, epoch.stem, 'as numpy file...')
+                    x = pd.read_csv(epoch, delimiter=';').as_matrix()
+                    np.save(str(epoch.absolute().with_suffix('.npy')), x)
+                    print('Saved:', epoch.absolute().with_suffix('.npy'))
+
                 if savemat:
                     mat_compress(epoch.absolute().as_posix(), epoch.absolute().with_suffix('.mat').as_posix(),
                                  timeout=10)
+
+                if savemat or savepick:
                     # remove original
                     epoch.unlink()
