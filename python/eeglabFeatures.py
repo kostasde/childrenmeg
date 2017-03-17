@@ -40,10 +40,24 @@ if __name__ == '__main__':
         parser.print_help()
         exit(-1)
 
+    if args.threads > 1:
+        print('Starting ', args.threads, 'threads...')
+
+    megfiles = [(x / 'MEG') for x in toplevel.iterdir() if x.is_dir() and 'CC' in x.stem]
+    n = round(len(megfiles)/args.threads)+1
+    megbuckets = [megfiles[i :i + n] for i in range(0, len(megfiles), n)]
+
+    threads = []
+    for i in range(1, args.threads):
+        threads.append(Thread(None, run_catch_fail, None, (loopandsmile, megbuckets[i], meg_config, args.no_preserve,
+                                                           args.save_mat, args.save_pickle)))
+        if not args.no_meg:
+            threads[-1].start()
+
     if not args.no_meg:
-        run_catch_fail(loopandsmile, [(x / 'MEG') for x in toplevel.iterdir() if (x/'MEG').is_dir() and 'CC' in x.stem], meg_config,
-                     args.no_preserve, args.save_mat, autotries=-1)
+        run_catch_fail(loopandsmile, megbuckets[0], meg_config,
+                     args.no_preserve, args.save_mat, args.save_pickle)
 
     if not args.no_audio:
-        run_catch_fail(loopandsmile, [(x / 'Audio') for x in toplevel.iterdir() if (x/'Audio').is_dir() and 'CC' in x.stem], audio_config,
-                     args.no_preserve, args.save_mat, autotries=-1)
+        run_catch_fail(loopandsmile, [(x / 'Audio') for x in toplevel.iterdir() if x.is_dir() and 'CC' in x.stem],
+                       audio_config, args.no_preserve, args.save_mat, autotries=-1)

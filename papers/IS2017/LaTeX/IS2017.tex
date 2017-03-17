@@ -10,7 +10,7 @@
   $^2$Co-author Affiliation, Australia}
 \email{author@university.edu, coauthor@company.com}
 
-\usepackage{soul,color}
+\usepackage{soul,color} 
 \newcommand{\FR}[1]{{\small \textcolor{red}{\hl{#1}}}}
 
 \begin{document}
@@ -88,14 +88,14 @@ Would we put a regression formula here?
 
 \subsection{Components}
 
-Plotting the dominant components derived from the ICA, we notice that for VG, PA and PDK measurements the components strongly select for activity localized around sensors located in the center-left of the frontal area. !! Placeholder, might not be using this anymore... 
+Components now look very general, no really obvious pathches of activity anymore, this may not be something that we really can talk about anymore
 
-\begin{figure}[t]
-  \centering
-  \includegraphics[width=\linewidth]{PA_components.png}
-  \caption{Component weights for PDK condition, plotted over a scalp map using \cite{Delorme04eeglab}. Note that ICA may have signs flipped.}
-  \label{fig:components} 
-\end{figure}
+%$\begin{figure}[t]
+%  \centering
+%  \includegraphics[width=\linewidth]{PA_components.png}
+%  \caption{Component weights for PDK condition, plotted over a scalp map using \cite{Delorme04eeglab}%. Note that ICA may have signs flipped.}
+%  \label{fig:components} 
+%\end{figure}
 
 \subsection{Correlations} 
 
@@ -124,9 +124,9 @@ Here, talk about weights of the linear regression model, see features X,Y,Z for 
     \toprule
     \multicolumn{1}{c}{\textbf{Dataset}} & \multicolumn{1}{c}{\textbf{Mean}} & \multicolumn{1}{c}{\textbf{Deviation}} \\
     \midrule
-    Audio~~~                        & $3.129$         &     $0.561$   \\
-    MEG~~~                          & NaN             &      NaN      \\
-    Fusion~~~                       & Nan             &      NaN      \\
+    Audio~~~                        & $4.103$         &     $0.473$       \\
+    MEG~~~                          & $4.896$         &     $0.234$       \\
+    Fusion~~~                       & $4.109$         &     $0.244$       \\
     \bottomrule
   \end{tabular}
 \end{table}

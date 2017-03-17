@@ -96,7 +96,7 @@ def find_completed(toplevel):
     return completed
 
 
-def run_catch_fail(function, *args, autotries=2, failedon=None):
+def run_catch_fail(function, *args, autotries=-1, failedon=None):
     """
     This function will run the function provided, and catch unexpected error codes. It will automatically try the
     function again for the number of provided autotries, then wait for the user to respond.
