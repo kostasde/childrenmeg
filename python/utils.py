@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from plumbum import cli, local, colors, TEE, FG, ProcessExecutionError, ProcessTimedOut
-import matlab.engine as mtlb
+#import matlab.engine as mtlb
 #from wavelets import extractwaveletcoef
 
 MATLAB_DIR = '../MATLAB/'
@@ -29,12 +29,12 @@ mv = local['mv']
 mkdir = local['mkdir']['-p']
 rm = local['rm']['-r']
 
-matlab_cmd = local['matlab']
+#matlab_cmd = local['matlab']
 print('Starting MATLAB...')
-mtlbeng = mtlb.start_matlab()
-mtlbeng.addpath(MATLAB_DIR, nargout=0)
-print('MATLAB ready!')
-matlab_nogui = matlab_cmd['-nojvm']['-nodisplay']['-nosplash']['-r']
+#mtlbeng = mtlb.start_matlab()
+#mtlbeng.addpath(MATLAB_DIR, nargout=0)
+#print('MATLAB ready!')
+#matlab_nogui = matlab_cmd['-nojvm']['-nodisplay']['-nosplash']['-r']
 open_smile = local['SMILExtract']
 
 

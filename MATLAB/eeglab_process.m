@@ -67,7 +67,7 @@ if length(decoded.subjects) == 1 && strcmp(decoded.subjects{1}, 'all')
 end
 
 datasets = {};
-wb = waitbar(0, 'Starting Calculation');
+%wb = waitbar(0, 'Starting Calculation');
 % Loop through all our subjects
 for i = 1:length(decoded.subjects)   
     if ~isdir([toplevel decoded.subjects{i}])
@@ -78,7 +78,7 @@ for i = 1:length(decoded.subjects)
     experiments = decoded.experiments;
     for j = 1:length(experiments)
         experiment = experiments{j};
-        wb = waitbar(i/length(decoded.subjects), wb, [decoded.subjects{i} ' : ' experiment]);
+%        wb = waitbar(i/length(decoded.subjects), wb, [decoded.subjects{i} ' : ' experiment]);
         
         % Check if dataset already exists
         f = fullfile(decoded.destination, decoded.subjects{i}, strcat(char(experiment), '.set'));
