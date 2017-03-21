@@ -36,6 +36,13 @@ P.~Uhlhaas, ``{Neural synchrony in cortical networks: history, concept and
   \url{http://journal.frontiersin.org/article/10.3389/neuro.07.017.2009/abstract}
 \BIBentrySTDinterwordspacing
 
+\bibitem{NeuralSync}
+\BIBentryALTinterwordspacing
+S.~Palva, Ed., \emph{Multimodal Oscillation-based Connectivity Theory}.\hskip
+  1em plus 0.5em minus 0.4em\relax Springer Nature, 2016, ch.~4, pp. 140 --
+  143. [Online]. Available: \url{https://doi.org/10.1007}
+\BIBentrySTDinterwordspacing
+
 \bibitem{Doesburg2016}
 \BIBentryALTinterwordspacing
 S.~M. Doesburg, K.~Tingling, M.~J. MacDonald, and E.~W. Pang, ``{Development of
@@ -87,6 +94,12 @@ L.~M. Dunn, \emph{{Peabody Picture Vocabulary Test, third edition}},
 \bibitem{EVT}
 K.~T. Williams, \emph{{Expressive vocabulary test}}.\hskip 1em plus 0.5em minus
   0.4em\relax Circle Pines, MN: American Guidance Service, 1997.
+
+\bibitem{eog}
+C.~Guerrero-Mosquera and A.~N. Vazquez, ``Automatic removal of ocular artifacts
+  from eeg data using adaptive filtering and independent component analysis,''
+  in \emph{2009 17th European Signal Processing Conference}, Aug 2009, pp.
+  2317--2321.
 
 \bibitem{Bell1995}
 \BIBentryALTinterwordspacing
