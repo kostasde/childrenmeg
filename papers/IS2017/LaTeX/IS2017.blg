@@ -1,5 +1,5 @@
-This is BibTeX, Version 0.99d (TeX Live 2015)
-Capacity: max_strings=35307, hash_size=35307, hash_prime=30011
+This is BibTeX, Version 0.99d (TeX Live 2016/Debian)
+Capacity: max_strings=100000, hash_size=100000, hash_prime=85009
 The top-level auxiliary file: IS2017.aux
 The style file: IEEEtran/bibtex/IEEEtran.bst
 Reallocated singl_function (elt_size=4) to 100 items from 50.
@@ -8,51 +8,49 @@ Reallocated singl_function (elt_size=4) to 100 items from 50.
 Reallocated wiz_functions (elt_size=4) to 6000 items from 3000.
 Reallocated singl_function (elt_size=4) to 100 items from 50.
 Database file #1: IS2017.bib
-Warning--I didn't find a database entry for "NeuralSync"
 -- IEEEtran.bst version 1.13 (2008/09/30) by Michael Shell.
 -- http://www.michaelshell.org/tex/ieeetran/bibtex/
 -- See the "IEEEtran_bst_HOWTO.pdf" manual for usage information.
 
 Done.
-You've used 15 entries,
+You've used 17 entries,
             4039 wiz_defined-function locations,
-            929 strings with 10586 characters,
-and the built_in function-call counts, 12812 in all, are:
-= -- 1049
-> -- 301
-< -- 126
-+ -- 167
-- -- 48
-* -- 643
-:= -- 1908
-add.period$ -- 31
-call.type$ -- 15
-change.case$ -- 14
-chr.to.int$ -- 294
-cite$ -- 15
-duplicate$ -- 886
-empty$ -- 983
-format.name$ -- 59
-if$ -- 2952
+            939 strings with 10899 characters,
+and the built_in function-call counts, 14651 in all, are:
+= -- 1195
+> -- 333
+< -- 147
++ -- 187
+- -- 51
+* -- 728
+:= -- 2160
+add.period$ -- 35
+call.type$ -- 17
+change.case$ -- 17
+chr.to.int$ -- 348
+cite$ -- 17
+duplicate$ -- 1006
+empty$ -- 1144
+format.name$ -- 63
+if$ -- 3394
 int.to.chr$ -- 0
-int.to.str$ -- 15
-missing$ -- 144
-newline$ -- 78
-num.names$ -- 15
-pop$ -- 315
+int.to.str$ -- 17
+missing$ -- 161
+newline$ -- 86
+num.names$ -- 18
+pop$ -- 357
 preamble$ -- 1
 purify$ -- 0
 quote$ -- 2
-skip$ -- 979
+skip$ -- 1126
 stack$ -- 0
-substring$ -- 693
-swap$ -- 770
-text.length$ -- 28
+substring$ -- 820
+swap$ -- 876
+text.length$ -- 31
 text.prefix$ -- 0
 top$ -- 5
-type$ -- 15
+type$ -- 17
 warning$ -- 0
-while$ -- 61
-width$ -- 17
-write$ -- 183
-(There was 1 warning)
+while$ -- 69
+width$ -- 19
+write$ -- 204
