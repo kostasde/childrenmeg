@@ -59,9 +59,9 @@ Recordings were made in a sound-proof room, with each participant lying supine i
   \caption{Participant demographics, across stimuli type. The two tasks involve considerable participant overlap.}
   \label{tab:subjects}
   \centering
-  \begin{tabular}{ c@{}c c c c }
+  \begin{tabular}{ l@{}c c c c }
     \toprule
-    \multicolumn{1}{c}{\textbf{Stimuli}} & \multicolumn{1}{c}{\textbf{Age}} & \multicolumn{1}{c}{\textbf{Subjects}} & \multicolumn{1}{c}{\textbf{Trials}}  & \multicolumn{1}{c}{\textbf{M/F Split}} \\
+    \multicolumn{1}{l}{\textbf{Stimuli}} & \multicolumn{1}{c}{\textbf{Age}} & \multicolumn{1}{c}{\textbf{Subjects}} & \multicolumn{1}{c}{\textbf{Trials}}  & \multicolumn{1}{c}{\textbf{M/F Split}} \\
     \midrule
     /{\em pah}/~~~                    & $4.1-18.4$   &   $92$   &   $115$   &   $-$ \\
     /{\em pah tah kah}/~~~                & $4.1-18.4$   &   $89$   &   $115$   &   $-$ \\
@@ -140,13 +140,16 @@ The regression performance across the 10 folds seems to suggest that a multiline
 
 When trained using the highly correlated MEG features, regression performance is nearly equivalent to its exhaustive counterpart. There is a fairly marked reduction in variance, but performance does not increase until Audio and MEG features are combined. This may be surprising, considering that the MEG features are relatively correlated with age. This could suggest somewhat complementary information between data sets. % FR: in future, a measure of mutual information should be computed.
 
+Table \ref{tab:rmse} shows the means and variances of root mean squared error (RMSE) values on regression, given various combinations of feature sets. Clearly, combining audio features with a reduced set of MEG features result in the best accuracy on average. An $n$-way ANOVA confirms a significant effect of the feature type on regression accuracy ($F_{4,49} = 51.05$, $p<0.001$), with the combined Audio + reduced MEG features being significantly more accurate than {\em each} of the other combinations, according to right-tailed $t$-tests, with $\alpha$ Bonferroni corrected for multiple comparisons.
+
+
 \begin{table}[t]
-  \caption{Root mean squared error (RMSE) in years, of ten-fold cross validation for each of the datasets. Audio features combined with reduced MEG features show the best prediction capability.}
+  \caption{Root mean squared error (RMSE), in years, of 10-fold cross validation for each of the feature sets. Audio features combined with reduced MEG features show the best prediction capability.}
   \label{tab:rmse}
   \centering
   \begin{tabular}{ l@{}c  c }
     \toprule
-    \multicolumn{1}{c}{\textbf{Dataset}} & \multicolumn{1}{c}{\textbf{Mean}} & \multicolumn{1}{c}{\textbf{Variance}} \\
+    \multicolumn{1}{l}{\textbf{Feature set}} & \multicolumn{1}{c}{\textbf{Mean}} & \multicolumn{1}{c}{\textbf{Variance}} \\
     \midrule
     Audio~~~                             & ~~~$4.103$         &     $0.473$~~~       \\
     MEG~~~                               & ~~~$4.896$         &     $0.234$~~~       \\
