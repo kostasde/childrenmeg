@@ -1,4 +1,4 @@
-function [ xlabels, ylabels ] = correlationFigure( r, p, meglabels, audiolabels, numticks, p_max, plot_title )
+function [ xlabels, ylabels, B ] = correlationFigure( r, p, meglabels, audiolabels, numticks, p_max, r_min, plot_title )
 %CORRELATIONFIGURE Generate a figure showing a visualiztion of the provided
 % matrix
 %
@@ -13,6 +13,7 @@ B = abs(r)';
 if ~isempty(p)
     % Ignore entries that have p value higher than tolerated
     B(p > p_max) = nan;
+    B(B < r_min) = nan;
 end
 
 figure;

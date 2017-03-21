@@ -98,8 +98,13 @@ end % all subjects complete
 % Finally actually do the correlations
 if decoded.splitcond
     conditions = fieldnames(data);
-    Rho = struct();
-    Pval = struct();
+    
+    if exist('correlations.mat', 'file') == 2
+        load('correlations.mat');
+    else
+        Rho = struct();
+        Pval = struct();
+    end
     for i=2:length(conditions)
         c = getfield(data, char(conditions(i)));
         %fprintf('Checking consistency..\n');

@@ -21,8 +21,7 @@ for j=1:size(EEG.icaact, 3)
     % transpose for opensmile
     f = fullfile(meg_outdir, strcat('/epoch_', int2str(j), '.csv'));
     if exist(fullfile(meg_outdir, strcat('/epoch_', int2str(j), '.bak'))) == 2, continue; end
-    tonorm = EEG.icaact(:,:,j)';
-    csvwrite(f, tonorm/max(abs(tonorm)));
+    csvwrite(f, zscore(EEG.icaact(:,:,j))');
     csvwrite(fullfile(audio_outdir, strcat('/epoch_', int2str(j), '.csv')), EEG.acoustic(:,j));
     fprintf('.');
 end

@@ -2,8 +2,8 @@ function [ t ] = reader( filename, varargin )
 %READER Summary of this function goes here
 %   Detailed explanation goes here  
 
-MEGLEN = 2869;
-AUDIOLEN = 156;
+%MEGLEN = 2869;
+%AUDIOLEN = 156;
 subjectref = load('/mnt/elephant_sized_space/ALL/subject_table.mat');
 subjectref = subjectref.subject_table;
 
