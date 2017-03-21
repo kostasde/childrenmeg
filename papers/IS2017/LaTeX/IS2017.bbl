@@ -23,17 +23,17 @@
 
 \bibitem{Fries2015}
 \BIBentryALTinterwordspacing
-P.~Fries, ``{Rhythms for Cognition: Communication through Coherence},''
+P.~Fries, ``Rhythms for cognition: {C}ommunication through coherence,''
   \emph{Neuron}, vol.~88, no.~1, pp. 220--235, 2015. [Online]. Available:
   \url{http://dx.doi.org/10.1016/j.neuron.2015.09.034}
 \BIBentrySTDinterwordspacing
 
 \bibitem{Nakasaki1989}
 \BIBentryALTinterwordspacing
-P.~Uhlhaas, ``{Neural synchrony in cortical networks: history, concept and
+P.~Uhlhaas, ``{Neural synchrony in cortical networks: {H}istory, concept and
   current status},'' \emph{Frontiers in Integrative Neuroscience}, vol.~3,
   no.~13, pp. 3662--3669, 2009. [Online]. Available:
-  \url{http://journal.frontiersin.org/article/10.3389/neuro.07.017.2009/abstract}
+  \url{http://journal.frontiersin.org/article/10.3389/neuro.07.017.2009}
 \BIBentrySTDinterwordspacing
 
 \bibitem{NeuralSync}
@@ -45,8 +45,8 @@ S.~Palva, Ed., \emph{Multimodal Oscillation-based Connectivity Theory}.\hskip
 
 \bibitem{Doesburg2016}
 \BIBentryALTinterwordspacing
-S.~M. Doesburg, K.~Tingling, M.~J. MacDonald, and E.~W. Pang, ``{Development of
-  Network Synchronization Predicts Language Abilities},'' \emph{Journal of
+S.~M. Doesburg, K.~Tingling, M.~J. MacDonald, and E.~W. Pang, ``Development of
+  network synchronization predicts language abilities,'' \emph{Journal of
   Cognitive Neuroscience}, vol.~28, no.~1, pp. 55--68, jan 2016. [Online].
   Available: \url{http://arxiv.org/abs/1511.04103
   http://www.mitpressjournals.org/doi/10.1162/jocn{\_}a{\_}00879}
@@ -54,13 +54,13 @@ S.~M. Doesburg, K.~Tingling, M.~J. MacDonald, and E.~W. Pang, ``{Development of
 
 \bibitem{Yu2014}
 V.~Y. Yu, M.~J. MacDonald, A.~Oh, G.~N. Hua, L.~F. {De Nil}, and E.~W. Pang,
-  ``{Age-related sex differences in language lateralization: a
-  magnetoencephalography (MEG) study in children},'' \emph{Developmental
+  ``Age-related sex differences in language lateralization: {A}
+  magnetoencephalography ({MEG}) study in children,'' \emph{Developmental
   Psychology}, vol.~50, no.~9, pp. 2275--2284, 2014.
 
 \bibitem{Nguyen2012}
-P.~Nguyen, D.~Tran, X.~Huang, and D.~Sharma, ``{A Proposed Feature Extraction
-  Method for EEG-based Person Identification},'' \emph{The International
+P.~Nguyen, D.~Tran, X.~Huang, and D.~Sharma, ``A proposed feature extraction
+  method for {EEG}-based person identification,'' \emph{The International
   Conference on Artificial Intelligence}, 2012.
 
 \bibitem{Poulos2001}
@@ -76,14 +76,14 @@ R.~Viga{\'r}io, V.~Jousm{\"a}ki, M.~H{\"a}m{\"a}l{\"a}inen, R.~Hari, and
 
 \bibitem{Ince2008}
 N.~Ince, F.~Goksu, G.~Pellizzer, A.~Tewfik, and M.~Stephane, ``Selection of
-  spectro-temporal patterns in multichannel meg with support vector machines
+  spectro-temporal patterns in multichannel {MEG} with support vector machines
   for schizophrenia classification,'' in \emph{Engineering in Medicine and
   Biology Society, 2008. EMBS 2008. 30th Annual International Conference of the
   IEEE}, Aug 2008, pp. 3554--3557.
 
 \bibitem{Guimaraes2007}
 M.~Guimaraes, D.~Wong, E.~Uy, L.~Grosenick, and P.~Suppes, ``Single-trial
-  classification of meg recordings,'' \emph{Biomedical Engineering, IEEE
+  classification of {MEG} recordings,'' \emph{Biomedical Engineering, IEEE
   Transactions on}, vol.~54, no.~3, pp. 436--443, March 2007.
 
 \bibitem{Dunn97}
@@ -92,7 +92,7 @@ L.~M. Dunn, \emph{{Peabody Picture Vocabulary Test, third edition}},
   American Guidance Service, 1997.
 
 \bibitem{EVT}
-K.~T. Williams, \emph{{Expressive vocabulary test}}.\hskip 1em plus 0.5em minus
+K.~T. Williams, \emph{{Expressive Vocabulary Test}}.\hskip 1em plus 0.5em minus
   0.4em\relax Circle Pines, MN: American Guidance Service, 1997.
 
 \bibitem{eog}
@@ -103,29 +103,28 @@ C.~Guerrero-Mosquera and A.~N. Vazquez, ``Automatic removal of ocular artifacts
 
 \bibitem{Bell1995}
 \BIBentryALTinterwordspacing
-A.~J. Bell and T.~J. Sejnowski, ``{An Information-Maximization Approach to
-  Blind Separation and Blind Deconvolution},'' \emph{Neural Computation},
-  vol.~7, no.~6, pp. 1129--1159, nov 1995. [Online]. Available:
+A.~J. Bell and T.~J. Sejnowski, ``An information-maximization approach to blind
+  separation and blind deconvolution,'' \emph{Neural Computation}, vol.~7,
+  no.~6, pp. 1129--1159, nov 1995. [Online]. Available:
   \url{http://www.mitpressjournals.org/doi/10.1162/neco.1995.7.6.1129}
 \BIBentrySTDinterwordspacing
 
 \bibitem{Delorme04eeglab}
-A.~Delorme and S.~Makeig, ``Eeglab: an open source toolbox for analysis of
-  single-trial eeg dynamics including independent component analysis,''
+A.~Delorme and S.~Makeig, ``{EEGLAB}: {A}n open source toolbox for analysis of
+  single-trial {EEG} dynamics including independent component analysis,''
   \emph{Journal of Neuroscience Methods}, vol. 134, pp. 9--21, 2004.
 
 \bibitem{Eyben13-RDI}
 F.~Eyben, F.~Weninger, F.~Gross, and B.~Schuller, ``Recent developments in
-  {openSMILE}, the munich open-source multimedia feature extractor,'' in
+  {openSMILE}, the {M}unich open-source multimedia feature extractor,'' in
   \emph{Proc.\ of ACM Multimedia 2013}.\hskip 1em plus 0.5em minus 0.4em\relax
   Barcelona, Spain: ACM, 2013, pp. 835--838.
 
 \bibitem{Bergstra2013}
 \BIBentryALTinterwordspacing
-J.~Bergstra, D.~Yamins, and D.~D. Cox, ``{Hyperopt: A Python Library for
-  Optimizing the Hyperparameters of Machine Learning Algorithms},'' \emph{PROC.
-  OF THE 12th PYTHON IN SCIENCE CONF}, pp. 13--20, 2013. [Online]. Available:
-  \url{http://www.youtube.com/watch?v=Mp1xnPfE4PY}
+J.~Bergstra, D.~Yamins, and D.~D. Cox, ``Hyperopt: {A} python library for
+  optimizing the hyperparameters of machine learning algorithms,'' 2013, pp.
+  13--20. [Online]. Available: \url{http://www.youtube.com/watch?v=Mp1xnPfE4PY}
 \BIBentrySTDinterwordspacing
 
 \end{thebibliography}

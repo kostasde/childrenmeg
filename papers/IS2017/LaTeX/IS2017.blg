@@ -11,10 +11,12 @@ Database file #1: IS2017.bib
 -- IEEEtran.bst version 1.13 (2008/09/30) by Michael Shell.
 -- http://www.michaelshell.org/tex/ieeetran/bibtex/
 -- See the "IEEEtran_bst_HOWTO.pdf" manual for usage information.
+Warning--empty booktitle in Bergstra2013
 
 Done.
 You've used 17 entries,
             4039 wiz_defined-function locations,
+<<<<<<< Updated upstream
             939 strings with 10899 characters,
 and the built_in function-call counts, 14651 in all, are:
 = -- 1195
@@ -54,3 +56,45 @@ warning$ -- 0
 while$ -- 69
 width$ -- 19
 write$ -- 204
+=======
+            929 strings with 10601 characters,
+and the built_in function-call counts, 12835 in all, are:
+= -- 1043
+> -- 301
+< -- 126
++ -- 167
+- -- 48
+* -- 643
+:= -- 1900
+add.period$ -- 31
+call.type$ -- 15
+change.case$ -- 14
+chr.to.int$ -- 294
+cite$ -- 16
+duplicate$ -- 887
+empty$ -- 998
+format.name$ -- 59
+if$ -- 2962
+int.to.chr$ -- 0
+int.to.str$ -- 15
+missing$ -- 145
+newline$ -- 78
+num.names$ -- 15
+pop$ -- 323
+preamble$ -- 1
+purify$ -- 0
+quote$ -- 2
+skip$ -- 983
+stack$ -- 0
+substring$ -- 693
+swap$ -- 767
+text.length$ -- 28
+text.prefix$ -- 0
+top$ -- 5
+type$ -- 15
+warning$ -- 1
+while$ -- 61
+width$ -- 17
+write$ -- 182
+(There were 2 warnings)
+>>>>>>> Stashed changes
