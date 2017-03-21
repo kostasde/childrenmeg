@@ -33,7 +33,7 @@ Previous work with electroencephalpgraphic (EEG) experiments use common spectral
 
 Previous work with MEG includes detecting hand movement \cite{Asano2009}, identifying schizophrenia \cite{Ince2008}, and on discriminating between sets of imagined words \cite{Guimaraes2007}. To classify between three different hand movements\footnote{Corresponding to the signs in the game of `rock, paper, scissors'.}, Asano {\em et al.} \cite{Asano2009} used an adaptive spatial filter, principal components analysis (PCA) and a support vector machine (SVM) to achieve 62.6\% on held-out test data. In Ince {\em et al.} \cite{Ince2008}, a subject performed a working memory functional task while MEG data were recorded; an SVM with recursive feature elimination (SVM-RFE) was then used to both select a concise feature set and to identify schizophrenia. SVM-RFE recursively discarded features that did not significantly contribute to the margin of the SVM classifier to prevent excessive overfitting on the training set, and achieved 83.8\% to 91.9\% on the test data.
 
-Closer to our work, Guimaraes {\em et al.} \cite{Guimaraes2007} classified sets of 7-9 imagined words in two subtasks. In the first, the subject was simply required to attentively listen to a spoken word, while in the second the subject was shown each word visually and told to recite it
+Closer to speech generation, Guimaraes {\em et al.} \cite{Guimaraes2007} classified sets of 7-9 imagined words in two subtasks. In the first, the subject was simply required to attentively listen to a spoken word, while in the second the subject was shown each word visually and told to recite it
 silently. Those data were then examined using linear discriminant classification and SVM algorithms to classify each
 channel, and further analyzed in terms of the effects of spatial PCA, independent components analysis (ICA) and second-order
 blind identification decomposition. By combining channels, Guimaraes {\em et al.} achieved 60.1\% mean classification
@@ -44,7 +44,13 @@ We hypothesized that the accuracy of a regression model trained using a combined
 
 \section{Data}
 
-These data were originally recorded for work on age- and sex-related developmental language differences by Doesburg \emph{et al.} and Yu \emph{et al.} \cite{Doesburg2016, Yu2014}. Table \ref{tab:subjects} summarizes some participant demographics. Each participant spoke English as their first language and had no known or suspected histories of speech, language, hearing, or developmental disorders, according to their parents. Prior to the experiment, children received two standardized clinical tests: the Peabody Picture Vocabulary Test (PPVT) \cite{Dunn97} and the Expressive Vocabulary Test (EVT) \cite{EVT}. All children's scores were at or above expected scores for their ages on the PPVT and EVT, and their speech showed no signs of articulatory difficulties. In total, 80 participants were right-handed, 5 were left-handed, and 7 were ambidextrous; there is no significant variation of handedness with age.
+These data were originally recorded for work on age- and sex-related developmental language differences by Doesburg \emph{et al.} and Yu \emph{et al.} \cite{Doesburg2016, Yu2014}. Table \ref{tab:subjects} summarizes some participant demographics. Each participant spoke English as their first language and had no known or suspected histories of speech, language, hearing, or developmental disorders, according to their parents. Prior to the experiment, children received two standardized clinical tests: the Peabody Picture Vocabulary Test (PPVT) \cite{Dunn97} and the Expressive Vocabulary Test (EVT) \cite{EVT}. All children's scores were at or above expected scores for their ages on the PPVT and EVT, and their speech showed neither signs of articulatory difficulties nor any significant effect of age, as visualized in Figure \ref{fig:ppvtevt}. In total, 80 participants were right-handed, 5 were left-handed, and 7 were ambidextrous, according to the Edinburgh assessment; there is no significant variation of handedness with age.
+
+\begin{figure}
+\includegraphics[width=\columnwidth]{PPVTEVT.pdf}
+\caption{Normalized PPVT and EVT scores across ages for all participants. There are neither signs of speech production impairment nor effect of age on these assessments.}
+\label{fig:ppvtevt}
+\end{figure}
 
 Three distinct speech-elicitation stimuli were used. The first two were of the monosyllable /{\em pah}/ and the multisyllabic sequence /{\em pah tah kah}/, respectively. These were simple enough for young children and are part of the diadochokinetic rate (DDK) test, which can be used to evaluate neuromuscular control in motor speech disorders. The incisive nature of these stimuli for measuring speech production make them ideal for this study. Prior to acquisition, the experimenter demonstrated the productions of each stimuli, without word-like prosodic patterns. The third experiment was an overt verb generation (VG) task in English, where subjects are presented with an image they are familiar with, and are asked to produce a verb associated with the object. Stimuli were presented for 4.6 \cite{Doesburg2016}.
 
@@ -62,7 +68,7 @@ Recordings were made in a sound-proof room, with each participant lying supine i
   \centering
   \begin{tabular}{ l@{}c c c c }
     \toprule
-    \multicolumn{1}{l}{\textbf{Stimuli}} & \multicolumn{1}{c}{\textbf{Age}} & \multicolumn{1}{c}{\textbf{Subjects}} & \multicolumn{1}{c}{\textbf{Trials}}  & \multicolumn{1}{c}{\textbf{M/F Split}} \\
+    \multicolumn{1}{l}{\textbf{Stimuli}} & \multicolumn{1}{c}{\textbf{Age range}} & \multicolumn{1}{c}{\textbf{Subjects}} & \multicolumn{1}{c}{\textbf{Trials}}  & \multicolumn{1}{c}{\textbf{M/F Split}} \\
     \midrule
     /{\em pah}/~~~                    & $4.1-18.1$   &   $89$   &   $115$   &   $0.45/0.55$ \\
     /{\em pah tah kah}/~~~            & $4.1-18.1$   &   $83$   &   $115$   &   $0.45/0.55$ \\
