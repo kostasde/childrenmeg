@@ -63,15 +63,6 @@ M.~Poulos, M.~Rangoussi, N.~Alexandris, and A.~Evangelou, ``{On the use of EEG
   features towards person identification via neural networks},'' \emph{Med
   Inform.Internet.Med}, vol.~26, no.~1, pp. 35--48, 2001.
 
-\bibitem{Dunn97}
-L.~M. Dunn, \emph{{Peabody Picture Vocabulary Test, third edition}},
-  3rd~ed.\hskip 1em plus 0.5em minus 0.4em\relax Circle Pines, Minnesota:
-  American Guidance Service, 1997.
-
-\bibitem{EVT}
-K.~T. Williams, \emph{{Expressive vocabulary test}}.\hskip 1em plus 0.5em minus
-  0.4em\relax Circle Pines, MN: American Guidance Service, 1997.
-
 \bibitem{Yu2015}
 \BIBentryALTinterwordspacing
 V.~Y. Yu, L.~F. {De Nil}, and E.~W. Pang, ``{Effects of Age, Sex and Syllable
@@ -80,6 +71,15 @@ V.~Y. Yu, L.~F. {De Nil}, and E.~W. Pang, ``{Effects of Age, Sex and Syllable
   [Online]. Available:
   \url{http://www.scopus.com/inward/record.url?eid=2-s2.0-84930468626{\&}partnerID=tZOtx3y1}
 \BIBentrySTDinterwordspacing
+
+\bibitem{Dunn97}
+L.~M. Dunn, \emph{{Peabody Picture Vocabulary Test, third edition}},
+  3rd~ed.\hskip 1em plus 0.5em minus 0.4em\relax Circle Pines, Minnesota:
+  American Guidance Service, 1997.
+
+\bibitem{EVT}
+K.~T. Williams, \emph{{Expressive vocabulary test}}.\hskip 1em plus 0.5em minus
+  0.4em\relax Circle Pines, MN: American Guidance Service, 1997.
 
 \bibitem{Delorme04eeglab}
 A.~Delorme and S.~Makeig, ``Eeglab: an open source toolbox for analysis of

@@ -1,7 +1,8 @@
-
+ 
 \documentclass[a4paper]{article}
 
 \usepackage{INTERSPEECH_v2}
+\usepackage{subcaption}
 
 \title{Predicting age using synchronized MEG and speech recordings of children}
 \name{Author Name$^1$, Co-author Name$^2$}
@@ -12,6 +13,7 @@
 
 \usepackage{soul,color} 
 \newcommand{\FR}[1]{{\small \textcolor{red}{\hl{#1}}}}
+\newcommand{\DK}[1]{{\small \textcolor{blue}{\hl{#1}}}}
 
 \begin{document}
 
@@ -27,7 +29,7 @@ Evidence suggests that there is a correlation between the synchronization of dif
 
 \section{Introduction}
 
-The synchronization of neural oscillations between distributed brain regions has been an effective mechanistic explanation for various cognitive and perceptual processes \cite{Fries2015,Nakasaki1989,NeuralSync}. \FR{Yes -- 1 more sentence about brain synchronization and processing. A broad definition.}. For example, Doesburg {\em et al.} \cite{Doesburg2016} observed an increased synchrony during verb-generation (VG) tasks in children and adolescents \FR{relative to adults?}, and observed a significant increase in the number of synchronous regions with older adolescents, compared with younger children. Furthermore, Yu {\em et al.} \cite{Yu2014} noticed distinct profiles of de-synchrony in VG tasks for children within five age ranges (i.e., 4-6, 7-9, 10-12, 13-15, and 16-18 years of age). These findings indicate the possibility of inferring a child's age from observed MEG data, provided the ability to convey synchronicity and coordinated activity. The extraction of common spectral features such as the fast Fourier transform (FFT) magnitude and features like signal energy have shown some success with various classifiers in accurately differentiating different persons from electroencephalographic (EEG) experiments \cite{Nguyen2012} \cite{Poulos2001}. We use these features and  Something on MEG vs. EEG?
+The synchronization of neural oscillations between distributed brain regions has been an effective mechanistic explanation for various cognitive and perceptual processes \cite{Fries2015,Nakasaki1989,NeuralSync}. \FR{Yes -- 1 more sentence about brain synchronization and processing. A broad definition.}. For example, Doesburg {\em et al.} \cite{Doesburg2016} observed an increased synchrony with the increase of age during verb-generation (VG) tasks in children and adolescents, and observed a significant increase in the number of synchronous regions with older adolescents, compared with younger children. Furthermore, Yu {\em et al.} \cite{Yu2014} noticed distinct profiles of de-synchrony in VG tasks for children within five age ranges (i.e., 4-6, 7-9, 10-12, 13-15, and 16-18 years of age). These findings indicate the possibility of inferring a child's age from observed MEG data, provided the ability to convey synchronicity and coordinated activity. The extraction of common spectral features such as the fast Fourier transform (FFT) magnitude and features like signal energy have shown some success with various classifiers in accurately differentiating different persons from electroencephalographic (EEG) experiments \cite{Nguyen2012} \cite{Poulos2001}. We use these features and  Something on MEG vs. EEG?
 
 
 Previous work with MEG includes detecting hand movement \cite{Asano2009}, identifying schizophrenia \cite{Ince2008}, and on discriminating between sets of imagined words \cite{Guimaraes2007}. To classify between three different hand movements\footnote{Corresponding to the signs in the game of `rock, paper, scissors'.}, Asano {\em et al.} \cite{Asano2009} used an adaptive spatial filter,
@@ -45,38 +47,38 @@ We hypothesized that the accuracy of a regression model trained using a combined
 
 \section{Data}
 
-These data were originally recorded by Yu {\em et al.} \cite{Yu2015} from 70 healthy children (range: 4.1 to 18.4 years; 36 boys and 34 girls) and twelve adults (range: 23.5 to 30.2 years; 6 men and 6 women). The adults were recruited to serve as an end-point for the full maturity of voice onset patterns. All participants spoke English as their first language. Adults were healthy without any history of neurological, hearing, or speech-language difficulties. Child participants had no known or suspected histories of speech, language, hearing, or developmental disorders, according to their parents. Prior to the experiment, children received two standardized clinical tests: the Peabody Picture Vocabulary Test (PPVT) \cite{Dunn97} and the Expressive Vocabulary Test (EVT) \cite{EVT}. All children's scores were at or above expected scores for their ages on the PPVT and EVT, and their speech showed no signs of articulatory difficulties.
+These data were originally recorded for work done on age and sex related developmental language differences by Doesburg \emph{et al.} and Yu \emph{et al.} \cite{Doesburg2016, Yu2014} (See Table \ref{tab:subjects} for subject details). \st{and twelve adults (range: 23.5 to 30.2 years; 6 men and 6 women). The adults were recruited to serve as an end-point for the full maturity of voice onset patterns}. \DK{I don't have any adult data, only people aged 4.1 - 18.4, is this still relevant?} All participants spoke English as their first language. \st{Adults were healthy without any history of neurological, hearing, or speech-language difficulties.} Child participants had no known or suspected histories of speech, language, hearing, or developmental disorders, according to their parents. Prior to the experiment, children received two standardized clinical tests: the Peabody Picture Vocabulary Test (PPVT) \cite{Dunn97} and the Expressive Vocabulary Test (EVT) \cite{EVT}. All children's scores were at or above expected scores for their ages on the PPVT and EVT, and their speech showed no signs of articulatory difficulties.
 
-\FR{I have no data on their handedness OR on the purported verb generation task -- do you?}
+\DK{Handedness can be found in additional excel file now in git}
 
-Speech stimuli consisted of the monosyllable /pah/ and the multisyllabic sequence /pah tah kah/. These are simple enough for young children and are part of the diadochokinetic rate (DDK) test, which can be used to evaluate neuromuscular control in motor speech disorders. The incisive nature of these stimuli for measuring speech production make them ideal for this study. Prior to acquisition, the experimenter demonstrated the productions of each stimuli, without word-like prosodic patterns. Recordings were made in a sound-proof room, lying supine in a magnetically shielded room in the Neuromagnetic Lab at the Hospital for Sick Children in Toronto, using a CTF whole-head MEG system (MEG International Services Ltd., Coquitlam, BC, Canada). The system recorded all 151 MEG channels, and a single audio channel, with a sampling rate of 4 kHz. The MEG signals were resampled at 200Hz, and band pass filtered between 0.5Hz and 100 Hz.
+Three experiments where children produced speech stimuli were used. The first two are of the monosyllable /pah/ and the multisyllabic sequence /pah tah kah/. These are simple enough for young children and are part of the diadochokinetic rate (DDK) test, which can be used to evaluate neuromuscular control in motor speech disorders. The incisive nature of these stimuli for measuring speech production make them ideal for this study. Prior to acquisition, the experimenter demonstrated the productions of each stimuli, without word-like prosodic patterns.
+
+The third experiment was an overt verb generation (VG) task in English, where subjects are presented with an image they are familiar with, and are asked to produce a verb associated with the object \cite{Doesburg2016}.
+
+Recordings were made in a sound-proof room, lying supine in a magnetically shielded room in the Neuromagnetic Lab at the Hospital for Sick Children in Toronto, using a CTF whole-head MEG system (MEG International Services Ltd., Coquitlam, BC, Canada). The system recorded all 151 MEG channels, and a single audio channel, with a sampling rate of 4 kHz. % DK The following was done as part of processing steps: The MEG signals were resampled at 200Hz, and band pass filtered between 0.5Hz and 100 Hz.
 
 \section{Methods}
 
 %Overview of experiments, data processing and analysis performed
 
-\subsection{Experiments}
-
-The experiments performed consisted of three tests conducted for work on age and sex related developmental language differences \cite{Doesburg2016} \cite{Yu2014}. The first two consisted of children repeatedly producing the vocalizations /pa/ and /pataka/ respectively when prompted \cite{Yu2014} for a total of 115 trials per subject. The third was an overt verb generation (VG) task in English, where subjects are presented with an image they are familiar with, and are asked to produce a verb associated with the object \cite{Doesburg2016}. Each subject performed this experiment for 81 trials. Table 1 briefly summarizes the distribution of ages and gender that participated in each trial. The resulting analysis is performed on
-
-
 \subsection{Data processing}
+
 \begin{table}[t]
   \caption{Summary of subjects involved in each experiment. There was some overlap of subjects for each experiment type.}
   \label{tab:subjects}
   \centering
-  \begin{tabular}{ r@{}l  r }
+  \begin{tabular}{ r@{}c c c c }
     \toprule
-    \multicolumn{1}{c}{\textbf{Dataset}} & \multicolumn{1}{c}{\textbf{Mean}} & \multicolumn{1}{c}{\textbf{Deviation}} \\
+    \multicolumn{1}{c}{\textbf{Dataset}} & \multicolumn{1}{c}{\textbf{Age}} & \multicolumn{1}{c}{\textbf{Subjects}} & \multicolumn{1}{c}{\textbf{Trials}}  & \multicolumn{1}{c}{\textbf{M/F Split}} \\
     \midrule
-    /pa/~~~                        & $4.103$         &     $0.473$       \\
-    /pataka/~~~                          & $4.896$         &     $0.234$       \\
-    VG~~~                       & $4.109$         &     $0.244$       \\
+    /pa/~~~                    & $4.1-18.4$   &   $70$   &   $115$ \\
+    /pataka/~~~                & $4.1-18.4$   &   $70$   &   $115$ \\
+    VG~~~                      & $4.1-18.4$   &   $73$   &   $81$  \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-Participants were tested in a magnetically shielded room in the Neuromagnetic Lab at the Hospital for Sick Children, using a CTF 151-channel whole-head MEG system (MEG International Services Ltd., Coquitlam, BC, Canada). The system records 151 MEG channels and a single audio channel with a sampling rate of 4kHz. The MEG signals were resampled at 200Hz, and band pass filtered between 0.5Hz and 100 Hz, to remove offsets and not limit canonical ranges of delta, theta, alpha, beta, and gama activity. % Maybe cite the ranges I mention
+MEG signals were resampled at 200Hz, and band pass filtered between 0.5Hz and 100 Hz, to remove offsets and not limit canonical ranges of delta, theta, alpha, beta, and gama activity. 
 
 Removal of electro-ocular (EOG) artifacts was performed using automated Blind Source Separation (BSS) methods and examining signal complexities measured by fractal dimensions. Auto-BSS filters EOG artifacts using the SOBI algorithm in AAR's implemention.
 
@@ -84,7 +86,20 @@ Info-max independent component analysis (ICA) \cite{Bell1995} was then used to d
 
 \subsection{Feature Extraction}
 
-Features were then extracted from all epochs using openSMILE \cite{Eyben13-RDI}. A total of 156 acoustic features and 4681 MEG features were extracted. Features were calculated using 50ms rectangular windows, with a 25ms overlap of the previous window for each successive window.
+Features were then extracted from all epochs using openSMILE \cite{Eyben13-RDI}. A total of 156 acoustic features and 4681 MEG features were extracted. Features were calculated using 50ms rectangular windows, with a 25ms overlap of the previous window for each successive window, resulting in a total of 79 windows per datapoint.
+
+\subsubsection{Audio Features}
+
+Features to represent spectral activity were calculated for each window consisting of a 128 point fast fourier transform and linear predicitve coding coeficients. Additionally the statistical moments: mean (also absolute mean, quadratic mean, and forementioned means calculated using only non-zero values), variance, skewness and kurtosis are calculated. Finally, root-mean-squared and log of signal energy were also calculated for each window.
+
+\subsubsection{MEG Features}
+
+For each of the 151 independent components derived from the MEG data 31 features were extracted. They consist of an 8 point fast fourier transform, statistical moments and energy calculation identical to the audio signal, and the autocorrelation function (ACF) calculated using fast fourier transform (FFT) and its inverse (iFFT) for window $w$:
+
+\begin{equation}
+  ACF(w) = iFFT(|FFT(w)|^2)
+  \label{eq1}
+\end{equation}
 
 \subsection{Analysis Performed}
 
@@ -92,45 +107,59 @@ Analysis fell into two categories, in the first: features extracted were checked
 
 \subsubsection{Correlation}
 
-We used standard Pearson correlation to determine correlations between MEG and audio features for each experiment set. We defined significant correlation if their measured p value had $p < 10^{-4}$ and the coefficient's absolute value $abs(r) > 0.2$. There were very few correlation coeficients above this point for each experiment type, which indicates a potentially low level of redundant information. Furthermore, using the entire dataset, correlations of both MEG and audio features with respect to age was computed, to determine
+We used standard Pearson correlation to determine correlations between MEG and audio features for each experiment set. We defined significant correlation to have p value of $p < 10^{-4}$ and the coefficient's absolute value $abs(r) > 0.2$.  Furthermore using the entire dataset, correlation of both MEG and audio features with respect to age was computed, to indicate features with a potentially stronger predictive capability when performing regression.
 
 \subsubsection{Linear Regression}
 
 Linear regression models to predict age were trained using the \textit{Audio}, \textit{MEG} and \textit{Audio+MEG (Fusion)} datasets respectively. Ten-fold cross-validation was used, such that each dataset was divided into 10 approximately equal sized groups. A held out test set of 8 hand selected subjects was used to report performance. This set was selected to have a similar mean and standard deviation of age to the entire set of subjects. Bayesian parameter optimization (using Hyperopt \cite{Bergstra2013}) was performed on the first fold of data to determine an appropriate learning rate and regularization factor for all training.
 
+Since the number of features produced when multiplied by the number of time windows exceeded the total number of datapoints available to train, we also train additional models using reduced MEG feature sets to attempt to remedy possible lack of performance due to this extreme dimensionality. The reduced MEG feature set consists of MEG features found to have siginificant correlations with age (as defined above).
+
 \section{Results}
 
-\subsection{Correlations} 
+\subsection{Correlations}
 
 \subsubsection{MEG vs. Audio: /pa/}
 
-The significant correlations (as defined above) amounted to $1.63$\% of the $156 \times 4681$ correlations for this experiment set. This further compounds that there appears to be little redundancy between the \textit{selected} MEG and audio features. Of these significant correlations, all were with respect to respect to three audio features
+The significant correlations (as defined above) amounted to $1.63$\% of the $156 \times 4681$ correlations for this experiment set. Thus there appears to be little redundancy between the \textit{selected} MEG and audio features. Of these significant correlations, all were with respect to three audio features. These features corresponded to sequential FFT bins that represent the frequency range (340 - 400)Hz.
 
 \subsubsection{MEG vs. Audio: /pataka/}
 
 
+
+% The frequency range 340-400 pops up both times, it seems to be too low to be related to formats or F0, but I can't say for sure because for some reason I commented out the formants section of my opensmile configuration, I calculate the LPC anyway, but I didn't even leave myself a note as to why I did that...
+
 \subsubsection{MEG vs. Audio: Verb Generation}
 
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{AllComponents.png}
+  \caption{Components with features most correlated with audio features, from left to right, /pah/, /pah ta kah/ and verb generation tasks.}
+  \label{fig:components}
+\end{figure}
 
 \subsubsection{All Features vs. Age}
 
-
+All 172 features that meet the requirements for significance we imposed are MEG features. No audio features were strongly correlated with age. This set of features included the autocorrelation features of eight components, including the first (highest entropy) component in addition to the entire available frequency spectrum of four of these components and one other. \DK{could we say: this indicates periodicity has a relatively strong correlation with age, which could be evidence that synchronization may be disinguishing between age groups?}
 
 \subsection{Regression}
 
 Here, talk about weights of the linear regression model, see features X,Y,Z for times t1... are the largest weights...
 
 \begin{table}[t]
-  \caption{Root mean squared error (RMSE) in years, of ten-fold cross validation for Audio, MEG, and Fusion datasets.}
+  \caption{Root mean squared error (RMSE) in years, of ten-fold cross validation for each of the datasets. No significant evidence of stronger predictive ability using a combination of Audio and MEG features.}
   \label{tab:rmse}
   \centering
-  \begin{tabular}{ r@{}l  r }
+  \begin{tabular}{ l@{}c  c }
     \toprule
     \multicolumn{1}{c}{\textbf{Dataset}} & \multicolumn{1}{c}{\textbf{Mean}} & \multicolumn{1}{c}{\textbf{Deviation}} \\
     \midrule
-    Audio~~~                        & $4.103$         &     $0.473$       \\
-    MEG~~~                          & $4.896$         &     $0.234$       \\
-    Fusion~~~                       & $4.109$         &     $0.244$       \\
+    Audio~~~                             & ~~~$4.103$         &     $0.473$~~~       \\
+    MEG~~~                               & ~~~$4.896$         &     $0.234$~~~       \\
+    Audio+MEG~~~                       & ~~~$4.109$         &     $0.244$~~~       \\
+
+    MEG (red.)~~~                     & ~~~$5.206$         &     $0.163$~~~       \\
+    Audio+MEG (red.)~~~                & ~~~$3.438$         &     $0.909$~~~       \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -151,7 +180,7 @@ Lorem Ipsum
 
 \section{Acknowledgements}
 
-Lorem Ipsum
+We would like to thank Rui Janson
 
 
 \bibliographystyle{IEEEtran/bibtex/IEEEtran}

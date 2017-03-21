@@ -1,5 +1,5 @@
-This is BibTeX, Version 0.99d (TeX Live 2015)
-Capacity: max_strings=35307, hash_size=35307, hash_prime=30011
+This is BibTeX, Version 0.99d (TeX Live 2016/Debian)
+Capacity: max_strings=100000, hash_size=100000, hash_prime=85009
 The top-level auxiliary file: IS2017.aux
 The style file: IEEEtran/bibtex/IEEEtran.bst
 Reallocated singl_function (elt_size=4) to 100 items from 50.
@@ -12,6 +12,7 @@ Warning--I didn't find a database entry for "NeuralSync"
 Warning--I didn't find a database entry for "Asano2009"
 Warning--I didn't find a database entry for "Ince2008"
 Warning--I didn't find a database entry for "Guimaraes2007"
+Warning--I didn't find a database entry for "Bell1995"
 -- IEEEtran.bst version 1.13 (2008/09/30) by Michael Shell.
 -- http://www.michaelshell.org/tex/ieeetran/bibtex/
 -- See the "IEEEtran_bst_HOWTO.pdf" manual for usage information.
@@ -20,7 +21,7 @@ Warning--empty journal in Yu2014
 Done.
 You've used 13 entries,
             4039 wiz_defined-function locations,
-            919 strings with 10288 characters,
+            921 strings with 10304 characters,
 and the built_in function-call counts, 10721 in all, are:
 = -- 890
 > -- 252
@@ -59,4 +60,4 @@ warning$ -- 1
 while$ -- 54
 width$ -- 15
 write$ -- 166
-(There were 5 warnings)
+(There were 6 warnings)
