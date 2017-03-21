@@ -12,52 +12,51 @@ Warning--I didn't find a database entry for "NeuralSync"
 Warning--I didn't find a database entry for "Asano2009"
 Warning--I didn't find a database entry for "Ince2008"
 Warning--I didn't find a database entry for "Guimaraes2007"
-Warning--I didn't find a database entry for "Bell1995"
 -- IEEEtran.bst version 1.13 (2008/09/30) by Michael Shell.
 -- http://www.michaelshell.org/tex/ieeetran/bibtex/
 -- See the "IEEEtran_bst_HOWTO.pdf" manual for usage information.
 Warning--empty journal in Yu2014
 
 Done.
-You've used 13 entries,
+You've used 12 entries,
             4039 wiz_defined-function locations,
-            921 strings with 10304 characters,
-and the built_in function-call counts, 10721 in all, are:
-= -- 890
-> -- 252
-< -- 104
-+ -- 139
-- -- 41
-* -- 549
-:= -- 1645
-add.period$ -- 27
-call.type$ -- 13
-change.case$ -- 12
-chr.to.int$ -- 237
-cite$ -- 14
-duplicate$ -- 740
-empty$ -- 799
-format.name$ -- 50
-if$ -- 2439
+            910 strings with 9943 characters,
+and the built_in function-call counts, 9611 in all, are:
+= -- 798
+> -- 215
+< -- 93
++ -- 119
+- -- 34
+* -- 488
+:= -- 1481
+add.period$ -- 25
+call.type$ -- 12
+change.case$ -- 11
+chr.to.int$ -- 213
+cite$ -- 13
+duplicate$ -- 668
+empty$ -- 727
+format.name$ -- 42
+if$ -- 2185
 int.to.chr$ -- 0
-int.to.str$ -- 13
-missing$ -- 121
-newline$ -- 74
-num.names$ -- 13
-pop$ -- 257
+int.to.str$ -- 12
+missing$ -- 107
+newline$ -- 69
+num.names$ -- 12
+pop$ -- 228
 preamble$ -- 1
 purify$ -- 0
 quote$ -- 2
-skip$ -- 814
+skip$ -- 731
 stack$ -- 0
-substring$ -- 556
-swap$ -- 640
-text.length$ -- 25
+substring$ -- 499
+swap$ -- 571
+text.length$ -- 22
 text.prefix$ -- 0
 top$ -- 5
-type$ -- 13
+type$ -- 12
 warning$ -- 1
-while$ -- 54
-width$ -- 15
-write$ -- 166
-(There were 6 warnings)
+while$ -- 49
+width$ -- 14
+write$ -- 152
+(There were 5 warnings)

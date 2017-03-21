@@ -29,8 +29,7 @@ Evidence suggests that there is a correlation between the synchronization of dif
 
 \section{Introduction}
 
-The synchronization of neural oscillations between distributed brain regions has been an effective mechanistic explanation for various cognitive and perceptual processes \cite{Fries2015,Nakasaki1989,NeuralSync}. \FR{Yes -- 1 more sentence about brain synchronization and processing. A broad definition.}. For example, Doesburg {\em et al.} \cite{Doesburg2016} observed an increased synchrony with the increase of age during verb-generation (VG) tasks in children and adolescents, and observed a significant increase in the number of synchronous regions with older adolescents, compared with younger children. Furthermore, Yu {\em et al.} \cite{Yu2014} noticed distinct profiles of de-synchrony in VG tasks for children within five age ranges (i.e., 4-6, 7-9, 10-12, 13-15, and 16-18 years of age). These findings indicate the possibility of inferring a child's age from observed MEG data, provided the ability to convey synchronicity and coordinated activity. The extraction of common spectral features such as the fast Fourier transform (FFT) magnitude and features like signal energy have shown some success with various classifiers in accurately differentiating different persons from electroencephalographic (EEG) experiments \cite{Nguyen2012} \cite{Poulos2001}. We use these features and  Something on MEG vs. EEG?
-
+The synchronization of neural oscillations between distributed brain regions has been an effective mechanistic explanation for various cognitive and perceptual processes \cite{Fries2015,Nakasaki1989,NeuralSync}. \FR{Yes -- 1 more sentence about brain synchronization and processing. A broad definition. DK-TODO}. For example, Doesburg {\em et al.} \cite{Doesburg2016} observed an increased synchrony with the increase of age during verb-generation (VG) tasks in children and adolescents, and observed a significant increase in the number of synchronous regions with older adolescents, compared with younger children. Furthermore, Yu {\em et al.} \cite{Yu2014} noticed distinct profiles of de-synchrony in VG tasks for children within five age ranges (i.e., 4-6, 7-9, 10-12, 13-15, and 16-18 years of age). These findings indicate the possibility of inferring a child's age from observed MEG data, provided the ability to convey synchronicity and coordinated activity. The extraction of common spectral features such as the fast Fourier transform (FFT) magnitude and features like signal energy have shown some success with various classifiers in accurately differentiating different persons from electroencephalographic (EEG) experiments \cite{Nguyen2012, Poulos2001}. 
 
 Previous work with MEG includes detecting hand movement \cite{Asano2009}, identifying schizophrenia \cite{Ince2008}, and on discriminating between sets of imagined words \cite{Guimaraes2007}. To classify between three different hand movements\footnote{Corresponding to the signs in the game of `rock, paper, scissors'.}, Asano {\em et al.} \cite{Asano2009} used an adaptive spatial filter,
 principal components analysis (PCA) and a support vector machine (SVM) to achieve
@@ -47,11 +46,11 @@ We hypothesized that the accuracy of a regression model trained using a combined
 
 \section{Data}
 
-These data were originally recorded for work done on age and sex related developmental language differences by Doesburg \emph{et al.} and Yu \emph{et al.} \cite{Doesburg2016, Yu2014} (See Table \ref{tab:subjects} for subject details). \st{and twelve adults (range: 23.5 to 30.2 years; 6 men and 6 women). The adults were recruited to serve as an end-point for the full maturity of voice onset patterns}. \DK{I don't have any adult data, only people aged 4.1 - 18.4, is this still relevant?} All participants spoke English as their first language. \st{Adults were healthy without any history of neurological, hearing, or speech-language difficulties.} Child participants had no known or suspected histories of speech, language, hearing, or developmental disorders, according to their parents. Prior to the experiment, children received two standardized clinical tests: the Peabody Picture Vocabulary Test (PPVT) \cite{Dunn97} and the Expressive Vocabulary Test (EVT) \cite{EVT}. All children's scores were at or above expected scores for their ages on the PPVT and EVT, and their speech showed no signs of articulatory difficulties.
+These data were originally recorded for work done on age and sex related developmental language differences by Doesburg \emph{et al.} and Yu \emph{et al.} \cite{Doesburg2016, Yu2014} (See Table \ref{tab:subjects} for subject details). \st{and twelve adults (range: 23.5 to 30.2 years; 6 men and 6 women). The adults were recruited to serve as an end-point for the full maturity of voice onset patterns}. \DK{I don't have any adult data, only people aged 4.1 - 18.4, is this fact still relevant?} All participants spoke English as their first language. \st{Adults were healthy without any history of neurological, hearing, or speech-language difficulties.} Child participants had no known or suspected histories of speech, language, hearing, or developmental disorders, according to their parents. Prior to the experiment, children received two standardized clinical tests: the Peabody Picture Vocabulary Test (PPVT) \cite{Dunn97} and the Expressive Vocabulary Test (EVT) \cite{EVT}. All children's scores were at or above expected scores for their ages on the PPVT and EVT, and their speech showed no signs of articulatory difficulties.
 
-\DK{Handedness can be found in additional excel file now in git}
+\DK{Handedness can be found in additional excel file now in git if needed}
 
-Three experiments where children produced speech stimuli were used. The first two are of the monosyllable /pah/ and the multisyllabic sequence /pah tah kah/. These are simple enough for young children and are part of the diadochokinetic rate (DDK) test, which can be used to evaluate neuromuscular control in motor speech disorders. The incisive nature of these stimuli for measuring speech production make them ideal for this study. Prior to acquisition, the experimenter demonstrated the productions of each stimuli, without word-like prosodic patterns.
+Three experiments where children produced speech stimuli were used. The first two are of the monosyllable /pah/ and the multisyllabic sequence /pah tah kah/ respectively. These are simple enough for young children and are part of the diadochokinetic rate (DDK) test, which can be used to evaluate neuromuscular control in motor speech disorders. The incisive nature of these stimuli for measuring speech production make them ideal for this study. Prior to acquisition, the experimenter demonstrated the productions of each stimuli, without word-like prosodic patterns.
 
 The third experiment was an overt verb generation (VG) task in English, where subjects are presented with an image they are familiar with, and are asked to produce a verb associated with the object \cite{Doesburg2016}.
 
@@ -64,16 +63,16 @@ Recordings were made in a sound-proof room, lying supine in a magnetically shiel
 \subsection{Data processing}
 
 \begin{table}[t]
-  \caption{Summary of subjects involved in each experiment. There was some overlap of subjects for each experiment type.}
+  \caption{Summary of subjects involved in each experiment. There was some degree of overlap of subjects in each experiment type.}
   \label{tab:subjects}
   \centering
-  \begin{tabular}{ r@{}c c c c }
+  \begin{tabular}{ c@{}c c c c }
     \toprule
     \multicolumn{1}{c}{\textbf{Dataset}} & \multicolumn{1}{c}{\textbf{Age}} & \multicolumn{1}{c}{\textbf{Subjects}} & \multicolumn{1}{c}{\textbf{Trials}}  & \multicolumn{1}{c}{\textbf{M/F Split}} \\
     \midrule
-    /pa/~~~                    & $4.1-18.4$   &   $70$   &   $115$ \\
-    /pataka/~~~                & $4.1-18.4$   &   $70$   &   $115$ \\
-    VG~~~                      & $4.1-18.4$   &   $73$   &   $81$  \\
+    /pah/~~~                    & $4.1-18.4$   &   $92$   &   $115$   &   $-$ \\
+    /pah tah kah/~~~                & $4.1-18.4$   &   $89$   &   $115$   &   $-$ \\
+    VG~~~                      & $-$   &   $31$   &   $81$    &   $-$  \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -119,13 +118,13 @@ Since the number of features produced when multiplied by the number of time wind
 
 \subsection{Correlations}
 
-\subsubsection{MEG vs. Audio: /pa/}
+\subsubsection{MEG vs. Audio: /pah/}
 
-The significant correlations (as defined above) amounted to $1.63$\% of the $156 \times 4681$ correlations for this experiment set. Thus there appears to be little redundancy between the \textit{selected} MEG and audio features. Of these significant correlations, all were with respect to three audio features. These features corresponded to sequential FFT bins that represent the frequency range (340 - 400)Hz.
+The significant correlations (as defined above) amounted to $0.0163$\% of the $156 \times 4681$ correlations for this experiment set. Thus there appears to be little redundancy between the \textit{selected} MEG and audio features. Of these significant correlations, all were with respect to three audio features. These features corresponded to sequential FFT bins that represent the frequency range (340 - 400)Hz. The most correlated MEG feature is the autocorrelation measure for six different components. 
 
-\subsubsection{MEG vs. Audio: /pataka/}
+\subsubsection{MEG vs. Audio: /pah tah kah/}
 
-
+Under this test condition, $0.0116$\% of correlations between features were significant, and similar to the /pah/ experiment these correlations heavily involve the audio features that represent frequencies (320-400)Hz in addition to some features that represent much lower frequencies (80-160)Hz, but these are extremely unlikely to be due to \st{human children} the subjects, and more likely come from noise in the environment. Also similar to the /pah/ experiment, the autocorrelation feature seems to be significantly correlated for 8 components, three of which are the same components as the /pah/ experiment. 
 
 % The frequency range 340-400 pops up both times, it seems to be too low to be related to formats or F0, but I can't say for sure because for some reason I commented out the formants section of my opensmile configuration, I calculate the LPC anyway, but I didn't even leave myself a note as to why I did that...
 
@@ -134,41 +133,46 @@ The significant correlations (as defined above) amounted to $1.63$\% of the $156
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{AllComponents.png}
-  \caption{Components with features most correlated with audio features, from left to right, /pah/, /pah ta kah/ and verb generation tasks.}
+  \caption{Graphical illustrations (using \cite{Delorme04eeglab}) of the independent components with features most correlated with audio features, from left to right, /pah/, /pah tah kah/ and verb generation tasks.}
   \label{fig:components}
 \end{figure}
 
 \subsubsection{All Features vs. Age}
 
-All 172 features that meet the requirements for significance we imposed are MEG features. No audio features were strongly correlated with age. This set of features included the autocorrelation features of eight components, including the first (highest entropy) component in addition to the entire available frequency spectrum of four of these components and one other. \DK{could we say: this indicates periodicity has a relatively strong correlation with age, which could be evidence that synchronization may be disinguishing between age groups?}
+All 172 features that meet the requirements for significance we imposed are MEG features. No audio features met these requirements. This set of features includes the autocorrelation features of eight components--including the first (highest entropy) component--in addition to the entire available frequency spectrum of four of these components and one other. \DK{could we say: this indicates periodicity has a relatively strong correlation with age, which could be evidence that synchronization may be disinguishing between age groups?}
+
+The correlation of the 99\textsuperscript{th} \DK{(note to say 99th (low) greatest entropy?)} computed component had correlation coeficients $abs(r)>0.3$ for nearly all of its features, which was true of no other components considered. Examining the physical representation of these components with respect to each of the three experiments, there were no discernible similarities to note. Three other components also had features with correlation $abs(r)>0.3$, for features that corresponded to various mean variants.
 
 \subsection{Regression}
 
-Here, talk about weights of the linear regression model, see features X,Y,Z for times t1... are the largest weights...
+The regression performance across the 10 folds seems to suggest that a linear regression model trained using both audio and the reduced (highly correlated) MEG feature set performs better than any configuration of audio and meg feature sets alone. We see that without using the reduced MEG feature set, theregression performance is no better than that of audio alone, but we suspect that this is due to the extremely high dimensionality of this data. Models trained using some sort of MEG features also noticably perform more consistently (lower variance) than the exclusively audio features dataset.
+Note also that the regression performance when trained using the highly correlated MEG features, is nearly equivalent to its exhaustive counterpart. There is a fairly marked reduction in variance, but performance did not increased until audio and MEG features were combined, this is surprising when we consider that the MEG were relatively much more correlated with age. This seems to suggest that neither set of features represents in a sense a subset of the other in their current forms. \DK{Maybe say that audio dataset actually performs pretty close to combination after we consider the variance?}. 
 
 \begin{table}[t]
-  \caption{Root mean squared error (RMSE) in years, of ten-fold cross validation for each of the datasets. No significant evidence of stronger predictive ability using a combination of Audio and MEG features.}
+  \caption{Root mean squared error (RMSE) in years, of ten-fold cross validation for each of the datasets. Audio features combined with reduced MEG features show the best prediction capability.}
   \label{tab:rmse}
   \centering
   \begin{tabular}{ l@{}c  c }
     \toprule
-    \multicolumn{1}{c}{\textbf{Dataset}} & \multicolumn{1}{c}{\textbf{Mean}} & \multicolumn{1}{c}{\textbf{Deviation}} \\
+    \multicolumn{1}{c}{\textbf{Dataset}} & \multicolumn{1}{c}{\textbf{Mean}} & \multicolumn{1}{c}{\textbf{Variance}} \\
     \midrule
     Audio~~~                             & ~~~$4.103$         &     $0.473$~~~       \\
     MEG~~~                               & ~~~$4.896$         &     $0.234$~~~       \\
-    Audio+MEG~~~                       & ~~~$4.109$         &     $0.244$~~~       \\
+    Audio+MEG~~~                         & ~~~$4.109$         &     $0.244$~~~       \\
 
-    MEG (red.)~~~                     & ~~~$5.206$         &     $0.163$~~~       \\
-    Audio+MEG (red.)~~~                & ~~~$3.438$         &     $0.909$~~~       \\
+    MEG (red.)~~~                        & ~~~$5.081$         &     $0.142$~~~       \\
+    Audio+MEG (red.)~~~                  & ~~~$3.370$         &     $0.248$~~~       \\
     \bottomrule
   \end{tabular}
 \end{table}
 
 \section{Discussion}
 
-Could say something about potential difficulty of relying on synchronicity due to the fact that correlated firing does not imply as much as once thought \cite{Moreno-Bote2014}.
-
-Potential ICA differences, components were pretty general.
+\begin{itemize}
+\item ICA components are different for each experiment type, but we treat them to some degree as if they were the same ie. weight for feature 1 could be from any of the experiments
+\item 340-400Hz Frequency consistently correlated with MEG features, would expect this to be average F0 or /ah/ formant, but too low, did I calculate wrong? 1/50ms => 20Hz FFT buckets. Could say formants are missing, and would be a good feature to have if done again.
+\item does some of the regression results section belong here?
+\end{itemize}
 
 \subsection{Significance}
 
@@ -176,11 +180,11 @@ Frank wants to write section outlining caveats
 
 \section{Conclusions}
 
-Lorem Ipsum
+We show a mild confirmation of our hypothesis.
 
 \section{Acknowledgements}
 
-We would like to thank Rui Janson
+We would like to thank Rui Janson for his help performing automated EOG removal.
 
 
 \bibliographystyle{IEEEtran/bibtex/IEEEtran}
