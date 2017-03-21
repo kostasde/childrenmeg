@@ -4,11 +4,11 @@
 \usepackage{INTERSPEECH_v2}
 
 \title{Predicting age using synchronized MEG and speech recordings of children}
-\name{Author Name$^1$, Co-author Name$^2$}
+\name{Demetres Kostas$^1$, Elizabeth W. Pang$^2$, Frank Rudzicz$^{3,1,*}$}
 \address{
-  $^1$Author Affiliation, Sweden\\
-  $^2$Co-author Affiliation, Australia}
-\email{author@university.edu, coauthor@company.com}
+  $^1$University of Toronto; $^2$SickKids Research Institute;\\
+  $^3$Toronto Rehabilitation Institute-UHN; Toronto Canada}
+\email{$^*$frank@cs.toronto.edu}
 
 \usepackage{soul,color} 
 \newcommand{\FR}[1]{{\small \textcolor{red}{\hl{#1}}}}
@@ -24,15 +24,13 @@ Evidence suggests that there is a correlation between the synchronization of dif
 \end{abstract}
 
 
-\noindent\textbf{Index Terms}: Brain Computer Interfaces, BCI, Speech Production
+\noindent\textbf{Index Terms}: Brain-computer interfaces, speech production, child language acquisition
 
 \section{Introduction}
 
 The synchronization of neural oscillations between distributed brain regions has been an effective mechanistic explanation for various cognitive and perceptual processes \cite{Fries2015,Nakasaki1989,NeuralSync}. \FR{Yes -- 1 more sentence about brain synchronization and processing. A broad definition. DK-TODO}. For example, Doesburg {\em et al.} \cite{Doesburg2016} observed an increased synchrony with the increase of age during verb-generation (VG) tasks in children and adolescents, and observed a significant increase in the number of synchronous regions with older adolescents, compared with younger children. Furthermore, Yu {\em et al.} \cite{Yu2014} noticed distinct profiles of de-synchrony in VG tasks for children within five age ranges (i.e., 4-6, 7-9, 10-12, 13-15, and 16-18 years of age). These findings indicate the possibility of inferring a child's age from observed MEG data, provided the ability to convey synchronicity and coordinated activity. The extraction of common spectral features such as the fast Fourier transform (FFT) magnitude and features like signal energy have shown some success with various classifiers in accurately differentiating different persons from electroencephalographic (EEG) experiments \cite{Nguyen2012, Poulos2001}.
 
-Previous work with MEG includes detecting hand movement \cite{Asano2009}, identifying schizophrenia \cite{Ince2008}, and on discriminating between sets of imagined words \cite{Guimaraes2007}. To classify between three different hand movements\footnote{Corresponding to the signs in the game of `rock, paper, scissors'.}, Asano {\em et al.} \cite{Asano2009} used an adaptive spatial filter,
-principal components analysis (PCA) and a support vector machine (SVM) to achieve
-62.6\% on held-out test data. In Ince {\em et al.} \cite{Ince2008}, a subject performed a working memory functional task while MEG data were recorded; an SVM with recursive feature elimination (SVM-RFE) was then used to both select a concise feature set and to identify schizophrenia. SVM-RFE recursively discarded features that did not significantly contribute to the margin of the SVM classifier to prevent excessive overfitting on the training set, and achieved 83.8\% to 91.9\% on the test data.
+Previous work with MEG includes detecting hand movement \cite{Asano2009}, identifying schizophrenia \cite{Ince2008}, and on discriminating between sets of imagined words \cite{Guimaraes2007}. To classify between three different hand movements\footnote{Corresponding to the signs in the game of `rock, paper, scissors'.}, Asano {\em et al.} \cite{Asano2009} used an adaptive spatial filter, principal components analysis (PCA) and a support vector machine (SVM) to achieve 62.6\% on held-out test data. In Ince {\em et al.} \cite{Ince2008}, a subject performed a working memory functional task while MEG data were recorded; an SVM with recursive feature elimination (SVM-RFE) was then used to both select a concise feature set and to identify schizophrenia. SVM-RFE recursively discarded features that did not significantly contribute to the margin of the SVM classifier to prevent excessive overfitting on the training set, and achieved 83.8\% to 91.9\% on the test data.
 
 Closer to our work, Guimaraes {\em et al.} \cite{Guimaraes2007} classified sets of 7-9 imagined words in two subtasks. In the first, the subject was simply required to attentively listen to a spoken word, while in the second the subject was shown each word visually and told to recite it
 silently. Those data were then examined using linear discriminant classification and SVM algorithms to classify each
@@ -45,15 +43,11 @@ We hypothesized that the accuracy of a regression model trained using a combined
 
 \section{Data}
 
-These data were originally recorded for work on age and sex related developmental language differences by Doesburg \emph{et al.} and Yu \emph{et al.} \cite{Doesburg2016, Yu2014} (See Table \ref{tab:subjects} for subject details). \st{and twelve adults (range: 23.5 to 30.2 years; 6 men and 6 women). The adults were recruited to serve as an end-point for the full maturity of voice onset patterns}. \DK{I don't have any adult data, only people aged 4.1 - 18.4, is this fact still relevant?} All participants spoke English as their first language. \st{Adults were healthy without any history of neurological, hearing, or speech-language difficulties.} Child participants had no known or suspected histories of speech, language, hearing, or developmental disorders, according to their parents. Prior to the experiment, children received two standardized clinical tests: the Peabody Picture Vocabulary Test (PPVT) \cite{Dunn97} and the Expressive Vocabulary Test (EVT) \cite{EVT}. All children's scores were at or above expected scores for their ages on the PPVT and EVT, and their speech showed no signs of articulatory difficulties.
+These data were originally recorded for work on age- and sex-related developmental language differences by Doesburg \emph{et al.} and Yu \emph{et al.} \cite{Doesburg2016, Yu2014}. Table \ref{tab:subjects} summarizes some participant demographics. Each participant spoke English as their first language and had no known or suspected histories of speech, language, hearing, or developmental disorders, according to their parents. Prior to the experiment, children received two standardized clinical tests: the Peabody Picture Vocabulary Test (PPVT) \cite{Dunn97} and the Expressive Vocabulary Test (EVT) \cite{EVT}. All children's scores were at or above expected scores for their ages on the PPVT and EVT, and their speech showed no signs of articulatory difficulties. In total, 80 participants were right-handed, 5 were left-handed, and 7 were ambidextrous; there is no significant variation of handedness with age.
 
-\DK{Handedness can be found in additional excel file now in git if needed}
+Three distinct speech-elicitation stimuli were used. The first two were of the monosyllable /{\em pah}/ and the multisyllabic sequence /{\em pah tah kah}/, respectively. These were simple enough for young children and are part of the diadochokinetic rate (DDK) test, which can be used to evaluate neuromuscular control in motor speech disorders. The incisive nature of these stimuli for measuring speech production make them ideal for this study. Prior to acquisition, the experimenter demonstrated the productions of each stimuli, without word-like prosodic patterns. The third experiment was an overt verb generation (VG) task in English, where subjects are presented with an image they are familiar with, and are asked to produce a verb associated with the object \cite{Doesburg2016}.
 
-Three experiments where children produced speech stimuli were used. The first two are of the monosyllable /pah/ and the multisyllabic sequence /pah tah kah/ respectively. These are simple enough for young children and are part of the diadochokinetic rate (DDK) test, which can be used to evaluate neuromuscular control in motor speech disorders. The incisive nature of these stimuli for measuring speech production make them ideal for this study. Prior to acquisition, the experimenter demonstrated the productions of each stimuli, without word-like prosodic patterns.
-
-The third experiment was an overt verb generation (VG) task in English, where subjects are presented with an image they are familiar with, and are asked to produce a verb associated with the object \cite{Doesburg2016}.
-
-Recordings were made in a sound-proof room, lying supine in a magnetically shielded room in the Neuromagnetic Lab at the Hospital for Sick Children in Toronto, using a CTF whole-head MEG system (MEG International Services Ltd., Coquitlam, BC, Canada). The system recorded all 151 MEG channels, and a single audio channel, with a sampling rate of 4 kHz. % DK The following was done as part of processing steps: The MEG signals were resampled at 200Hz, and band pass filtered between 0.5Hz and 100 Hz.
+Recordings were made in a sound-proof room, with each participant lying supine in a magnetically shielded room in the Neuromagnetic Lab of the Hospital for Sick Children in Toronto, using a CTF whole-head MEG system (MEG International Services Ltd., Coquitlam, BC, Canada). The system recorded all 151 MEG channels, and a single audio channel, with a sampling rate of 4 kHz. % DK The following was done as part of processing steps: The MEG signals were resampled at 200Hz, and band pass filtered between 0.5Hz and 100 Hz.
 
 \section{Methods}
 
@@ -62,90 +56,89 @@ Recordings were made in a sound-proof room, lying supine in a magnetically shiel
 \subsection{Data processing}
 
 \begin{table}[t]
-  \caption{Summary of subjects involved in each experiment. There was some degree of overlap of subjects in each experiment type.}
+  \caption{Participant demographics, across stimuli type. The two tasks involve considerable participant overlap.}
   \label{tab:subjects}
   \centering
   \begin{tabular}{ c@{}c c c c }
     \toprule
-    \multicolumn{1}{c}{\textbf{Dataset}} & \multicolumn{1}{c}{\textbf{Age}} & \multicolumn{1}{c}{\textbf{Subjects}} & \multicolumn{1}{c}{\textbf{Trials}}  & \multicolumn{1}{c}{\textbf{M/F Split}} \\
+    \multicolumn{1}{c}{\textbf{Stimuli}} & \multicolumn{1}{c}{\textbf{Age}} & \multicolumn{1}{c}{\textbf{Subjects}} & \multicolumn{1}{c}{\textbf{Trials}}  & \multicolumn{1}{c}{\textbf{M/F Split}} \\
     \midrule
-    /pah/~~~                    & $4.1-18.4$   &   $92$   &   $115$   &   $-$ \\
-    /pah tah kah/~~~                & $4.1-18.4$   &   $89$   &   $115$   &   $-$ \\
+    /{\em pah}/~~~                    & $4.1-18.4$   &   $92$   &   $115$   &   $-$ \\
+    /{\em pah tah kah}/~~~                & $4.1-18.4$   &   $89$   &   $115$   &   $-$ \\
     VG~~~                      & $-$   &   $31$   &   $81$    &   $-$  \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-MEG signals were resampled at 200Hz, and band pass filtered between 0.5Hz and 100 Hz, to remove offsets and not limit canonical ranges of delta, theta, alpha, beta, and gama activity.
+We resample MEG signals at 200 Hz, and band-pass filter between 0.5 Hz and 100 Hz, to remove offsets and accommodate the canonical ranges of delta, theta, alpha, beta, and gamma activity. We remove electro-ocular (EOG) artifacts using automated blind source separation (BSS), and measure  signal complexities using fractal dimensions. Auto-BSS filters EOG artifacts using the SOBI algorithm in AAR's implementation.
 
-Removal of electro-ocular (EOG) artifacts was performed using automated Blind Source Separation (BSS) methods and examining signal complexities measured by fractal dimensions. Auto-BSS filters EOG artifacts using the SOBI algorithm in AAR's implemention.
+We then apply info-max independent component analysis (ICA) \cite{Bell1995} to determine statistically independent sub-components of the MEG recordings, across all subjects. This was done by appending MEG recordings for all subjects into a single 151-channel matrix for each of the 4 tests \FR{which are?} performed using the EEGLAB toolbox \cite{Delorme04eeglab}. We then apply the resulting sphering and weight matrices, determined by ICA for each test condition, to each subject's respective recordings. These recordings (i.e., both MEG and audio separately) are then separated into windowed epochs corresponding to $-500$ ms to $+1500$ ms frames around the onset of the stimuli prompt.
 
-Info-max independent component analysis (ICA) \cite{Bell1995} was then used to determine statistically independent sub-components of the MEG recordings across all subjects. This was done by appending MEG recordings for all subjects into a single 151 channel matrix for each of the 4 tests performed using the EEGLAB toolbox \cite{Delorme04eeglab} for MATLAB. The resulting sphereing and weight matrix determined by ICA for each test condition was applied to each subject's respective recordings. These recordings (both MEG and audio separately) were then separated into windowed epochs coresponding to -500ms to +1500ms frames around the prompt a subject received to perform each iteration of a test.
+\subsection{Feature extraction}
 
-\subsection{Feature Extraction}
+We extract a total of 156 acoustic features and 4681 MEG features from each epoch using openSMILE \cite{Eyben13-RDI}. These are calculated using 50 ms rectangular windows, with a 25 ms overlap of the previous window for each successive window, resulting in a total of 79 windows per datapoint.
 
-Features were then extracted from all epochs using openSMILE \cite{Eyben13-RDI}. A total of 156 acoustic features and 4681 MEG features were extracted. Features were calculated using 50ms rectangular windows, with a 25ms overlap of the previous window for each successive window, resulting in a total of 79 windows per datapoint.
+\subsubsection{Audio features}
 
-\subsubsection{Audio Features}
+Features to represent spectral activity are calculated, for each window, using both a 128-point fast Fourier transform and linear predictive coding coefficients. Additionally, the statistical moments, mean (also absolute mean, quadratic mean, and aforementioned means calculated using only non-zero values), variance, skewness. and kurtosis are calculated. Finally, the root-mean-squared and log of the signal energy are also calculated for each window.
 
-Features to represent spectral activity were calculated for each window consisting of a 128 point fast fourier transform and linear predicitve coding coeficients. Additionally the statistical moments: mean (also absolute mean, quadratic mean, and forementioned means calculated using only non-zero values), variance, skewness and kurtosis are calculated. Finally, root-mean-squared and log of signal energy were also calculated for each window.
+\subsubsection{MEG features}
 
-\subsubsection{MEG Features}
-
-For each of the 151 independent components derived from the MEG data 31 features were extracted. They consist of an 8 point fast fourier transform, statistical moments and energy calculation identical to the audio signal, and the autocorrelation function (ACF) calculated using fast fourier transform (FFT) and its inverse (iFFT) for window $w$:
+We extract 31 features for each of the 151 independent components derived from the MEG data. These consist of an 8-point fast Fourier transform, statistical moments, and energy calculation identical to the audio signal, and the autocorrelation function (ACF) calculated using the fast Fourier transform (FFT) and its inverse (iFFT) for window $w$:
 
 \begin{equation}
   ACF(w) = iFFT(|FFT(w)|^2)
   \label{eq1}
 \end{equation}
 
-\subsection{Analysis Performed}
+\subsection{Data analysis}
 
-Analysis fell into two categories, in the first: features extracted were checked for correlations in an attempt to demonstrate evidence for predictive possibilty, in the second: regularized linear regression models were trained to predict a subject's age.
+First, we identify correlations among extracted features, in order to demonstrate evidence for predictive potential. We then train regularized multilinear regression models to predict a subject's age.
 
 \subsubsection{Correlation}
 
-We used standard Pearson correlation to determine correlations between MEG and audio features for each experiment set. We defined significant correlation to have p value of $p < 10^{-4}$ and the coefficient's absolute value $abs(r) > 0.2$.  Furthermore using the entire dataset, correlation of both MEG and audio features with respect to age was computed, to indicate features with a potentially stronger predictive capability when performing regression.
+We used standard Pearson correlation between MEG and audio features, for each experiment set separately. We set significance for $p$-values at $\alpha = 10^{-4}$ and the coefficient $r$'s absolute value $\text{abs}(r) > 0.2$.  Furthermore, we compute correlation of MEG and audio features, with respect to age, over the entire data set, to identify features with a potentially stronger predictive capability for regression.
 
-\subsubsection{Linear Regression}
+\subsubsection{Multilinear regression}
 
-Linear regression models to predict age were trained using the \textit{Audio}, \textit{MEG} and \textit{Audio+MEG (Fusion)} datasets respectively. Ten-fold cross-validation was used, such that each dataset was divided into 10 approximately equal sized groups. A held out test set of 8 hand selected subjects was used to report performance. This set was selected to have a similar mean and standard deviation of age to the entire set of subjects. Bayesian parameter optimization (using Hyperopt \cite{Bergstra2013}) was performed on the first fold of data to determine an appropriate learning rate and regularization factor for all training.
+We train multilinear regression models to predict age using each of the \textit{Audio}, \textit{MEG}, and the fused \textit{Audio+MEG} datasets respectively. We use 10-fold cross-validation within each dataset. The test and training sets are selected to have a similar mean and standard deviation over the ages of participants. We perform Bayesian parameter optimization using Hyperopt \cite{Bergstra2013} on the first fold of data to determine an appropriate learning rate and regularization factor for all training. % FR I'll need this to be clarified to me, at some point.
 
-Since the number of features produced when multiplied by the number of time windows exceeded the total number of datapoints available to train, we also train additional models using reduced MEG feature sets to attempt to remedy possible lack of performance due to this extreme dimensionality. The reduced MEG feature set consists of MEG features found to have siginificant correlations with age (as defined above).
+Since the number of features multiplied by the number of time windows exceeds the total number of data points available to train, we reduce the dimensionality of the MEG data (i.e., {\em MEG-red}) by selecting only those features from that set that have significant correlations, as defined above.
 
 \section{Results}
 
 \subsection{Correlations}
 
-\subsubsection{MEG vs. Audio: /pah/}
+\subsubsection{MEG vs. audio: /pah/}
 
-The significant correlations (as defined above) amounted to $0.0163$\% of the $156 \times 4681$ correlations for this experiment set. Thus there appears to be little redundancy between the \textit{selected} MEG and audio features. Of these significant correlations, all were with respect to three audio features. These features corresponded to sequential FFT bins that represent the frequency range (340 - 400)Hz. The most correlated MEG feature is the autocorrelation measure for six different components.
+Only $0.0163$\% of the $156 \times 4681$ correlations for this experiment set are significant, on these data. Therefore, there appears to be little redundancy between the \textit{selected} MEG and audio features \FR{Is this true?? You select features that are specifically a closely related as possible...}. Of these significant correlations, all were with respect to three audio features. These features corresponded to sequential FFT bins that represent the frequency range (340 - 400)Hz. The most correlated MEG feature is the autocorrelation measure for six different components.
 
-\subsubsection{MEG vs. Audio: /pah tah kah/}
+\subsubsection{MEG vs. audio: /pah tah kah/}
 
-Under this test condition, $0.0116$\% of correlations between features were significant, and similar to the /pah/ experiment these correlations heavily involve the audio features that represent frequencies (320-400)Hz in addition to some features that represent much lower frequencies (80-160)Hz, but these are extremely unlikely to be due to \st{human children} the subjects, and more likely come from noise in the environment. Also similar to the /pah/ experiment, the autocorrelation feature seems to be significantly correlated for 8 components, three of which are the same components as the /pah/ experiment.
+Under this test condition, $0.0116$\% of correlations between features are significant and, similar to the /{\em pah}/ experiment, these correlations heavily involve the audio features that represent frequencies 320-400 Hz, in addition to some features that represent much lower frequencies 80-160 Hz, which may be due to noise in the environment. Also similar to the /{\em pah}/ experiment, the autocorrelation feature seems to be significantly correlated for 8 components, three of which are the same components as the /{\em pah}/ experiment.
 
 % The frequency range 340-400 pops up both times, it seems to be too low to be related to formats or F0, but I can't say for sure because for some reason I commented out the formants section of my opensmile configuration, I calculate the LPC anyway, but I didn't even leave myself a note as to why I did that...
 
-\subsubsection{MEG vs. Audio: Verb Generation}
+\subsubsection{MEG vs. audio: Verb Generation}
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{AllComponents.png}
-  \caption{Graphical illustrations (using \cite{Delorme04eeglab}) of the independent components with features most correlated with audio features, from left to right, /pah/, /pah tah kah/ and verb generation tasks.}
+  \caption{Graphical illustrations (using \cite{Delorme04eeglab}) of the independent components with features most correlated with audio features, from left to right, /{\em pah}/, /{\em pah tah kah}/ and verb generation tasks. \FR{provide some context in the text}}
   \label{fig:components}
 \end{figure}
 
-\subsubsection{All Features vs. Age}
+\subsubsection{All features vs. age}
 
-All 172 features that meet the requirements for significance we imposed are MEG features. No audio features met these requirements. This set of features includes the autocorrelation features of eight components--including the first (highest entropy) component--in addition to the entire available frequency spectrum of four of these components and one other. \DK{could we say: this indicates periodicity has a relatively strong correlation with age, which could be evidence that synchronization may be disinguishing between age groups?}
+The 172 selected features here are all MEG features. This set includes the autocorrelation features of eight components -- including the first (highest entropy) component -- in addition to the entire available frequency spectrum of four of these \FR{ICA?} components and one other. The fact that spectral features are relatively strongly correlated with age might provide evidence that synchronization may be distinguishing factor across age, but additional feature analysis will be necessary to confirm this. 
 
-The correlation of the 99\textsuperscript{th} \DK{(note to say 99th (low) greatest entropy?)} computed component had correlation coeficients $abs(r)>0.3$ for nearly all of its features, which was true of no other components considered. Examining the physical representation of these components with respect to each of the three experiments, there were no discernible similarities to note. Three other components also had features with correlation $abs(r)>0.3$, for features that corresponded to various mean variants.
+The correlation of the 99\textsuperscript{th} \DK{(note to say 99th (low) greatest entropy?)} \FR{??} computed component has correlation coefficients $\text{abs}(r)>0.3$ for nearly all of its features, which was true of no other components considered. Examining the physical representation of these components with respect to each of the three experiments, there were no discernible similarities to note. Three other components also had features with correlation $\text{abs}(r)>0.3$, for features that corresponded to various mean variants.
 
 \subsection{Regression}
 
-The regression performance across the 10 folds seems to suggest that a linear regression model trained using both audio and the reduced (highly correlated) MEG feature set performs better than any configuration of audio and meg feature sets alone. We see that without using the reduced MEG feature set, theregression performance is no better than that of audio alone, but we suspect that this is due to the extremely high dimensionality of this data. Models trained using some sort of MEG features also noticably perform more consistently (lower variance) than the exclusively audio features dataset.
-Note also that the regression performance when trained using the highly correlated MEG features, is nearly equivalent to its exhaustive counterpart. There is a fairly marked reduction in variance, but performance did not increased until audio and MEG features were combined, this is surprising when we consider that the MEG were relatively much more correlated with age. This seems to suggest that neither set of features represents in a sense a subset of the other in their current forms. \DK{Maybe say that audio dataset actually performs pretty close to combination after we consider the variance?}.
+The regression performance across the 10 folds seems to suggest that a multilinear regression model trained using both audio and the reduced (i.e., highly correlated) MEG feature sets performs better than either Audio or MEG feature sets alone. Without  reducing the MEG feature set, regression performance is no better than that for Audio alone. Models trained using some MEG features also  perform more consistently (i.e., with lower variance) than with Audio features exclusively.
+
+When trained using the highly correlated MEG features, regression performance is nearly equivalent to its exhaustive counterpart. There is a fairly marked reduction in variance, but performance does not increase until Audio and MEG features are combined. This may be surprising, considering that the MEG features are relatively correlated with age. This could suggest somewhat complementary information between data sets. % FR: in future, a measure of mutual information should be computed.
 
 \begin{table}[t]
   \caption{Root mean squared error (RMSE) in years, of ten-fold cross validation for each of the datasets. Audio features combined with reduced MEG features show the best prediction capability.}
@@ -173,17 +166,13 @@ Note also that the regression performance when trained using the highly correlat
 \item does some of the regression results section belong here?
 \end{itemize}
 
-\subsection{Significance}
-
 Frank wants to write section outlining caveats
-
-\section{Conclusions}
 
 We show a mild confirmation of our hypothesis.
 
 \section{Acknowledgements}
 
-We would like to thank Rui Janson for his help performing automated EOG removal.
+We thank Rui Janson for his help performing automated EOG removal.
 
 
 \bibliographystyle{IEEEtran/bibtex/IEEEtran}

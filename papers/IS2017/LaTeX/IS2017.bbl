@@ -46,12 +46,10 @@ S.~M. Doesburg, K.~Tingling, M.~J. MacDonald, and E.~W. Pang, ``{Development of
 \BIBentrySTDinterwordspacing
 
 \bibitem{Yu2014}
-V.~Y. Yu, M.~J. Macdonald, A.~Oh, G.~N. Hua, L.~F.~D. Nil, W.~Elizabeth, and
-  E.~W. Pang, ``{Developmental Psychology Age-Related Sex Differences in
-  Language Lateralization : A Magnetoencephalography Study in Children
-  Age-Related Sex Differences in Language Lateralization : A
-  Magnetoencephalography Study in Children},'' vol.~50, no.~9, pp. 2276--2284,
-  2014.
+V.~Y. Yu, M.~J. MacDonald, A.~Oh, G.~N. Hua, L.~F. {De Nil}, and E.~W. Pang,
+  ``{Age-related sex differences in language lateralization: a
+  magnetoencephalography (MEG) study in children},'' \emph{Developmental
+  Psychology}, vol.~50, no.~9, pp. 2275--2284, 2014.
 
 \bibitem{Nguyen2012}
 P.~Nguyen, D.~Tran, X.~Huang, and D.~Sharma, ``{A Proposed Feature Extraction
@@ -62,6 +60,24 @@ P.~Nguyen, D.~Tran, X.~Huang, and D.~Sharma, ``{A Proposed Feature Extraction
 M.~Poulos, M.~Rangoussi, N.~Alexandris, and A.~Evangelou, ``{On the use of EEG
   features towards person identification via neural networks},'' \emph{Med
   Inform.Internet.Med}, vol.~26, no.~1, pp. 35--48, 2001.
+
+\bibitem{Asano2009}
+R.~Viga{\'r}io, V.~Jousm{\"a}ki, M.~H{\"a}m{\"a}l{\"a}inen, R.~Hari, and
+  E.~Oja, ``Independent component analysis for identification of artifacts in
+  magnetoencephalographic recordings,'' in \emph{Adv. Neural Inf. Process.
+  Syst., MIT Press, Cambridge, MA}, vol.~10, 1998, pp. 229–-- 235.
+
+\bibitem{Ince2008}
+N.~Ince, F.~Goksu, G.~Pellizzer, A.~Tewfik, and M.~Stephane, ``Selection of
+  spectro-temporal patterns in multichannel meg with support vector machines
+  for schizophrenia classification,'' in \emph{Engineering in Medicine and
+  Biology Society, 2008. EMBS 2008. 30th Annual International Conference of the
+  IEEE}, Aug 2008, pp. 3554--3557.
+
+\bibitem{Guimaraes2007}
+M.~Guimaraes, D.~Wong, E.~Uy, L.~Grosenick, and P.~Suppes, ``Single-trial
+  classification of meg recordings,'' \emph{Biomedical Engineering, IEEE
+  Transactions on}, vol.~54, no.~3, pp. 436--443, March 2007.
 
 \bibitem{Dunn97}
 L.~M. Dunn, \emph{{Peabody Picture Vocabulary Test, third edition}},
