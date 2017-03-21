@@ -63,16 +63,16 @@ Recordings were made in a sound-proof room, with each participant lying supine i
     \toprule
     \multicolumn{1}{l}{\textbf{Stimuli}} & \multicolumn{1}{c}{\textbf{Age}} & \multicolumn{1}{c}{\textbf{Subjects}} & \multicolumn{1}{c}{\textbf{Trials}}  & \multicolumn{1}{c}{\textbf{M/F Split}} \\
     \midrule
-    /{\em pah}/~~~                    & $4.1-18.4$   &   $92$   &   $115$   &   $-$ \\
-    /{\em pah tah kah}/~~~                & $4.1-18.4$   &   $89$   &   $115$   &   $-$ \\
-    VG~~~                      & $-$   &   $31$   &   $81$    &   $-$  \\
+    /{\em pah}/~~~                    & $4.1-18.1$   &   $89$   &   $115$   &   $0.45/0.55$ \\
+    /{\em pah tah kah}/~~~            & $4.1-18.1$   &   $83$   &   $115$   &   $0.45/0.55$ \\
+    VG~~~                             & $5.7-18.0$   &   $28$   &   $81$    &   $0.42/0.58$  \\
     \bottomrule
   \end{tabular}
 \end{table}
 
 We resample MEG signals at 200 Hz, and band-pass filter between 0.5 Hz and 100 Hz, to remove offsets and accommodate the canonical ranges of delta, theta, alpha, beta, and gamma activity. We remove electro-ocular (EOG) artifacts using automated blind source separation (BSS), and measure  signal complexities using fractal dimensions. Auto-BSS filters EOG artifacts using the SOBI algorithm in AAR's implementation.
 
-We then apply info-max independent component analysis (ICA) \cite{Bell1995} to determine statistically independent sub-components of the MEG recordings, across all subjects. This was done by appending MEG recordings for all subjects into a single 151-channel matrix for each of the 3 speech-elicitations: /pah/, /pah tah kah/ and the VG task performed using the EEGLAB toolbox \cite{Delorme04eeglab}. We then apply the resulting sphering and weight matrices, determined by ICA for each test condition, to each subject's respective recordings. These recordings (i.e., both MEG and audio separately) are then separated into windowed epochs corresponding to $-500$ ms to $+1500$ ms frames around the onset of the stimuli prompt.
+We then apply info-max independent component analysis (ICA) \cite{Bell1995} to determine statistically independent sub-components of the MEG recordings, across all subjects. This was done by appending MEG recordings for all subjects into a single 151-channel matrix for each of the 3 speech-elicitations: /{\em pah}/, /{\em pah tah kah}/ and the VG task performed using the EEGLAB toolbox \cite{Delorme04eeglab}. We then apply the resulting sphering and weight matrices, determined by ICA for each test condition, to each subject's respective recordings. These recordings (i.e., both MEG and audio separately) are then separated into windowed epochs corresponding to $-500$ ms to $+1500$ ms frames around the onset of the stimuli prompt.
 
 \subsection{Feature extraction}
 
@@ -97,7 +97,7 @@ First, we identify correlations among extracted features, in order to demonstrat
 
 \subsubsection{Correlation}
 
-We used standard Pearson correlation between MEG and audio features, for each experiment set separately. We set significance for $p$-values at $\alpha = 10^{-4}$ and the coefficient $r$'s absolute value $\text{abs}(r) > 0.2$.  Furthermore, we compute correlation of MEG and audio features, with respect to age, over the entire data set, to identify features with a potentially stronger predictive capability for regression.
+We used standard Pearson correlation between MEG and audio features, for each experiment set separately. We set significance for $p$-values at $\alpha = 10^{-4}$ and the coefficient $r$'s absolute value $\text{abs}(r) > 0.2$. For each experiment, we then examined the independent component that had the highest correlations of its features with respect to audio features, to determine if there were any noticeably consistent brain locations that were being emphasized. These arex plotted in figure \ref{fig:components}. Furthermore, we compute correlation of MEG and audio features, with respect to age, over the entire data set, to identify features with a potentially stronger predictive capability for regression.
 
 \subsubsection{Multilinear regression}
 
@@ -111,7 +111,7 @@ Since the number of features multiplied by the number of time windows exceeds th
 
 \subsubsection{MEG vs. audio: /pah/}
 
-Only $0.0163$\% of the $156 \times 4681$ correlations for this experiment set are significant, on these data. Therefore, there appears to be little redundancy between the \textit{selected} MEG and audio features \FR{Is this true?? You select features that are specifically a closely related as possible...}. Of these significant correlations, all were with respect to three audio features. These features corresponded to sequential FFT bins that represent the frequency range (340 - 400)Hz. The most correlated MEG feature is the autocorrelation measure for six different components.
+Only $0.0163$\% of the $156 \times 4681$ correlations for this experiment set are significant, on these data. Therefore, there appears to be little redundancy between the MEG and audio features analyzed \DK{this is what I meant}. Of these significant correlations, all were with respect to three audio features. These features corresponded to sequential FFT bins that represent the frequency range (340 - 400)Hz. The most correlated MEG feature is the autocorrelation measure for six different independent components.
 
 \subsubsection{MEG vs. audio: /pah tah kah/}
 
@@ -121,18 +121,20 @@ Under this test condition, $0.0116$\% of correlations between features are signi
 
 \subsubsection{MEG vs. audio: Verb Generation}
 
+When considering this test set, $0.132$\% of correlations between features are significant, which is a somewhat substantial increase relative to the previous two correlation comparisons.
+
 \begin{figure}[t]
   \centering
   \includegraphics[width=\linewidth]{AllComponents.png}
-  \caption{Graphical illustrations (using \cite{Delorme04eeglab}) of the independent components with features most correlated with audio features, from left to right, /{\em pah}/, /{\em pah tah kah}/ and verb generation tasks. \FR{provide some context in the text}}
+  \caption{Graphical illustrations (using \cite{Delorme04eeglab}) of the independent components with features most correlated with audio features, from left to right, /{\em pah}/, /{\em pah tah kah}/ and verb generation experiments. These are generated using the ICA weight matrix interpolated over MEG sensor locations. }
   \label{fig:components}
 \end{figure}
 
 \subsubsection{All features vs. age}
 
-The 172 selected features here are all MEG features. This set includes the autocorrelation features of eight components -- including the first (highest entropy) component -- in addition to the entire available frequency spectrum of four of these \FR{ICA?} components and one other. The fact that spectral features are relatively strongly correlated with age might provide evidence that synchronization may be distinguishing factor across age, but additional feature analysis will be necessary to confirm this. 
+The 172 selected features here are all MEG features. This set includes the autocorrelation features of eight (ICA) components -- including the first (highest entropy) component -- in addition to the entire available frequency spectrum of four of these components and one other. The fact that spectral features are relatively strongly correlated with age might provide evidence that synchronization may be distinguishing factor across age, but additional feature analysis will be necessary to confirm this. 
 
-The correlation of the 99\textsuperscript{th} \DK{(note to say 99th (low) greatest entropy?)} \FR{??} computed component has correlation coefficients $\text{abs}(r)>0.3$ for nearly all of its features, which was true of no other components considered. Examining the physical representation of these components with respect to each of the three experiments, there were no discernible similarities to note. Three other components also had features with correlation $\text{abs}(r)>0.3$, for features that corresponded to various mean variants.
+The correlation of a single computed component has correlation coefficients $\text{abs}(r)>0.3$ for nearly all of its features, which was true of no other components considered. Examining the physical representation of these components with respect to each of the three experiments, there were no discernible similarities to note. Three other components also had features with correlation $\text{abs}(r)>0.3$, for features that corresponded to various mean variants.
 
 \subsection{Regression}
 
@@ -140,7 +142,7 @@ The regression performance across the 10 folds seems to suggest that a multiline
 
 When trained using the highly correlated MEG features, regression performance is nearly equivalent to its exhaustive counterpart. There is a fairly marked reduction in variance, but performance does not increase until Audio and MEG features are combined. This may be surprising, considering that the MEG features are relatively correlated with age. This could suggest somewhat complementary information between data sets. % FR: in future, a measure of mutual information should be computed.
 
-Table \ref{tab:rmse} shows the means and variances of root mean squared error (RMSE) values on regression, given various combinations of feature sets. Clearly, combining audio features with a reduced set of MEG features result in the best accuracy on average. An $n$-way ANOVA confirms a significant effect of the feature type on regression accuracy ($F_{4,49} = 51.05$, $p<0.001$), with the combined Audio + reduced MEG features being significantly more accurate than {\em each} of the other combinations, according to right-tailed $t$-tests, with $\alpha$ Bonferroni corrected for multiple comparisons.
+Table \ref{tab:rmse} shows the means and variances of root mean squared error (RMSE) values on regression, given various combinations of feature sets. Clearly, combining audio features with a reduced set of MEG features result in the best accuracy on average. An $n$-way ANOVA confirms a significant effect of the feature type on regression accuracy ($F_{4,49} = 51.05$, $p<0.001$), with the combined Audio + reduced MEG features being significantly more accurate than {\em each} of the other combinations, according to right-tailed $t$-tests, with $\alpha$ Bonferroni corrected for multiple comparisons. 
 
 
 \begin{table}[t]
@@ -163,11 +165,21 @@ Table \ref{tab:rmse} shows the means and variances of root mean squared error (R
 
 \section{Discussion}
 
+We believe this work warrants further study of this dataset, and consideration of more complex models that relate the most significant MEG and audio features in conjunction with other features.
+
+When considering the reduced feature set, we also extracted a subset of 172 random features for comparison with our highly correlated set. We found that this performed very similarly to the full dataset equivalent. We also considered a set of the least siginificant MEG features, which interestingly showed some increase in mean accuracy, but with a much larger variance of over $0.9$ years. This somewhat suggests that the increase in performance was dependent on selecting a good subset of features, and not just a reduction in the dimensionality of the data.
+
+It should be noted, that performing ICA seperately for each condition results in different component compositions for features that are treated as the same. In other words, component $c_i$ with respect to the /{\em pah}/ datapoints is different than component $c_i'$ with respect to VG datapoints. These components are ordered with respect to minimization of mutual , but due to the nature of the implementation there will exist some instability in this ordering between iterations, further work should consider the sensitivity of any analysis to this.
+
+Consistently when performing correlations between audio and MEG features, there appeared to be correlations with the audio frequency spectrum just under 400Hz. Our expectation would be that if there were any correlations with frequencies, they would be related to the average fundamental frequency of subjects voices, or in some way connected to the formant /{\em ah}/ that is regularly encountered. However the observed frequency range is rather low, particularly as the subjects are children and adolescents.
+
 \begin{itemize}
-\item ICA components are different for each experiment type, but we treat them to some degree as if they were the same ie. weight for feature 1 could be from any of the experiments
-\item 340-400Hz Frequency consistently correlated with MEG features, would expect this to be average F0 or /ah/ formant, but too low, did I calculate wrong? 1/50ms => 20Hz FFT buckets. Could say formants are missing, and would be a good feature to have if done again.
 \item does some of the regression results section belong here?
 \end{itemize}
+
+\section{Conclusion}
+
+\DK{Was conclusion removed by accident somehow?}
 
 Frank wants to write section outlining caveats
 
