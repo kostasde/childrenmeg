@@ -1,12 +1,11 @@
 import pickle
 import numpy as np
 
-from TrainingUtils import ThreadedBatcherizer
-from model import TrainingComplete
+from keras.preprocessing.image import Iterator as KerasDataloader
+
 # from functools import lru_cache
 from cachetools import cached, RRCache
 from abc import ABCMeta, abstractmethod
-from threading import Lock, Thread, current_thread
 from scipy.io import loadmat
 from pathlib import Path
 
@@ -69,16 +68,19 @@ class CrossValidationComplete(Exception):
     pass
 
 
-class BaseDataset(ThreadedBatcherizer):
+class SubjectFileLoader(KerasDataloader):
+    """
+    This implements a thread-safe loader based on the examples related to Keras ImageDataGenerator
 
-    DATASET_TARGETS = [HEADER_AGE]
-    NUM_BUCKETS = 10
-    # cache = RRCache(1024)
+    This class is a somewhat generic generator used for the training, validation and test datasets of the Dataset classes.
+    """
+
     cache = RRCache(32768)
 
     # @lru_cache(maxsize=8192)
     @cached(cache)
-    def get_flattened_features(self, path_to_file):
+    @staticmethod
+    def get_flattened_features(path_to_file):
         """
         Loads arrays from file, and returned as a flattened vector, cached to save some time
         :param path_to_file:
@@ -86,13 +88,53 @@ class BaseDataset(ThreadedBatcherizer):
         """
         # return loadmat(path_to_file, squeeze_me=True)['features'].ravel()
         l = np.load(path_to_file)
+        #
+        # if self.megind is not None:
+        #     l = l[:, self.megind].squeeze()
 
-        if self.megind is not None:
-            l = l[:, self.megind].squeeze()
-
-        l = zscore(l)
+        # l = zscore(l)
 
         return l.ravel()
+
+    def __init__(self, x, longest_vector, subject_hash, target_cols, batchsize=-1, shuffle=True, seed=None):
+
+        self.x = np.asarray(x)
+        self.longest_vector = longest_vector
+        self.subject_hash = subject_hash
+        self.targets = target_cols
+
+        if batchsize < 0:
+            batchsize = x.shape[0]
+
+        super().__init__(x.shape[0], batchsize, shuffle=shuffle, seed=seed)
+
+    def _load(self, index_array, batch_size):
+        x = np.zeros([batch_size, self.longest_vector])
+        y = np.zeros([batch_size, 1])
+
+        for row in index_array:
+            ep = str(self.x[row, 1])
+            temp = self.get_flattened_features(ep)
+            x[row, :len(temp)] = temp
+            y[row, :] = np.array([self.subject_hash[self.x[row, 0][column]] for column in self.targets])
+
+        return x[~np.isnan(x).any(axis=1)], y[~np.isnan(x).any(axis=1)]
+
+    def __next__(self):
+        with self.lock:
+            index_array, current_index, current_batch_size = next(self.index_generator)
+
+        return self._load(index_array, current_batch_size)
+
+
+class BaseDataset():
+
+    DATASET_TARGETS = [HEADER_AGE]
+    NUM_BUCKETS = 10
+
+    # Not sure I like this...
+    GENERATOR = SubjectFileLoader
+
 
     @staticmethod
     def random_slices(dataset: np.ndarray, sizeofslices=(0.1, 0.9)):
@@ -124,17 +166,7 @@ class BaseDataset(ThreadedBatcherizer):
         self.subject_hash = parsesubjects(self.toplevel / SUBJECT_STRUCT)
 
         self.batchsize = batchsize
-        self.batchqueue = queue.Queue(100)
-        self.varlock = Lock()
-        self.loadevalthread = None
-        self.itercount = 0
-        self.alldataused = False
-        self.leaveout = 0
-        self.traindata = None
-        self.evalx = None
-        self.evaly = None
-        self.testx = None
-        self.testy = None
+
         tests = []
         # Assemble which experiments we are going to be using
         if PDK:
@@ -159,6 +191,7 @@ class BaseDataset(ThreadedBatcherizer):
 
             self.loaded_subjects, self.longest_vector, self.slice_length = self.files_to_load(tests)
 
+            # TODO: Need more stable way of doing test subjects, should be set outside
             testsubjects = np.random.choice(list(self.loaded_subjects.keys()),
                                             int(len(self.loaded_subjects)/10), replace=False)
             self.testpoints = np.array([item for x in testsubjects for item in self.loaded_subjects[x]])
@@ -186,8 +219,6 @@ class BaseDataset(ThreadedBatcherizer):
                 # ind = np.arange(numpoints)
                 # ind = np.random.choice(ind, replace=False, size=int(0.2*numpoints)
 
-        # Set first subject for crossvalidation
-        # self.next_leaveout()
 
     @property
     @abstractmethod
@@ -235,43 +266,18 @@ class BaseDataset(ThreadedBatcherizer):
     def preprocessed_file(self):
         pass
 
-    def _load(self, batch: np.ndarray, cols: list):
-        """
-        Provided a batch of (subject, path_to_file), load the x and y vectors of data
-        :param batch: The batch of filenames to load
-        :return: (x_data, y_data)
-        """
-        x = np.zeros([batch.shape[0], self.longest_vector])
-        y = np.zeros([batch.shape[0], 1])
-
-        for row in range(x.shape[0]):
-            ep = str(batch[row][1])
-            temp = self.get_flattened_features(ep)
-            x[row, :len(temp)] = temp
-            y[row, :] = np.array([self.subject_hash[batch[row][0]][column] for column in cols])
-
-        return x[~np.isnan(x).any(axis=1)], y[~np.isnan(x).any(axis=1)]
-
-    def _set_eval(self, points):
-        """
-        Helper function that wraps the assignment of the eval variables so I can call with a different thread
-        :param points:
-        :return:
-        """
-        self.evalx, self.evaly = self._load(points, BaseDataset.DATASET_TARGETS)
-
     def next_leaveout(self, force=None):
         """
-        Moves on to the next subject to leave out for cross validation.
-        :return: The name of the subject, or None if complete
+        Moves on to the next group to leaveout.
+        :return: Number of which leaveout, `None` if complete
         """
         if force is not None:
             self.leaveout = force
 
         if self.leaveout == self.NUM_BUCKETS:
             print('Have completed cross-validation')
-            raise CrossValidationComplete
-            # return None
+            # raise CrossValidationComplete
+            return None
 
         # Select next bucket to leave out as evaluation
         self.eval_points = np.array(self.buckets[self.leaveout])
@@ -281,124 +287,51 @@ class BaseDataset(ThreadedBatcherizer):
             [item for sublist in self.buckets for item in sublist if self.buckets.index(sublist) != self.leaveout]
         )
 
-        # Load evaluation data in its own thread
-        # self.loadevalthread = Thread(target=self._set_eval, args=[eval_points])
-        # self.loadevalthread.start()
-        print('Loading evaluation set')
-        self._set_eval(self.eval_points)
-
         self.leaveout += 1
 
         return self.leaveout
 
-    def __iter__(self):
-        # Shuffle the order of the data we will train on
-        np.random.shuffle(self.traindata)
-
-        with self.varlock:
-            self.itercount = self.batchsize
-            self.alldataused = False
-
-        # Immediately load a batch of 5, then shoot a thread to start loading a few more for later
-        self._loadbatches(1)
-        self.loadbatches()
-
-        return self
-
-    def __next__(self):
-#        self._loadbatches(1)
-        if self.batchqueue.empty():
-            # Check if we went through all the data yet
-            with self.varlock:
-                if self.itercount == self.traindata.shape[0]:
-                    self.alldataused = True
-                    raise StopIteration
-                elif self.alldataused:
-                    raise StopIteration
-
-            # Ensure more data is loaded
-            print('Waiting on data...')
-            self.loadbatches()
-            for i in range(5):
-                try:
-                    return self.batchqueue.get(timeout=60)
-                except (TimeoutError, queue.Empty):
-                    print('Data loading very slowly...')
-                    continue
-            print("Can't wait anymore, I'm bored.")
-            raise StopIteration
-        else:
-            try:
-                self.loadbatches()
-                return self.batchqueue.get(timeout=60)
-            except (TimeoutError, queue.Empty):
-                raise StopIteration
-
-    def _loadbatches(self, numbatches=1):
+    def trainingset(self, batchsize=None):
         """
-        Method that is run on new thread to load data from dataset
-        :param numbatches: The number of batches to load with this method
-        :return: Nothing, self.batchqueue is loaded with the data
+        Provides a generator object with the current training set
+        :param batchsize:
+        :return: Generator of type :class`.SubjectFileLoader`
         """
-        if numbatches <= 0:
-            numbatches = 1
-        if self.alldataused:
-            return
+        if batchsize is None:
+            batchsize = self.batchsize
 
-        for batch in range(numbatches):
-            mybatch = 0
-            with self.varlock:
-                mybatch = self.itercount
-                if self.itercount >= self.traindata.shape[0]:
-                    mybatch = self.traindata.shape[0]
-                    self.alldataused = True
-                else:
-                    self.itercount += self.batchsize
+        return self.GENERATOR(self.traindata, self.longest_vector, self.subject_hash, self.DATASET_TARGETS,
+                              batchsize)
 
-            # print('Thread ID:', current_thread(), 'Batch:', mybatch-self.batchsize, '/', self.traindata.shape[0])
+    def evaluationset(self, batchsize=None):
+        """
+        Provides a generator object with the current training set
+        :param batchsize:
+        :return: Generator of type :class`.SubjectFileLoader`
+        """
+        if batchsize is None:
+            batchsize = self.batchsize
 
-            self.batchqueue.put(self._load(self.traindata[mybatch - self.batchsize:mybatch],
-                                           BaseDataset.DATASET_TARGETS))
+        return self.GENERATOR(self.eval_points, self.longest_vector, self.subject_hash, self.DATASET_TARGETS,
+                              batchsize)
 
-        # print('Thread ID:', current_thread(), 'Finished')
+    def testset(self, batchsize=None):
+        """
+        Provides a generator object with the current training set
+        :param batchsize:
+        :return: Generator of type :class`.SubjectFileLoader`
+        """
+        if batchsize is None:
+            batchsize = self.batchsize
 
+        return self.GENERATOR(self.testpoints, self.longest_vector, self.subject_hash, self.DATASET_TARGETS,
+                              batchsize)
 
-    # fixme: u g l y
-    @property
-    def leftout(self):
-        return self.leaveout
-
-    @property
-    def testset(self):
-        print('Loading Test Set... Dumping evaluation set from memory\n May take a while...')
-        self.evalx = None
-        self.evaly = None
-        return self._load(self.testpoints, self.DATASET_TARGETS)
-
-    @property
-    def outputshape(self):
-        return None, len(BaseDataset.DATASET_TARGETS)
-
-    @property
-    def evaluationset(self):
-        if self.evalx is None:
-            print('Reloading evaluation set...')
-            self._set_eval(self.eval_points)
-
-        return self.evalx, self.evaly
-            # if self.loadevalthread is not None:
-            #     self.loadevalthread.join()
-            #     self.loadevalthread = None
-            #     return self.evalx, self.evaly
-            # elif self.evalx is not None:
-            #     return self.evalx, self.evaly
-            # else:
-            #     raise NotImplementedError
-
-
-    @property
     def inputshape(self):
-        return None, self.longest_vector
+        return self.longest_vector
+
+    def outputshape(self):
+        return len(self.DATASET_TARGETS)
 
 
 class BaseDatasetAgeRanges(BaseDataset, metaclass=ABCMeta):
@@ -413,17 +346,21 @@ class BaseDatasetAgeRanges(BaseDataset, metaclass=ABCMeta):
     AGE_16_18 = (16, 19)
     AGE_RANGES = [AGE_4_5, AGE_6_7, AGE_8_9, AGE_10_11, AGE_12_13, AGE_14_15, AGE_16_18]
 
-    def _load(self, batch: np.ndarray, cols: list):
-        x, y_float = super()._load(batch, BaseDataset.DATASET_TARGETS)
-        y = np.zeros([batch.shape[0], len(self.AGE_RANGES)])
+    class AgeSubjectLoader(SubjectFileLoader):
 
-        age_col = BaseDataset.DATASET_TARGETS.index(HEADER_AGE)
-        for i in range(len(self.AGE_RANGES)):
-            low = self.AGE_RANGES[i][0]
-            high = self.AGE_RANGES[i][1]
-            y[np.where((y_float[:, age_col] >= low) & (y_float[:, age_col] < high))[0], i] = 1
+        def _load(self, batch: np.ndarray, cols: list):
+            x, y_float = super()._load(batch, BaseDataset.DATASET_TARGETS)
+            y = np.zeros([batch.shape[0], len(self.AGE_RANGES)])
 
-        return x[~np.isnan(x).any(axis=1)], y
+            age_col = BaseDataset.DATASET_TARGETS.index(HEADER_AGE)
+            for i in range(len(self.AGE_RANGES)):
+                low = self.AGE_RANGES[i][0]
+                high = self.AGE_RANGES[i][1]
+                y[np.where((y_float[:, age_col] >= low) & (y_float[:, age_col] < high))[0], i] = 1
+
+            return x[~np.isnan(x).any(axis=1)], y[~np.isnan(x).any(axis=1)]
+
+    GENERATOR = AgeSubjectLoader
 
     @property
     def outputshape(self):
@@ -482,54 +419,59 @@ class FusionDataset(MEGDataset, AcousticDataset):
         else:
             self.megind = None
 
-    @cached(BaseDataset.cache)
-    def get_flattened_features(self, path_to_file):
-        """
-        Loads arrays from file, and returned as a flattened vector, cached to save some time
-        :param path_to_file:
-        :return: numpy vector
-        """
-        # m = loadmat(str(path_to_file[0]), squeeze_me=True)['features'].ravel()
-        # a = loadmat(str(path_to_file[1]), squeeze_me=True)['features'].ravel(
 
-#        print(path_to_file)
-        
-        m = np.load(str(path_to_file[0]))
-        a = np.load(str(path_to_file[1]))
+    class FusionFileLoader(SubjectFileLoader):
+        @cached(SubjectFileLoader.cache)
+        @staticmethod
+        def get_flattened_features(self, path_to_file):
+            """
+            Loads arrays from file, and returned as a flattened vector, cached to save some time
+            :param path_to_file:
+            :return: numpy vector
+            """
+            # m = loadmat(str(path_to_file[0]), squeeze_me=True)['features'].ravel()
+            # a = loadmat(str(path_to_file[1]), squeeze_me=True)['features'].ravel(
 
-        if self.megind is not None:
-            m = m[:, self.megind].squeeze()
+            #        print(path_to_file)
 
-        # m = zscore(m)
-        # a = zscore(a)
+            m = np.load(str(path_to_file[0]))
+            a = np.load(str(path_to_file[1]))
 
-#        if np.isnan(m.max()):
-#            print('Bad MEG file.')
-#            exit()
-#        elif np.isnan(a.max()):
-#            print('Bad Audio File.')
-#            exit()
+            if self.megind is not None:
+                m = m[:, self.megind].squeeze()
 
-        return np.concatenate((m.ravel(), a.ravel()))
+            # m = zscore(m)
+            # a = zscore(a)
 
-        # return loadmat(path_to_file, squeeze_me=True)['features'].reshape(-1)
+            #        if np.isnan(m.max()):
+            #            print('Bad MEG file.')
+            #            exit()
+            #        elif np.isnan(a.max()):
+            #            print('Bad Audio File.')
+            #            exit()
 
-    def _load(self, batch: np.ndarray, cols: list):
-        """
-        Provided a batch of (subject, path_to_file), load the x and y vectors of data
-        :param batch: The batch of filenames to load
-        :return: (x_data, y_data)
-        """
-        x = np.zeros([batch.shape[0], self.longest_vector])
-        y = np.zeros([batch.shape[0], 1])
+            return np.concatenate((m.ravel(), a.ravel()))
 
-        for row in range(x.shape[0]):
-            ep = tuple(batch[row][1:])
-            temp = self.get_flattened_features(ep)
-            x[row, :len(temp)] = temp
-            y[row, :] = np.array([self.subject_hash[batch[row][0]][column] for column in cols])
+            # return loadmat(path_to_file, squeeze_me=True)['features'].reshape(-1)
 
-        return x[~np.isnan(x).any(axis=1)], y[~np.isnan(x).any(axis=1)]
+        def _load(self, batch: np.ndarray, cols: list):
+            """
+            Provided a batch of (subject, path_to_file), load the x and y vectors of data
+            :param batch: The batch of filenames to load
+            :return: (x_data, y_data)
+            """
+            x = np.zeros([batch.shape[0], self.longest_vector])
+            y = np.zeros([batch.shape[0], 1])
+
+            for row in range(x.shape[0]):
+                ep = tuple(batch[row][1:])
+                temp = self.get_flattened_features(ep)
+                x[row, :len(temp)] = temp
+                y[row, :] = np.array([self.subject_hash[batch[row][0]][column] for column in cols])
+
+            return x[~np.isnan(x).any(axis=1)], y[~np.isnan(x).any(axis=1)]
+
+    GENERATOR = FusionFileLoader
 
     def files_to_load(self, tests):
         longest_vector = -1
