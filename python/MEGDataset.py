@@ -1,5 +1,6 @@
 import pickle
 import numpy as np
+from time import sleep
 
 from keras.preprocessing.image import Iterator as KerasDataloader
 
@@ -78,8 +79,8 @@ class SubjectFileLoader(KerasDataloader):
     cache = RRCache(32768)
 
     # @lru_cache(maxsize=8192)
-    @cached(cache)
     @staticmethod
+    @cached(cache)
     def get_flattened_features(path_to_file):
         """
         Loads arrays from file, and returned as a flattened vector, cached to save some time
@@ -112,11 +113,11 @@ class SubjectFileLoader(KerasDataloader):
         x = np.zeros([batch_size, self.longest_vector])
         y = np.zeros([batch_size, 1])
 
-        for row in index_array:
+        for i, row in enumerate(index_array):
             ep = str(self.x[row, 1])
             temp = self.get_flattened_features(ep)
-            x[row, :len(temp)] = temp
-            y[row, :] = np.array([self.subject_hash[self.x[row, 0][column]] for column in self.targets])
+            x[i, :len(temp)] = temp
+            y[i, :] = np.array([self.subject_hash[self.x[row, 0]][column] for column in self.targets])
 
         return x[~np.isnan(x).any(axis=1)], y[~np.isnan(x).any(axis=1)]
 
@@ -166,6 +167,7 @@ class BaseDataset():
         self.subject_hash = parsesubjects(self.toplevel / SUBJECT_STRUCT)
 
         self.batchsize = batchsize
+        self.traindata = None
 
         tests = []
         # Assemble which experiments we are going to be using
@@ -218,6 +220,8 @@ class BaseDataset():
                 # numpoints = self.datapoints.size[0]
                 # ind = np.arange(numpoints)
                 # ind = np.random.choice(ind, replace=False, size=int(0.2*numpoints)
+
+        self.next_leaveout(force=0)
 
 
     @property
@@ -299,6 +303,9 @@ class BaseDataset():
         """
         if batchsize is None:
             batchsize = self.batchsize
+
+        if self.traindata is None:
+            raise AttributeError('No fold initialized... Try calling next_leaveout')
 
         return self.GENERATOR(self.traindata, self.longest_vector, self.subject_hash, self.DATASET_TARGETS,
                               batchsize)
