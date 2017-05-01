@@ -34,6 +34,10 @@ if __name__ == '__main__':
     # Load the appropriate dataset, considering whether it is regression or classification
     dataset = DATASETS[args.dataset][MODELS[args.model].TYPE](args.toplevel, batchsize=args.batch_size)
 
+    print('-'*30)
+    print('Using ', dataset.__class__.__name__)
+    print('-'*30)
+
     model = MODELS[args.model](dataset.inputshape(), dataset.outputshape())
     model.compile()
     model.summary()

@@ -369,9 +369,8 @@ class BaseDatasetAgeRanges(BaseDataset, metaclass=ABCMeta):
 
     GENERATOR = AgeSubjectLoader
 
-    @property
     def outputshape(self):
-        return None, len(self.AGE_RANGES)
+        return len(self.AGE_RANGES)
 
 
 # To make the MEG dataset, we ensure that the files that are loaded are from the MEG directory
