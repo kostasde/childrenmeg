@@ -128,7 +128,7 @@ class SubjectFileLoader(KerasDataloader):
         return self._load(index_array, current_batch_size)
 
 
-class BaseDataset():
+class BaseDataset:
 
     DATASET_TARGETS = [HEADER_AGE]
     NUM_BUCKETS = 10

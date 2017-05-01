@@ -36,6 +36,8 @@ if __name__ == '__main__':
     model = MODELS[args.model](dataset.inputshape(), dataset.outputshape())
     model.compile()
 
+    model.summary()
+
     print('Train Model')
     model.fit_generator(dataset.trainingset(), np.ceil(dataset.traindata.shape[0]/dataset.batchsize),
                         validation_data=dataset.evaluationset(),
