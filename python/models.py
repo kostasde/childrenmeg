@@ -56,7 +56,7 @@ class SimpleMLP(Sequential):
 
     def compile(self, **kwargs):
         super().compile(optimizer=keras.optimizers.adam(), loss=keras.losses.categorical_crossentropy,
-                        metrics=[keras.metrics.mae], **kwargs)
+                        metrics=[keras.metrics.categorical_accuracy], **kwargs)
 
 
 MODELS = [LinearRegression, LogisticRegression, SimpleMLP]

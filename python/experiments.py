@@ -50,3 +50,11 @@ if __name__ == '__main__':
 
     print('Test performance')
     model.evaluate_generator(dataset.testset(), np.ceil(dataset.testpoints.shape[0]/dataset.batchsize), workers=4)
+
+    if args.save_model_params is not None and Path(args.save_model_params).exists() and \
+            Path(args.save_model_params).is_dir():
+        print('Saving model to ', args.save_model_params)
+        ws = model
+        bs = model.b.eval(sess)
+        savemat(str((Path(args.save_model_params) / ('Fold_' + str(fold) + '_params')).absolute())
+                , {'W': ws, 'b': bs})

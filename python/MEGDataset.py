@@ -136,7 +136,6 @@ class BaseDataset:
     # Not sure I like this...
     GENERATOR = SubjectFileLoader
 
-
     @staticmethod
     def random_slices(dataset: np.ndarray, sizeofslices=(0.1, 0.9)):
         """
@@ -357,12 +356,12 @@ class BaseDatasetAgeRanges(BaseDataset, metaclass=ABCMeta):
 
         def _load(self, batch: np.ndarray, cols: list):
             x, y_float = super()._load(batch, cols)
-            y = np.zeros([batch.shape[0], len(self.AGE_RANGES)])
+            y = np.zeros([batch.shape[0], len(BaseDatasetAgeRanges.AGE_RANGES)])
 
             age_col = BaseDataset.DATASET_TARGETS.index(HEADER_AGE)
-            for i in range(len(self.AGE_RANGES)):
-                low = self.AGE_RANGES[i][0]
-                high = self.AGE_RANGES[i][1]
+            for i in range(len(BaseDatasetAgeRanges.AGE_RANGES)):
+                low = BaseDatasetAgeRanges.AGE_RANGES[i][0]
+                high = BaseDatasetAgeRanges.AGE_RANGES[i][1]
                 y[np.where((y_float[:, age_col] >= low) & (y_float[:, age_col] < high))[0], i] = 1
 
             return x[~np.isnan(x).any(axis=1)], y[~np.isnan(x).any(axis=1)]
@@ -506,7 +505,23 @@ class FusionDataset(MEGDataset, AcousticDataset):
 
 
 class FusionAgeRangesDataset(FusionDataset, BaseDatasetAgeRanges):
-    pass
+
+    class FusionAgeRangesFileLoader(FusionDataset.FusionFileLoader):
+
+        def _load(self, batch: np.ndarray, cols: list):
+            x, y_float = super(FusionDataset.FusionFileLoader, self)._load(batch, cols)
+
+            y = np.zeros([batch.shape[0], len(BaseDatasetAgeRanges.AGE_RANGES)])
+
+            age_col = BaseDataset.DATASET_TARGETS.index(HEADER_AGE)
+            for i in range(len(BaseDatasetAgeRanges.AGE_RANGES)):
+                low = BaseDatasetAgeRanges.AGE_RANGES[i][0]
+                high = BaseDatasetAgeRanges.AGE_RANGES[i][1]
+                y[np.where((y_float[:, age_col] >= low) & (y_float[:, age_col] < high))[0], i] = 1
+
+            return x[~np.isnan(x).any(axis=1)], y[~np.isnan(x).any(axis=1)]
+
+    GENERATOR = FusionAgeRangesFileLoader
 
 
 # Main is for testing only
