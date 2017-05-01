@@ -88,7 +88,7 @@ class SubjectFileLoader(KerasDataloader):
         :return: numpy vector
         """
         # return loadmat(path_to_file, squeeze_me=True)['features'].ravel()
-        l = np.load(path_to_file)
+        l = np.load(path_to_file[0])
         #
         # if self.megind is not None:
         #     l = l[:, self.megind].squeeze()
@@ -114,7 +114,7 @@ class SubjectFileLoader(KerasDataloader):
         y = np.zeros([batch_size, 1])
 
         for i, row in enumerate(index_array):
-            ep = str(self.x[row, 1])
+            ep = tuple(str(f) for f in self.x[row, 1:])
             temp = self.get_flattened_features(ep)
             x[i, :len(temp)] = temp
             y[i, :] = np.array([self.subject_hash[self.x[row, 0]][column] for column in self.targets])
@@ -356,7 +356,7 @@ class BaseDatasetAgeRanges(BaseDataset, metaclass=ABCMeta):
     class AgeSubjectLoader(SubjectFileLoader):
 
         def _load(self, batch: np.ndarray, cols: list):
-            x, y_float = super()._load(batch, BaseDataset.DATASET_TARGETS)
+            x, y_float = super()._load(batch, cols)
             y = np.zeros([batch.shape[0], len(self.AGE_RANGES)])
 
             age_col = BaseDataset.DATASET_TARGETS.index(HEADER_AGE)
@@ -425,11 +425,10 @@ class FusionDataset(MEGDataset, AcousticDataset):
         else:
             self.megind = None
 
-
     class FusionFileLoader(SubjectFileLoader):
-        @cached(SubjectFileLoader.cache)
         @staticmethod
-        def get_flattened_features(self, path_to_file):
+        @cached(SubjectFileLoader.cache)
+        def get_flattened_features(path_to_file):
             """
             Loads arrays from file, and returned as a flattened vector, cached to save some time
             :param path_to_file:
@@ -443,8 +442,8 @@ class FusionDataset(MEGDataset, AcousticDataset):
             m = np.load(str(path_to_file[0]))
             a = np.load(str(path_to_file[1]))
 
-            if self.megind is not None:
-                m = m[:, self.megind].squeeze()
+            # if self.megind is not None:
+            #     m = m[:, self.megind].squeeze()
 
             # m = zscore(m)
             # a = zscore(a)
@@ -459,23 +458,6 @@ class FusionDataset(MEGDataset, AcousticDataset):
             return np.concatenate((m.ravel(), a.ravel()))
 
             # return loadmat(path_to_file, squeeze_me=True)['features'].reshape(-1)
-
-        def _load(self, batch: np.ndarray, cols: list):
-            """
-            Provided a batch of (subject, path_to_file), load the x and y vectors of data
-            :param batch: The batch of filenames to load
-            :return: (x_data, y_data)
-            """
-            x = np.zeros([batch.shape[0], self.longest_vector])
-            y = np.zeros([batch.shape[0], 1])
-
-            for row in range(x.shape[0]):
-                ep = tuple(batch[row][1:])
-                temp = self.get_flattened_features(ep)
-                x[row, :len(temp)] = temp
-                y[row, :] = np.array([self.subject_hash[batch[row][0]][column] for column in cols])
-
-            return x[~np.isnan(x).any(axis=1)], y[~np.isnan(x).any(axis=1)]
 
     GENERATOR = FusionFileLoader
 
