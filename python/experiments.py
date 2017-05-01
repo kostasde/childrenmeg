@@ -7,7 +7,7 @@ import keras
 from keras.models import Sequential
 
 from MEGDataset import *
-from models import MODELS
+from models import *
 
 
 if __name__ == '__main__':
@@ -31,11 +31,11 @@ if __name__ == '__main__':
                                                                         'directory.')
     args = parser.parse_args()
 
-    dataset = MEGDataset(args.toplevel, batchsize=args.batch_size)
+    # Load the appropriate dataset, considering whether it is regression or classification
+    dataset = DATASETS[args.dataset][MODELS[args.model].TYPE](args.toplevel, batchsize=args.batch_size)
 
     model = MODELS[args.model](dataset.inputshape(), dataset.outputshape())
     model.compile()
-
     model.summary()
 
     print('Train Model')
