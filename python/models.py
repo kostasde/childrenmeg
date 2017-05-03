@@ -116,12 +116,12 @@ class SimpleMLP(Sequential, Searchable):
     def search_space():
         return {
             Searchable.PARAM_LR: hp.loguniform(Searchable.PARAM_LR, -7, 0),
-            Searchable.PARAM_BATCH: hp.qloguniform(Searchable.PARAM_BATCH, 0, 2, 5)+1,
-            Searchable.PARAM_DROPOUT: hp.normal(Searchable.PARAM_DROPOUT, 0.6, 0.1),
+            Searchable.PARAM_BATCH: hp.quniform(Searchable.PARAM_BATCH, 1, 100, 5),
+            Searchable.PARAM_DROPOUT: hp.normal(Searchable.PARAM_DROPOUT, 0.6, 0.05),
             Searchable.PARAM_REG: hp.uniform(Searchable.PARAM_REG, 0, 1e-4),
             Searchable.PARAM_LAYERS: hp.choice(Searchable.PARAM_LAYERS, [
-                [hp.quniform('1layer1', 1, 1000, 10)],
-                [hp.quniform('2layer1', 1, 1000, 10), hp.quniform('2layer2', 1, 1000, 10)]
+                [hp.quniform('1layer1', 1, 500, 10)],
+                [hp.quniform('2layer1', 1, 500, 10), hp.quniform('2layer2', 1, 500, 10)]
             ])
         }
 
