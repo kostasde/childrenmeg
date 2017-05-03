@@ -49,7 +49,11 @@ if __name__ == '__main__':
                         workers=4, epochs=args.epochs)
 
     print('Test performance')
-    model.evaluate_generator(dataset.testset(), np.ceil(dataset.testpoints.shape[0]/dataset.batchsize), workers=4)
+    print(model.evaluate_generator(
+        dataset.testset(),
+        np.ceil(dataset.testpoints.shape[0]/dataset.batchsize),
+        workers=4
+    ))
 
     if args.save_model_params is not None and Path(args.save_model_params).exists() and \
             Path(args.save_model_params).is_dir():

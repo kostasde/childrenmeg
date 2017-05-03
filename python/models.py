@@ -1,26 +1,66 @@
 import numpy as np
 import keras
 from keras.models import Sequential
+from abc import abstractmethod, ABCMeta
+from hyperopt import hp
 
 TYPE_REGRESSION = 0
 TYPE_CLASSIFICATION = 1
 
 
-class LinearRegression(Sequential):
+class Searchable:
+    """
+    Makes the model searchable if it implements this interface
+    """
+
+    PARAM_LR = 'learning_rate'
+    PARAM_BATCH = 'batch_size'
+    PARAM_REG = 'regularization'
+    PARAM_DROPOUT = 'dropout'
+    PARAM_LAYERS = 'layers'
+
+    @staticmethod
+    def search_space():
+        """
+        Return a search space for the parameters that are expected
+        :return: Dictionary of values and spaces
+        """
+        pass
+
+    def __init__(self, params):
+        if params is None:
+            params = {Searchable.PARAM_LR: 1e-3, Searchable.PARAM_BATCH: 10, Searchable.PARAM_REG: 0}
+
+        self.lr = params[Searchable.PARAM_LR]
+        self.batchsize = params[Searchable.PARAM_BATCH]
+        self.reg = params[Searchable.PARAM_REG]
+
+
+class LinearRegression(Sequential, Searchable):
     """
     Simple Linear Regression model
     """
 
-    TYPE = TYPE_REGRESSION
-
-    def __init__(self, inputlength, outputlength):
+    def __init__(self, inputlength, outputlength, params=None):
+        Searchable.__init__(self, params=params)
         super().__init__([
-            keras.layers.Dense(outputlength, activation='linear', input_dim=inputlength)
+            keras.layers.Dense(outputlength, activation='linear', input_dim=inputlength,
+                               kernel_regularizer=keras.regularizers.l2(self.reg))
         ], 'Linear Regression')
 
     def compile(self, **kwargs):
-        super().compile(optimizer=keras.optimizers.adam(), loss=keras.losses.mean_squared_error,
+        super().compile(optimizer=keras.optimizers.adam(self.lr), loss=keras.losses.mean_squared_error,
                         metrics=[keras.metrics.mae], **kwargs)
+
+    TYPE = TYPE_REGRESSION
+
+    @staticmethod
+    def search_space():
+        return {
+            Searchable.PARAM_LR: hp.loguniform(Searchable.PARAM_LR, -7, 0),
+            Searchable.PARAM_BATCH: hp.qloguniform(Searchable.PARAM_BATCH, -1, 2, 5),
+            Searchable.PARAM_REG: hp.uniform(Searchable.PARAM_REG, 0, 1e-4)
+        }
 
 
 class LogisticRegression(Sequential):
@@ -41,22 +81,49 @@ class LogisticRegression(Sequential):
                         metrics=[keras.metrics.categorical_accuracy], **kwargs)
 
 
-class SimpleMLP(Sequential):
+class SimpleMLP(Sequential, Searchable):
     """
     Simple Multi-Layer Perceptron with Dense connections
     """
 
     TYPE = TYPE_CLASSIFICATION
 
-    def __init__(self, inputlength, outputlength, activation=keras.activations.relu):
-        super().__init__([
-            keras.layers.Dense(100, activation=activation, input_dim=inputlength),
-            keras.layers.Dense(outputlength, activation='softmax')
-        ], "Multi-Layer Perceptron")
+    def __init__(self, inputlength, outputlength, activation=keras.activations.relu, params=None):
+        Searchable.__init__(self, params=params)
+
+        if params is not None:
+            self.lunits = [int(x) for x in params[Searchable.PARAM_LAYERS]]
+            self.do = params[Searchable.PARAM_DROPOUT]
+        else:
+            self.lunits = [100]
+            self.do = 0
+
+        super().__init__(name="Multi-Layer Perceptron")
+
+        # Build layers
+        self.add(keras.layers.Dense(self.lunits[0], activation=activation, input_dim=inputlength))
+        self.add(keras.layers.Dropout(self.do))
+        for l in self.lunits[1:]:
+            self.add(keras.layers.Dense(l))
+            self.add(keras.layers.Dropout(self.do))
+        self.add(keras.layers.Dense(outputlength, activation='softmax'))
 
     def compile(self, **kwargs):
         super().compile(optimizer=keras.optimizers.adam(), loss=keras.losses.categorical_crossentropy,
                         metrics=[keras.metrics.categorical_accuracy], **kwargs)
+
+    @staticmethod
+    def search_space():
+        return {
+            Searchable.PARAM_LR: hp.loguniform(Searchable.PARAM_LR, -7, 0),
+            Searchable.PARAM_BATCH: hp.qloguniform(Searchable.PARAM_BATCH, 0, 2, 5)+1,
+            Searchable.PARAM_DROPOUT: hp.normal(Searchable.PARAM_DROPOUT, 0.6, 0.1),
+            Searchable.PARAM_REG: hp.uniform(Searchable.PARAM_REG, 0, 1e-4),
+            Searchable.PARAM_LAYERS: hp.choice(Searchable.PARAM_LAYERS, [
+                [hp.quniform('1layer1', 1, 1000, 10)],
+                [hp.quniform('2layer1', 1, 1000, 10), hp.quniform('2layer2', 1, 1000, 10)]
+            ])
+        }
 
 
 MODELS = [LinearRegression, LogisticRegression, SimpleMLP]
