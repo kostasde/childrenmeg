@@ -42,11 +42,17 @@ if __name__ == '__main__':
     model.compile()
     model.summary()
 
+    # Callbacks
+    savebest = keras.callbacks.ModelCheckpoint(args.save_model_params + '/weights.{epoch:02d}-{val_loss:.2f}.hdf5',
+                                               verbose=1, save_best_only=True)
+    lrreduce = keras.callbacks.ReduceLROnPlateau(min_lr=1e-12, verbose=1, epsilon=0.05, patience=0)
+    early_stop = keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min')
+
     print('Train Model')
     model.fit_generator(dataset.trainingset(), np.ceil(dataset.traindata.shape[0]/dataset.batchsize),
                         validation_data=dataset.evaluationset(),
                         validation_steps=np.ceil(dataset.eval_points.shape[0]/dataset.batchsize),
-                        workers=4, epochs=args.epochs)
+                        workers=4, epochs=args.epochs, callbacks=[savebest, lrreduce, early_stop])
 
     print('Test performance')
     print(model.evaluate_generator(
@@ -54,11 +60,3 @@ if __name__ == '__main__':
         np.ceil(dataset.testpoints.shape[0]/dataset.batchsize),
         workers=4
     ))
-
-    if args.save_model_params is not None and Path(args.save_model_params).exists() and \
-            Path(args.save_model_params).is_dir():
-        print('Saving model to ', args.save_model_params)
-        ws = model
-        bs = model.b.eval(sess)
-        savemat(str((Path(args.save_model_params) / ('Fold_' + str(fold) + '_params')).absolute())
-                , {'W': ws, 'b': bs})

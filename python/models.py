@@ -1,7 +1,6 @@
 import numpy as np
 import keras
 from keras.models import Sequential
-from abc import abstractmethod, ABCMeta
 from hyperopt import hp
 
 TYPE_REGRESSION = 0
@@ -63,22 +62,31 @@ class LinearRegression(Sequential, Searchable):
         }
 
 
-class LogisticRegression(Sequential):
+class LogisticRegression(Sequential, Searchable):
     """
         Simple Linear Regression model
         """
 
     TYPE = TYPE_CLASSIFICATION
 
-    def __init__(self, inputlength, outputlength):
+    def __init__(self, inputlength, outputlength, params=None):
+        Searchable.__init__(self, params=params)
         super().__init__([
-            keras.layers.Dense(outputlength, activation='linear', input_dim=inputlength,
-                               kernel_regularizer=keras.regularizers.l2())
+            keras.layers.Dense(outputlength, activation='softmax', input_dim=inputlength,
+                               kernel_regularizer=keras.regularizers.l2(self.reg))
         ], 'Logistic Regression')
 
     def compile(self, **kwargs):
-        super().compile(optimizer=keras.optimizers.adam(), loss=keras.losses.categorical_crossentropy,
+        super().compile(optimizer=keras.optimizers.adam(self.lr), loss=keras.losses.categorical_crossentropy,
                         metrics=[keras.metrics.categorical_accuracy], **kwargs)
+
+    @staticmethod
+    def search_space():
+        return {
+            Searchable.PARAM_LR: hp.loguniform(Searchable.PARAM_LR, -7, 0),
+            Searchable.PARAM_BATCH: hp.qloguniform(Searchable.PARAM_BATCH, -1, 2, 5),
+            Searchable.PARAM_REG: hp.uniform(Searchable.PARAM_REG, 0, 1e-4)
+        }
 
 
 class SimpleMLP(Sequential, Searchable):
@@ -120,8 +128,8 @@ class SimpleMLP(Sequential, Searchable):
             Searchable.PARAM_DROPOUT: hp.normal(Searchable.PARAM_DROPOUT, 0.6, 0.05),
             Searchable.PARAM_REG: hp.uniform(Searchable.PARAM_REG, 0, 1e-4),
             Searchable.PARAM_LAYERS: hp.choice(Searchable.PARAM_LAYERS, [
-                [hp.quniform('1layer1', 1, 500, 10)],
-                [hp.quniform('2layer1', 1, 500, 10), hp.quniform('2layer2', 1, 500, 10)]
+                [hp.quniform('1layer1', 1, 700, 10)],
+                [hp.quniform('2layer1', 1, 700, 10), hp.quniform('2layer2', 1, 1000, 10)]
             ])
         }
 
