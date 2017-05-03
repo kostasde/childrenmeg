@@ -24,7 +24,6 @@ def hp_search(model_constructor, dataset_constructor, args):
         model.compile()
         model.summary()
 
-        best = np.inf
         try:
             model.fit_generator(dataset.trainingset(), np.ceil(dataset.traindata.shape[0] / dataset.batchsize),
                                 validation_data=dataset.evaluationset(),
@@ -33,10 +32,10 @@ def hp_search(model_constructor, dataset_constructor, args):
         except Exception:
             return {'status': STATUS_FAIL}
 
-        cost, acc = model.evaluate_generator(dataset.testset(), np.ceil(dataset.testpoints.shape[0]/dataset.batchsize),
-                                             workers=4)
+        cost, acc = model.evaluate_generator(dataset.evaluationset(),
+                                             np.ceil(dataset.testpoints.shape[0]/dataset.batchsize), workers=4)
 
-        return {'loss': best, 'status': STATUS_OK}
+        return {'loss': cost, 'status': STATUS_OK}
 
     trials = Trials()
     best_model = fmin(loss, space=model_constructor.search_space(), trials=trials,
@@ -64,6 +63,10 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', default=10, type=int, help='Number of epochs to run each trial')
     parser.add_argument('--max-evals', default=10, type=int, help='Number of search trials to run')
     parser.add_argument('--save-best', '-p', help='File to save the best model parameters to.',
+                        type=argparse.FileType('wb'))
+    parser.add_argument('--save-trials', help='File to use to load and store previous/future results. This allows the '
+                                              'continuation of testing and the ability to explore how all different '
+                                              'hyperparameters performed.',
                         type=argparse.FileType('wb'))
 
     args = parser.parse_args()
