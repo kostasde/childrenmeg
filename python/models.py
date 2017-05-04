@@ -58,7 +58,7 @@ class LinearRegression(Sequential, Searchable):
         return {
             Searchable.PARAM_LR: hp.loguniform(Searchable.PARAM_LR, -7, 0),
             Searchable.PARAM_BATCH: hp.qloguniform(Searchable.PARAM_BATCH, -1, 2, 5),
-            Searchable.PARAM_REG: hp.uniform(Searchable.PARAM_REG, 0, 1e-4)
+            Searchable.PARAM_REG: hp.loguniform(Searchable.PARAM_REG, -4, 0)
         }
 
 
@@ -73,7 +73,9 @@ class LogisticRegression(Sequential, Searchable):
         Searchable.__init__(self, params=params)
         super().__init__([
             keras.layers.Dense(outputlength, activation='softmax', input_dim=inputlength,
-                               kernel_regularizer=keras.regularizers.l2(self.reg))
+                               kernel_regularizer=keras.regularizers.l2(self.reg),
+                               kernel_initializer=keras.initializers.TruncatedNormal(stddev=0.01),
+                               bias_initializer=keras.initializers.Constant(value=0.0001))
         ], 'Logistic Regression')
 
     def compile(self, **kwargs):
@@ -84,8 +86,8 @@ class LogisticRegression(Sequential, Searchable):
     def search_space():
         return {
             Searchable.PARAM_LR: hp.loguniform(Searchable.PARAM_LR, -7, 0),
-            Searchable.PARAM_BATCH: hp.qloguniform(Searchable.PARAM_BATCH, -1, 2, 5),
-            Searchable.PARAM_REG: hp.uniform(Searchable.PARAM_REG, 0, 1e-4)
+            Searchable.PARAM_BATCH: hp.quniform(Searchable.PARAM_BATCH, 1, 1000, 10),
+            Searchable.PARAM_REG: hp.loguniform(Searchable.PARAM_REG, -4, 0)
         }
 
 

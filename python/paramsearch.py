@@ -11,8 +11,8 @@ from models import *
 
 def hp_search(model_constructor, dataset_constructor, args):
 
-    early_stop = keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min', patience=3)
-    lrreduce = keras.callbacks.ReduceLROnPlateau(min_lr=1e-12, verbose=1, epsilon=0.05, patience=0)
+    early_stop = keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min', patience=10)
+    lrreduce = keras.callbacks.ReduceLROnPlateau(min_lr=1e-12, verbose=1, epsilon=0.05, patience=2, factor=0.5)
 
     def loss(hyperparams):
         print('-'*30)
@@ -60,8 +60,8 @@ if __name__ == '__main__':
     parser.add_argument('model', choices=MODELS.keys())
     parser.add_argument('dataset', choices=DATASETS.keys())
 
-    parser.add_argument('--epochs', default=10, type=int, help='Number of epochs to run each trial')
-    parser.add_argument('--max-evals', default=10, type=int, help='Number of search trials to run')
+    parser.add_argument('--epochs', default=20, type=int, help='Number of epochs to run each trial')
+    parser.add_argument('--max-evals', default=20, type=int, help='Number of search trials to run')
     parser.add_argument('--save-best', '-p', help='File to save the best model parameters to.',
                         type=argparse.FileType('wb'))
     parser.add_argument('--save-trials', help='File to use to load and store previous/future results. This allows the '
