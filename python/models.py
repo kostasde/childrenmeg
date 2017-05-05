@@ -51,6 +51,12 @@ class LinearRegression(Sequential, Searchable):
         super().compile(optimizer=keras.optimizers.adam(self.lr), loss=keras.losses.mean_squared_error,
                         metrics=[keras.metrics.mse, keras.metrics.mae], **kwargs)
 
+    def summary(self, line_length=None, positions=None):
+        super().summary(line_length, positions)
+        print('Hyper-Parameters:')
+        print('Batch Size:', self.batchsize)
+        print('Weight Regularization:', self.reg)
+
     TYPE = TYPE_REGRESSION
 
     @staticmethod

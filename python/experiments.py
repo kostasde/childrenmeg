@@ -66,7 +66,7 @@ if __name__ == '__main__':
     print('Using ', dataset.__class__.__name__)
     print('-'*30)
 
-    model = MODELS[args.model](dataset.inputshape(), dataset.outputshape(), params=pickle.load(args.hyper_parameters))
+    model = MODELS[args.model](dataset.inputshape(), dataset.outputshape(), params=pickle.load(args.hyper_params))
     model.compile()
     model.summary()
 
