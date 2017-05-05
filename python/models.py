@@ -80,7 +80,7 @@ class LogisticRegression(Sequential, Searchable):
 
     def compile(self, **kwargs):
         super().compile(optimizer=keras.optimizers.adam(self.lr), loss=keras.losses.categorical_crossentropy,
-                        metrics=[keras.metrics.categorical_accuracy], **kwargs)
+                        metrics=[keras.metrics.categorical_crossentropy, keras.metrics.categorical_accuracy], **kwargs)
 
     @staticmethod
     def search_space():
@@ -105,7 +105,7 @@ class SimpleMLP(Sequential, Searchable):
             self.lunits = [int(x) for x in params[Searchable.PARAM_LAYERS]]
             self.do = params[Searchable.PARAM_DROPOUT]
         else:
-            self.lunits = [100]
+            self.lunits = [410, 10]
             self.do = 0
 
         super().__init__(name="Multi-Layer Perceptron")
@@ -114,18 +114,18 @@ class SimpleMLP(Sequential, Searchable):
         self.add(keras.layers.Dense(self.lunits[0], activation=activation, input_dim=inputlength))
         self.add(keras.layers.Dropout(self.do))
         for l in self.lunits[1:]:
-            self.add(keras.layers.Dense(l))
+            self.add(keras.layers.Dense(l, activation=activation))
             self.add(keras.layers.Dropout(self.do))
         self.add(keras.layers.Dense(outputlength, activation='softmax'))
 
     def compile(self, **kwargs):
-        super().compile(optimizer=keras.optimizers.adam(), loss=keras.losses.categorical_crossentropy,
-                        metrics=[keras.metrics.categorical_accuracy], **kwargs)
+        super().compile(optimizer=keras.optimizers.adam(), loss='categorical_crossentropy',
+                        metrics=[keras.losses.categorical_crossentropy, keras.metrics.categorical_accuracy], **kwargs)
 
     @staticmethod
     def search_space():
         return {
-            Searchable.PARAM_LR: hp.loguniform(Searchable.PARAM_LR, -7, 0),
+            Searchable.PARAM_LR: hp.loguniform(Searchable.PARAM_LR, -7, -2),
             Searchable.PARAM_BATCH: hp.quniform(Searchable.PARAM_BATCH, 1, 100, 5),
             Searchable.PARAM_DROPOUT: hp.normal(Searchable.PARAM_DROPOUT, 0.6, 0.05),
             Searchable.PARAM_REG: hp.uniform(Searchable.PARAM_REG, 0, 1e-4),

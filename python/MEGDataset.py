@@ -34,6 +34,28 @@ TEST_MO = 'MO'
 MEG_COLUMNS = Path('realcol.npy')
 
 
+def random_slices(dataset: np.ndarray, sizeofslices=(0.1, 0.9)):
+    """
+    Randomly segments the data into slices of size _sizeofslices_
+    :param dataset: The dataset to perform this, splits the rows
+    :param sizeofslices: tuple of size of slices, does not need to sum to 1
+    :return: len(sizeofslices) list of ndarrays
+    """
+    to_return = []
+    # Normalize to sum to 1
+    sizeofslices = np.array(sizeofslices) / np.sum(sizeofslices)
+    ind = np.arange(dataset.shape[0])
+    for slice in sizeofslices:
+        slice_ind = np.random.choice(ind, replace=False, size=int(slice * dataset.shape[0]))
+
+        # Create masks to select the data
+        mask = np.full(dataset.shape, False, bool)
+        mask[slice_ind, :] = True
+        to_return.append(dataset[mask].reshape((len(slice_ind), -1)))
+
+    return to_return
+
+
 def zscore(l, nanprevention=1e-10):
     l = np.float32(l)
     return (l - np.mean(l, axis=0)) / (np.std(l, axis=0) + nanprevention)
@@ -135,28 +157,6 @@ class BaseDataset:
 
     # Not sure I like this...
     GENERATOR = SubjectFileLoader
-
-    @staticmethod
-    def random_slices(dataset: np.ndarray, sizeofslices=(0.1, 0.9)):
-        """
-        Randomly segments the data into slices of size _sizeofslices_
-        :param dataset: The dataset to perform this, splits the rows
-        :param sizeofslices: tuple of size of slices, does not need to sum to 1
-        :return: len(sizeofslices) list of ndarrays
-        """
-        to_return = []
-        # Normalize to sum to 1
-        sizeofslices = np.array(sizeofslices)/np.sum(sizeofslices)
-        ind = np.arange(dataset.shape[0])
-        for slice in sizeofslices:
-            slice_ind = np.random.choice(ind, replace=False, size=int(slice * dataset.shape[0]))
-
-            # Create masks to select the data
-            mask = np.full(dataset.shape, False, bool)
-            mask[slice_ind, :] = True
-            to_return.append(dataset[mask].reshape((len(slice_ind), -1)))
-
-        return to_return
 
     def __init__(self, toplevel, PDK=True, PA=True, VG=True, MO=False, batchsize=2):
         self.toplevel = Path(toplevel)
