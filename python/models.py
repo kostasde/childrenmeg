@@ -49,16 +49,16 @@ class LinearRegression(Sequential, Searchable):
 
     def compile(self, **kwargs):
         super().compile(optimizer=keras.optimizers.adam(self.lr), loss=keras.losses.mean_squared_error,
-                        metrics=[keras.metrics.mae], **kwargs)
+                        metrics=[keras.metrics.mse, keras.metrics.mae], **kwargs)
 
     TYPE = TYPE_REGRESSION
 
     @staticmethod
     def search_space():
         return {
-            Searchable.PARAM_LR: hp.loguniform(Searchable.PARAM_LR, -7, 0),
-            Searchable.PARAM_BATCH: hp.qloguniform(Searchable.PARAM_BATCH, -1, 2, 5),
-            Searchable.PARAM_REG: hp.loguniform(Searchable.PARAM_REG, -4, 0)
+            Searchable.PARAM_LR: hp.loguniform(Searchable.PARAM_LR, -7, -2),
+            Searchable.PARAM_BATCH: hp.quniform(Searchable.PARAM_BATCH, 10, 200, 10),
+            Searchable.PARAM_REG: hp.loguniform(Searchable.PARAM_REG, -4, -1)
         }
 
 

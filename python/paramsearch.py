@@ -44,7 +44,7 @@ def hp_search(model_constructor, dataset_constructor, args):
             return {'status': STATUS_FAIL}
 
         metrics = model.evaluate_generator(dataset.evaluationset(),
-                                             np.ceil(dataset.testpoints.shape[0]/dataset.batchsize), workers=4)
+                                           np.ceil(dataset.testpoints.shape[0]/dataset.batchsize), workers=4)
 
         return {'loss': metrics[1], 'status': STATUS_OK}
 

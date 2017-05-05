@@ -279,8 +279,9 @@ class BaseDataset:
 
         if self.leaveout == self.NUM_BUCKETS:
             print('Have completed cross-validation')
+            self.leaveout = None
             # raise CrossValidationComplete
-            return None
+            return self.leaveout
 
         # Select next bucket to leave out as evaluation
         self.eval_points = np.array(self.buckets[self.leaveout])
@@ -292,6 +293,9 @@ class BaseDataset:
 
         self.leaveout += 1
 
+        return self.leaveout
+
+    def current_leaveout(self):
         return self.leaveout
 
     def trainingset(self, batchsize=None):
