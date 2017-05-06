@@ -138,7 +138,7 @@ class SimpleMLP(Sequential, Searchable):
             Searchable.PARAM_LAYERS: hp.choice(Searchable.PARAM_LAYERS, [
                 [hp.quniform('1layer1', 1, 700, 10)],
                 [hp.quniform('2layer1', 1, 700, 10), hp.quniform('2layer2', 1, 1000, 10)],
-                [hp.quniform('3layer1', 1, 200, 10), hp.quniform('3layer2', 1, 200, 10), hp.quniform('3layer2', 1, 200, 10)]
+                [hp.quniform('3layer1', 1, 200, 10), hp.quniform('3layer2', 1, 200, 10), hp.quniform('3layer3', 1, 200, 10)]
             ])
         }
 

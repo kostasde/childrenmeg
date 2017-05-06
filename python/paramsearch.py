@@ -15,18 +15,18 @@ def hp_search(model_constructor, dataset_constructor, args):
     early_stop = keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min', patience=10)
     lrreduce = keras.callbacks.ReduceLROnPlateau(min_lr=1e-12, verbose=1, epsilon=0.05, patience=5, factor=0.5)
 
-    try:
-        trials = pickle.load(args.save_trials)
-        print('Loaded previous {0} trials from {1}'.format(len(trials.losses()), str(args.save_trials)))
-    except Exception:
-        print('Creating new trials file at:', args.save_trials)
-        trials = Trials()
-        pickle.dump(trials, args.save_trials)
-
     def loss(hyperparams):
         print('-'*30)
         print(hyperparams)
         print('-'*30)
+
+        try:
+            trials = pickle.load(args.save_trials)
+            print('Loaded previous {0} trials from {1}'.format(len(trials.losses()), str(args.save_trials)))
+        except Exception:
+            print('Creating new trials file at:', args.save_trials)
+            trials = Trials()
+            pickle.dump(trials, args.save_trials)
 
         if args.save_trials is not None:
             pickle.dump(trials, args.save_trials)
