@@ -1,7 +1,7 @@
 import argparse
 import pickle
 
-import utils
+# import utils
 from MEGDataset import *
 from MNISTDataset import *
 from models import *
@@ -42,7 +42,7 @@ if __name__ == '__main__':
     parser.add_argument('model', choices=MODELS.keys())
     parser.add_argument('dataset', choices=DATASETS.keys())
 
-    parser.add_argument('--epochs', default=20, type=int)
+    parser.add_argument('--epochs', default=40, type=int)
     parser.add_argument('--batch-size', default=100, type=int)
     parser.add_argument('--test', '-t', action='store_true', help='Actually test the best trained model for each fold')
     parser.add_argument('--patience', default=5, help='How many epochs of no change from which we determine there is no'
@@ -78,8 +78,8 @@ if __name__ == '__main__':
                                             '/Fold-1-weights.{epoch:02d}-{val_loss:.2f}.hdf5',
                                             verbose=1, save_best_only=True)
         )
-    callbacks.append(keras.callbacks.ReduceLROnPlateau(min_lr=1e-12, verbose=1, epsilon=0.05, patience=5))
-    callbacks.append(keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min', patience=10))
+    callbacks.append(keras.callbacks.ReduceLROnPlateau(min_lr=1e-12, verbose=1, epsilon=0.05, patience=5, factor=0.5))
+    callbacks.append(keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min', patience=args.patience))
 
     metrics = []
 

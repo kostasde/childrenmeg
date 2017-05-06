@@ -19,7 +19,9 @@ def hp_search(model_constructor, dataset_constructor, args):
         trials = pickle.load(args.save_trials)
         print('Loaded previous {0} trials from {1}'.format(len(trials.losses()), str(args.save_trials)))
     except Exception:
+        print('Creating new trials file at:', args.save_trials)
         trials = Trials()
+        pickle.dump(trials, args.save_trials)
 
     def loss(hyperparams):
         print('-'*30)

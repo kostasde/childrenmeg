@@ -48,7 +48,7 @@ class LinearRegression(Sequential, Searchable):
         ], 'Linear Regression')
 
     def compile(self, **kwargs):
-        super().compile(optimizer=keras.optimizers.adam(self.lr), loss=keras.losses.mean_squared_error,
+        super().compile(optimizer=keras.optimizers.adam(), loss=keras.losses.mean_squared_error,
                         metrics=[keras.metrics.mse, keras.metrics.mae], **kwargs)
 
     def summary(self, line_length=None, positions=None):
@@ -85,7 +85,7 @@ class LogisticRegression(Sequential, Searchable):
         ], 'Logistic Regression')
 
     def compile(self, **kwargs):
-        super().compile(optimizer=keras.optimizers.adam(self.lr), loss=keras.losses.categorical_crossentropy,
+        super().compile(optimizer=keras.optimizers.adam(), loss=keras.losses.categorical_crossentropy,
                         metrics=[keras.metrics.categorical_crossentropy, keras.metrics.categorical_accuracy], **kwargs)
 
     @staticmethod
@@ -137,7 +137,8 @@ class SimpleMLP(Sequential, Searchable):
             Searchable.PARAM_REG: hp.uniform(Searchable.PARAM_REG, 0, 1e-4),
             Searchable.PARAM_LAYERS: hp.choice(Searchable.PARAM_LAYERS, [
                 [hp.quniform('1layer1', 1, 700, 10)],
-                [hp.quniform('2layer1', 1, 700, 10), hp.quniform('2layer2', 1, 1000, 10)]
+                [hp.quniform('2layer1', 1, 700, 10), hp.quniform('2layer2', 1, 1000, 10)],
+                [hp.quniform('3layer1', 1, 200, 10), hp.quniform('3layer2', 1, 200, 10), hp.quniform('3layer2', 1, 200, 10)]
             ])
         }
 
