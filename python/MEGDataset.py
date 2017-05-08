@@ -534,20 +534,3 @@ class FusionAgeRangesDataset(FusionDataset, BaseDatasetAgeRanges):
 
     GENERATOR = FusionAgeRangesFileLoader
 
-
-# Main is for testing only
-if __name__ == '__main__':
-    # dataset = MEGDataset('/mnt/elephant_sized_space/FEATURES/')
-    dataset = AcousticDataset('/mnt/elephant_sized_space/ACOUSTIC_DATASET/')
-
-    while True:
-        try:
-            for xb, yb in dataset:
-                print('batch')
-        except TrainingComplete:
-            print('Trained single model')
-            continue
-        except CrossValidationComplete:
-            print('Finished whole model')
-            break
-
