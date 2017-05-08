@@ -46,7 +46,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch-size', default=100, type=int)
     parser.add_argument('--test', '-t', action='store_true', help='Actually test the best trained model for each fold')
     parser.add_argument('--patience', default=5, help='How many epochs of no change from which we determine there is no'
-                                                      'need to proceed and can stop early.')
+                                                      'need to proceed and can stop early.', type=int)
     parser.add_argument('--cross-validation', '-x', action='store_true', help='Loop through all the folds of the '
                                                                               'dataset to perform cross validation and'
                                                                               'report the score')

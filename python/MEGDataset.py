@@ -32,6 +32,11 @@ TEST_MO = 'MO'
 
 # todo make this less ugly
 MEG_COLUMNS = Path('realcol.npy')
+if MEG_COLUMNS.exists():
+    print('Found MEG Index')
+    megind = np.load(str(MEG_COLUMNS))
+else:
+    megind = None
 
 
 def random_slices(dataset: np.ndarray, sizeofslices=(0.1, 0.9)):
@@ -298,6 +303,13 @@ class BaseDataset:
     def current_leaveout(self):
         return self.leaveout
 
+    def sanityset(self, fold=0, batchsize=None):
+        """
+        Provides a generator for a small subset of data to ensure that the model can train to it
+        :return: 
+        """
+        self.GENERATOR(self.buckets[fold], self.longest_vector, self.subject_hash, self.DATASET_TARGETS, batchsize)
+
     def trainingset(self, batchsize=None):
         """
         Provides a generator object with the current training set
@@ -381,11 +393,6 @@ class MEGDataset(BaseDataset):
 
     def __init__(self, toplevel, PDK=True, PA=True, VG=True, MO=False, batchsize=2):
         super().__init__(toplevel, PDK, PA, VG, MO, batchsize)
-        if MEG_COLUMNS.exists():
-            print('Found MEG Index')
-            self.megind = np.load(str(MEG_COLUMNS))
-        else:
-            self.megind = None
 
     @property
     def modality_folders(self) -> list:
@@ -445,8 +452,8 @@ class FusionDataset(MEGDataset, AcousticDataset):
             m = np.load(str(path_to_file[0]))
             a = np.load(str(path_to_file[1]))
 
-            # if self.megind is not None:
-            #     m = m[:, self.megind].squeeze()
+            if megind is not None:
+                m = m[:, megind].squeeze()
 
             # m = zscore(m)
             # a = zscore(a)

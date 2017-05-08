@@ -18,7 +18,7 @@ def hp_search(model_constructor, dataset_constructor, args):
     try:
         trials = pickle.load(args.save_trials)
         print('Loaded previous {0} trials from {1}'.format(len(trials.losses()), str(args.save_trials)))
-    except Exception:
+    except EOFError as e:
         print('Creating new trials file at:', args.save_trials)
         trials = Trials()
         pickle.dump(trials, args.save_trials)
@@ -27,9 +27,6 @@ def hp_search(model_constructor, dataset_constructor, args):
         print('-'*30)
         print(hyperparams)
         print('-'*30)
-
-        if args.save_trials is not None:
-            pickle.dump(trials, args.save_trials)
 
         dataset = dataset_constructor(args.toplevel, batchsize=int(hyperparams[Searchable.PARAM_BATCH]))
         model = model_constructor(dataset.inputshape(), dataset.outputshape(), params=hyperparams)
@@ -57,6 +54,10 @@ def hp_search(model_constructor, dataset_constructor, args):
     best_model = fmin(loss, space=model_constructor.search_space(), trials=trials,
                       algo=tpe.suggest, verbose=1, max_evals=args.max_evals)
 
+    if args.save_trials is not None:
+        print('Saving all trials...')
+        pickle.dump(trials, args.save_trials)
+
     print('All Losses:', trials.losses())
     print('Best Model Found:', best_model)
 
@@ -78,7 +79,7 @@ if __name__ == '__main__':
     parser.add_argument('--save-trials', help='File to use to load and store previous/future results. This allows the '
                                               'continuation of testing and the ability to explore how all different '
                                               'hyperparameters performed.',
-                        type=argparse.FileType('wb'))
+                        type=argparse.FileType('w+b'))
 
     args = parser.parse_args()
 

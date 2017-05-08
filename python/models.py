@@ -125,7 +125,7 @@ class SimpleMLP(Sequential, Searchable):
         self.add(keras.layers.Dense(outputlength, activation='softmax'))
 
     def compile(self, **kwargs):
-        super().compile(optimizer=keras.optimizers.adam(), loss='categorical_crossentropy',
+        super().compile(optimizer=keras.optimizers.sgd(), loss='categorical_crossentropy',
                         metrics=[keras.losses.categorical_crossentropy, keras.metrics.categorical_accuracy], **kwargs)
 
     @staticmethod
@@ -136,9 +136,9 @@ class SimpleMLP(Sequential, Searchable):
             Searchable.PARAM_DROPOUT: hp.normal(Searchable.PARAM_DROPOUT, 0.6, 0.05),
             Searchable.PARAM_REG: hp.uniform(Searchable.PARAM_REG, 0, 1e-4),
             Searchable.PARAM_LAYERS: hp.choice(Searchable.PARAM_LAYERS, [
-                [hp.quniform('1layer1', 1, 700, 10)],
-                [hp.quniform('2layer1', 1, 700, 10), hp.quniform('2layer2', 1, 1000, 10)],
-                [hp.quniform('3layer1', 1, 200, 10), hp.quniform('3layer2', 1, 200, 10), hp.quniform('3layer3', 1, 200, 10)]
+                [hp.quniform('1layer1', 50, 700, 10)],
+                [hp.quniform('2layer1', 50, 700, 10), hp.quniform('2layer2', 20, 100, 10)],
+                [hp.quniform('3layer1', 50, 200, 10), hp.quniform('3layer2', 20, 100, 10), hp.quniform('3layer3', 20, 100, 10)]
             ])
         }
 
