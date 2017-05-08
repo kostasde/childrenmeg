@@ -18,9 +18,9 @@ DATASETS = {
 
 def train_and_test(model, dataset, args, callbacks=None):
     print('Train Model')
-    if args.small_set:
+    if args.sanity_set:
         print('Using small subset of data')
-        s = dataset.smallset()
+        s = dataset.sanityset()
     else:
         s = dataset.trainingset()
     model.fit_generator(s, np.ceil(dataset.traindata.shape[0] / dataset.batchsize),
@@ -59,7 +59,7 @@ if __name__ == '__main__':
                                                                    'to train the model. Expecting a pickle file, or '
                                                                    'another file that can be interpreted by pickle',
                         type=argparse.FileType('rb'))
-    parser.add_argument('--small-set', '-s', action='store_true', help='Use the small dataset to ensure that training'
+    parser.add_argument('--sanity-set', '-s', action='store_true', help='Use the small dataset to ensure that training'
                                                                        'data is going down.')
     parser.add_argument('--save-model-params', '-p', default=None, help='If provided, this saves the best model '
                                                                         'parameters for each fold of an experiment in '
@@ -73,7 +73,7 @@ if __name__ == '__main__':
     print('Using ', dataset.__class__.__name__)
     print('-'*30)
 
-    model = MODELS[args.model](dataset.inputshape(), dataset.outputshape(), params=pickle.load(args.hyper_params))
+    model = MODELS[args.model](dataset.inputshape(), dataset.outputshape(), params=None)
     model.compile()
     model.summary()
 
