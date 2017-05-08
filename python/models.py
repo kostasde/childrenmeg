@@ -1,10 +1,19 @@
 import numpy as np
 import keras
+import keras.backend as K
 from keras.models import Sequential
 from hyperopt import hp
 
 TYPE_REGRESSION = 0
 TYPE_CLASSIFICATION = 1
+
+
+def mean_pred(y_true, y_pred):
+    return K.mean(y_pred)
+
+
+def mean_class(y_true, y_pred):
+    return K.mean(y_true)
 
 
 class Searchable:
@@ -125,8 +134,9 @@ class SimpleMLP(Sequential, Searchable):
         self.add(keras.layers.Dense(outputlength, activation='softmax'))
 
     def compile(self, **kwargs):
-        super().compile(optimizer=keras.optimizers.sgd(), loss='categorical_crossentropy',
-                        metrics=[keras.losses.categorical_crossentropy, keras.metrics.categorical_accuracy], **kwargs)
+        super().compile(optimizer=keras.optimizers.adam(), loss='categorical_crossentropy',
+                        metrics=[keras.metrics.categorical_accuracy, mean_pred, mean_class],
+                        **kwargs)
 
     @staticmethod
     def search_space():

@@ -23,7 +23,7 @@ def train_and_test(model, dataset, args, callbacks=None):
         s = dataset.sanityset()
     else:
         s = dataset.trainingset()
-    model.fit_generator(s, np.ceil(dataset.traindata.shape[0] / dataset.batchsize),
+    model.fit_generator(s, np.ceil(s.n / s.batch_size),
                         validation_data=dataset.evaluationset(),
                         validation_steps=np.ceil(dataset.eval_points.shape[0] / dataset.batchsize),
                         workers=4, epochs=args.epochs, callbacks=callbacks)

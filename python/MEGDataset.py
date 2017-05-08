@@ -303,12 +303,15 @@ class BaseDataset:
     def current_leaveout(self):
         return self.leaveout
 
-    def sanityset(self, fold=0, batchsize=None):
+    def sanityset(self, fold=5, batchsize=None):
         """
         Provides a generator for a small subset of data to ensure that the model can train to it
         :return: 
         """
-        self.GENERATOR(self.buckets[fold], self.longest_vector, self.subject_hash, self.DATASET_TARGETS, batchsize)
+        if batchsize is None:
+            batchsize = self.batchsize
+
+        return self.GENERATOR(np.array(self.buckets[fold]), self.longest_vector, self.subject_hash, self.DATASET_TARGETS, batchsize)
 
     def trainingset(self, batchsize=None):
         """
