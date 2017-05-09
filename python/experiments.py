@@ -28,12 +28,14 @@ def train_and_test(model, dataset, args, callbacks=None):
                         validation_steps=np.ceil(dataset.eval_points.shape[0] / dataset.batchsize),
                         workers=4, epochs=args.epochs, callbacks=callbacks)
 
-    print('Test performance')
-    metrics = model.evaluate_generator(
-        dataset.testset(),
-        np.ceil(dataset.testpoints.shape[0] / dataset.batchsize),
-        workers=4
-    )
+    if args.test:
+        print('Test performance')
+        s = dataset.testset()
+    else:
+        print('Validation Performance')
+        s = dataset.evaluationset()
+
+    metrics = model.evaluate_generator(s, np.ceil(s.n / s.batch_size), workers=4)
     print(metrics)
     return metrics
 
@@ -50,7 +52,7 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', default=40, type=int)
     parser.add_argument('--batch-size', default=100, type=int)
     parser.add_argument('--test', '-t', action='store_true', help='Actually test the best trained model for each fold')
-    parser.add_argument('--patience', default=5, help='How many epochs of no change from which we determine there is no'
+    parser.add_argument('--patience', default=10, help='How many epochs of no change from which we determine there is no'
                                                       'need to proceed and can stop early.', type=int)
     parser.add_argument('--cross-validation', '-x', action='store_true', help='Loop through all the folds of the '
                                                                               'dataset to perform cross validation and'
@@ -110,13 +112,15 @@ if __name__ == '__main__':
         metrics.append(train_and_test(model, dataset, args, callbacks=callbacks))
 
     print('\n\nComplete.')
-    print('-' * 30)
-    metrics = np.array(metrics)
-    mean = np.mean(metrics, axis=0)
-    stddev = np.std(metrics, axis=0)
-    for i, m in enumerate([model.loss, *model.metrics]):
-        print(m.__name__, ': Mean', mean[i], 'Stddev', stddev[i])
-    print('-' * 30)
+
+    if args.test:
+        print('-' * 30)
+        metrics = np.array(metrics)
+        mean = np.mean(metrics, axis=0)
+        stddev = np.std(metrics, axis=0)
+        for i, m in enumerate([model.loss, *model.metrics]):
+            print(m.__name__, ': Mean', mean[i], 'Stddev', stddev[i])
+        print('-' * 30)
 
 
 

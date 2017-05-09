@@ -124,13 +124,17 @@ class SimpleMLP(Sequential, Searchable):
             self.momentum = params[Searchable.PARAM_MOMENTUM]
             self.optimizer = params[Searchable.PARAM_OPT]
         else:
-            self.lunits = [410, 10]
+            self.lunits = [50]
             self.do = 0
+            self.momentum = 0.0
+            self.optimizer = keras.optimizers.adam
 
         super().__init__(name="Multi-Layer Perceptron")
 
         # Build layers
+        # self.add(keras.layers.Dense(self.lunits[0], activation=activation, input_dim=inputlength))
         self.add(keras.layers.Dense(self.lunits[0], activation=activation, input_dim=inputlength))
+        self.add(keras.layers.normalization.BatchNormalization())
         self.add(keras.layers.Dropout(self.do))
         for l in self.lunits[1:]:
             self.add(keras.layers.Dense(l, activation=activation))
