@@ -75,7 +75,10 @@ if __name__ == '__main__':
     print('Using ', dataset.__class__.__name__)
     print('-'*30)
 
-    model = MODELS[args.model](dataset.inputshape(), dataset.outputshape(), params=None)
+    if args.hyper_params is not None:
+        args.hyper_params = pickle.load(args.hyper_params)
+
+    model = MODELS[args.model](dataset.inputshape(), dataset.outputshape(), params=args.hyper_params)
     model.compile()
     model.summary()
 
@@ -90,10 +93,8 @@ if __name__ == '__main__':
     callbacks.append(keras.callbacks.ReduceLROnPlateau(min_lr=1e-12, verbose=1, epsilon=0.05, patience=5, factor=0.5))
     callbacks.append(keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min', patience=args.patience))
 
-    metrics = []
-
     # First fold
-    metrics.append(train_and_test(model, dataset, args, callbacks=callbacks))
+    metrics = [(train_and_test(model, dataset, args, callbacks=callbacks))]
 
     # Loop through remaining folds
     while args.cross_validation:
@@ -108,7 +109,6 @@ if __name__ == '__main__':
         callbacks[0] = keras.callbacks.ModelCheckpoint(args.save_model_params +
                                                        '/Fold-{0}-weights.{epoch:02d}-{val_loss:.2f}.hdf5'.format(fold),
                                                        verbose=1, save_best_only=True)
-
         metrics.append(train_and_test(model, dataset, args, callbacks=callbacks))
 
     print('\n\nComplete.')
