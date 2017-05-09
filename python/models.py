@@ -115,14 +115,33 @@ class SimpleMLP(Sequential, Searchable):
 
     TYPE = TYPE_CLASSIFICATION
 
+    @staticmethod
+    def parse_layers(params):
+        if isinstance(params[Searchable.PARAM_LAYERS], int):
+            n = params[Searchable.PARAM_LAYERS]+1
+            return [int(params['{0}layer{1}'.format(n, i)]) for i in range(1, n+1)]
+        elif isinstance(params[Searchable.PARAM_LAYERS], tuple):
+            return [int(x) for x in params[Searchable.PARAM_LAYERS]]
+        else:
+            raise TypeError('Layers cannot be parsed from: ' + str(params))
+
+    @staticmethod
+    def parse_opt(params):
+        if isinstance(params[Searchable.PARAM_OPT], keras.optimizers.Optimizer):
+            return params[Searchable.PARAM_OPT]
+        elif isinstance(params[Searchable.PARAM_OPT], int):
+            return SimpleMLP.search_space()[Searchable.PARAM_OPT][params[Searchable.PARAM_OPT]]
+        else:
+            raise TypeError('Optimizer cannot be parsed from: ' + str(params))
+
     def __init__(self, inputlength, outputlength, activation=keras.activations.relu, params=None):
         Searchable.__init__(self, params=params)
 
         if params is not None:
-            self.lunits = [int(x) for x in params[Searchable.PARAM_LAYERS]]
+            self.lunits = self.parse_layers(params)
             self.do = params[Searchable.PARAM_DROPOUT]
             self.momentum = params[Searchable.PARAM_MOMENTUM]
-            self.optimizer = params[Searchable.PARAM_OPT]
+            self.optimizer = self.parse_opt(params)
         else:
             self.lunits = [50]
             self.do = 0
