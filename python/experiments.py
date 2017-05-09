@@ -77,6 +77,8 @@ if __name__ == '__main__':
 
     if args.hyper_params is not None:
         args.hyper_params = pickle.load(args.hyper_params)
+        print('Loaded provided Hyper-parameters')
+        print(args.hyper_params)
 
     model = MODELS[args.model](dataset.inputshape(), dataset.outputshape(), params=args.hyper_params)
     model.compile()

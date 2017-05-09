@@ -165,6 +165,8 @@ class SimpleMLP(Sequential, Searchable):
             opt = keras.optimizers.adam(self.lr)
         elif self.optimizer is keras.optimizers.sgd:
             opt = keras.optimizers.sgd(self.lr, self.momentum, nesterov=True)
+        else:
+            raise AttributeError('Optimizer not properly initialized, got: ' + str(self.optimizer))
         super().compile(optimizer=opt, loss='categorical_crossentropy',
                         metrics=[keras.metrics.categorical_accuracy, mean_pred, mean_class], **kwargs)
 
