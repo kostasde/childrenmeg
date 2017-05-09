@@ -14,7 +14,8 @@ def hp_search(model_constructor, dataset_constructor, args):
 
     trials_file = Path(args.save_trials)
 
-    early_stop = keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min', patience=10)
+    early_stop1 = keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min', patience=20)
+    early_stop2 = keras.callbacks.EarlyStopping(min_delta=0.001, verbose=1, mode='min', patience=10)
     lrreduce = keras.callbacks.ReduceLROnPlateau(min_lr=1e-12, verbose=1, epsilon=0.05, patience=5, factor=0.5)
 
     try:
@@ -39,7 +40,7 @@ def hp_search(model_constructor, dataset_constructor, args):
             model.fit_generator(dataset.trainingset(), np.ceil(dataset.traindata.shape[0] / dataset.batchsize),
                                 validation_data=dataset.evaluationset(),
                                 validation_steps=np.ceil(dataset.eval_points.shape[0] / dataset.batchsize),
-                                workers=4, epochs=args.epochs, callbacks=[early_stop, lrreduce])
+                                workers=4, epochs=args.epochs, callbacks=[early_stop1, early_stop2, lrreduce])
         except Exception as e:
             print('Training failed with:', e)
             return {'status': STATUS_FAIL}
@@ -74,7 +75,7 @@ if __name__ == '__main__':
     parser.add_argument('model', choices=MODELS.keys())
     parser.add_argument('dataset', choices=DATASETS.keys())
 
-    parser.add_argument('--epochs', default=40, type=int, help='Number of epochs to run each trial')
+    parser.add_argument('--epochs', default=50, type=int, help='Number of epochs to run each trial')
     parser.add_argument('--max-evals', default=10, type=int, help='Number of search trials to run')
     parser.add_argument('--save-best', '-p', help='File to save the best model parameters to.',
                         type=argparse.FileType('wb'))
