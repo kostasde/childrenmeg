@@ -12,16 +12,18 @@ from experiments import DATASETS
 
 def hp_search(model_constructor, dataset_constructor, args):
 
+    trials_file = Path(args.save_trials)
+
     early_stop = keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min', patience=10)
     lrreduce = keras.callbacks.ReduceLROnPlateau(min_lr=1e-12, verbose=1, epsilon=0.05, patience=5, factor=0.5)
 
     try:
-        trials = pickle.load(args.save_trials)
+        trials = pickle.load(trials_file.open('rb'))
         print('Loaded previous {0} trials from {1}'.format(len(trials.losses()), str(args.save_trials)))
-    except EOFError as e:
+    except (EOFError, FileNotFoundError) as e:
         print('Creating new trials file at:', args.save_trials)
         trials = Trials()
-        pickle.dump(trials, args.save_trials)
+        pickle.dump(trials, trials_file.open('wb'))
 
     def loss(hyperparams):
         print('-'*30)
@@ -45,18 +47,18 @@ def hp_search(model_constructor, dataset_constructor, args):
         metrics = model.evaluate_generator(dataset.evaluationset(),
                                            np.ceil(dataset.testpoints.shape[0]/dataset.batchsize), workers=4)
 
-        if args.save_trials is not None:
+        if trials_file.exists():
             print('Saving trial...')
-            pickle.dump(trials, args.save_trials)
+            pickle.dump(trials, trials_file.open('wb'))
 
         return {'loss': metrics[1], 'status': STATUS_OK}
 
     best_model = fmin(loss, space=model_constructor.search_space(), trials=trials,
                       algo=tpe.suggest, verbose=1, max_evals=args.max_evals)
 
-    if args.save_trials is not None:
+    if trials_file.exists():
         print('Saving all trials...')
-        pickle.dump(trials, args.save_trials)
+        pickle.dump(trials, trials_file.open('wb'))
 
     print('All Losses:', trials.losses())
     print('Best Model Found:', best_model)
@@ -78,8 +80,7 @@ if __name__ == '__main__':
                         type=argparse.FileType('wb'))
     parser.add_argument('--save-trials', help='File to use to load and store previous/future results. This allows the '
                                               'continuation of testing and the ability to explore how all different '
-                                              'hyperparameters performed.',
-                        type=argparse.FileType('w+b'))
+                                              'hyperparameters performed.', type=str)
 
     args = parser.parse_args()
 

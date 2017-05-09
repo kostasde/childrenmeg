@@ -9,11 +9,11 @@ TYPE_CLASSIFICATION = 1
 
 
 def mean_pred(y_true, y_pred):
-    return K.mean(y_pred)
+    return K.mean(K.max(y_pred))
 
 
 def mean_class(y_true, y_pred):
-    return K.mean(y_true)
+    return K.max(y_true)
 
 
 class Searchable:
@@ -22,7 +22,9 @@ class Searchable:
     """
 
     PARAM_LR = 'learning_rate'
+    PARAM_OPT = 'optimizer'
     PARAM_BATCH = 'batch_size'
+    PARAM_MOMENTUM = 'momentum'
     PARAM_REG = 'regularization'
     PARAM_DROPOUT = 'dropout'
     PARAM_LAYERS = 'layers'
@@ -119,6 +121,8 @@ class SimpleMLP(Sequential, Searchable):
         if params is not None:
             self.lunits = [int(x) for x in params[Searchable.PARAM_LAYERS]]
             self.do = params[Searchable.PARAM_DROPOUT]
+            self.momentum = params[Searchable.PARAM_MOMENTUM]
+            self.optimizer = params[Searchable.PARAM_OPT]
         else:
             self.lunits = [410, 10]
             self.do = 0
@@ -134,19 +138,24 @@ class SimpleMLP(Sequential, Searchable):
         self.add(keras.layers.Dense(outputlength, activation='softmax'))
 
     def compile(self, **kwargs):
-        super().compile(optimizer=keras.optimizers.adam(), loss='categorical_crossentropy',
-                        metrics=[keras.metrics.categorical_accuracy, mean_pred, mean_class],
-                        **kwargs)
+        if self.optimizer is keras.optimizers.adam:
+            opt = keras.optimizers.adam(self.lr)
+        elif self.optimizer is keras.optimizers.sgd:
+            opt = keras.optimizers.sgd(self.lr, self.momentum, nesterov=True)
+        super().compile(optimizer=opt, loss='categorical_crossentropy',
+                        metrics=[keras.metrics.categorical_accuracy, mean_pred, mean_class], **kwargs)
 
     @staticmethod
     def search_space():
         return {
-            Searchable.PARAM_LR: hp.loguniform(Searchable.PARAM_LR, -7, -2),
+            Searchable.PARAM_LR: hp.loguniform(Searchable.PARAM_LR, -8, -2),
+            Searchable.PARAM_OPT: hp.choice(Searchable.PARAM_OPT, [keras.optimizers.sgd, keras.optimizers.adam]),
+            Searchable.PARAM_MOMENTUM: hp.loguniform(Searchable.PARAM_MOMENTUM, -7, 0),
             Searchable.PARAM_BATCH: hp.quniform(Searchable.PARAM_BATCH, 1, 100, 5),
             Searchable.PARAM_DROPOUT: hp.normal(Searchable.PARAM_DROPOUT, 0.6, 0.05),
             Searchable.PARAM_REG: hp.uniform(Searchable.PARAM_REG, 0, 1e-4),
             Searchable.PARAM_LAYERS: hp.choice(Searchable.PARAM_LAYERS, [
-                [hp.quniform('1layer1', 50, 700, 10)],
+                [hp.quniform('1layer1', 50, 1000, 10)],
                 [hp.quniform('2layer1', 50, 700, 10), hp.quniform('2layer2', 20, 100, 10)],
                 [hp.quniform('3layer1', 50, 200, 10), hp.quniform('3layer2', 20, 100, 10), hp.quniform('3layer3', 20, 100, 10)]
             ])

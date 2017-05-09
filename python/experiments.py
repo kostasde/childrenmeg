@@ -115,7 +115,7 @@ if __name__ == '__main__':
     mean = np.mean(metrics, axis=0)
     stddev = np.std(metrics, axis=0)
     for i, m in enumerate([model.loss, *model.metrics]):
-        print(m, ': Mean', mean[i], 'Stddev', stddev[i])
+        print(m.__name__, ': Mean', mean[i], 'Stddev', stddev[i])
     print('-' * 30)
 
 
