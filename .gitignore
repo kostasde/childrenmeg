@@ -2,6 +2,9 @@
 *~
 __*
 
+# Tar
+*.tar
+
 # Ignore any matlab variables locally saved
 *.mat
 # Ignore logs

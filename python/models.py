@@ -130,7 +130,7 @@ class SimpleMLP(Sequential, Searchable):
         if isinstance(params[Searchable.PARAM_OPT], keras.optimizers.Optimizer):
             return params[Searchable.PARAM_OPT]
         elif isinstance(params[Searchable.PARAM_OPT], int):
-            return SimpleMLP.search_space()[Searchable.PARAM_OPT][params[Searchable.PARAM_OPT]]
+            return [keras.optimizers.sgd, keras.optimizers.adam][params[Searchable.PARAM_OPT]]
         else:
             raise TypeError('Optimizer cannot be parsed from: ' + str(params))
 

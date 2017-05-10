@@ -49,10 +49,10 @@ if __name__ == '__main__':
     parser.add_argument('model', choices=MODELS.keys())
     parser.add_argument('dataset', choices=DATASETS.keys())
 
-    parser.add_argument('--epochs', default=40, type=int)
+    parser.add_argument('--epochs', default=50, type=int)
     parser.add_argument('--batch-size', default=100, type=int)
     parser.add_argument('--test', '-t', action='store_true', help='Actually test the best trained model for each fold')
-    parser.add_argument('--patience', default=10, help='How many epochs of no change from which we determine there is no'
+    parser.add_argument('--patience', default=50, help='How many epochs of no change from which we determine there is no'
                                                       'need to proceed and can stop early.', type=int)
     parser.add_argument('--cross-validation', '-x', action='store_true', help='Loop through all the folds of the '
                                                                               'dataset to perform cross validation and'
@@ -85,15 +85,12 @@ if __name__ == '__main__':
     model.summary()
 
     # Callbacks
-    callbacks = []
+    callbacks = [keras.callbacks.ReduceLROnPlateau(verbose=1, epsilon=0.05, patience=5, factor=0.5),
+                 keras.callbacks.EarlyStopping(min_delta=0.005, verbose=1, mode='min', patience=5),
+                 keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min', patience=args.patience)]
     if args.save_model_params is not None:
-        callbacks.append(
-            keras.callbacks.ModelCheckpoint(args.save_model_params +
-                                            '/Fold-1-weights.{epoch:02d}-{val_loss:.2f}.hdf5',
-                                            verbose=1, save_best_only=True)
-        )
-    callbacks.append(keras.callbacks.ReduceLROnPlateau(min_lr=1e-12, verbose=1, epsilon=0.05, patience=5, factor=0.5))
-    callbacks.append(keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min', patience=args.patience))
+        callbacks.append(keras.callbacks.ModelCheckpoint(args.save_model_params + '/Fold-1-weights.hdf5', verbose=1,
+                                                         save_best_only=True))
 
     # First fold
     metrics = [(train_and_test(model, dataset, args, callbacks=callbacks))]
@@ -108,9 +105,10 @@ if __name__ == '__main__':
         print('Testing Fold:', fold)
         print('-' * 30)
 
-        callbacks[0] = keras.callbacks.ModelCheckpoint(args.save_model_params +
-                                                       '/Fold-{0}-weights.{epoch:02d}-{val_loss:.2f}.hdf5'.format(fold),
-                                                       verbose=1, save_best_only=True)
+        if args.save_model_params is not None:
+            callbacks[-1] = keras.callbacks.ModelCheckpoint(args.save_model_params +
+                                                            '/Fold-{0}-weights.hdf5'.format(fold),
+                                                            verbose=1, save_best_only=True)
         metrics.append(train_and_test(model, dataset, args, callbacks=callbacks))
 
     print('\n\nComplete.')
