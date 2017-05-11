@@ -15,7 +15,7 @@ def hp_search(model_constructor, dataset_constructor, args):
     trials_file = Path(args.save_trials)
 
     early_stop1 = keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min', patience=20)
-    early_stop2 = keras.callbacks.EarlyStopping(min_delta=0.001, verbose=1, mode='min', patience=5)
+    early_stop2 = keras.callbacks.EarlyStopping(min_delta=0.001, verbose=1, mode='min', patience=10)
     lrreduce = keras.callbacks.ReduceLROnPlateau(min_lr=1e-12, verbose=1, epsilon=0.05, patience=5, factor=0.5)
 
     try:

@@ -1,3 +1,4 @@
+import os
 import argparse
 import pickle
 
@@ -7,6 +8,9 @@ from MNISTDataset import *
 from models import *
 
 # np.random.seed(10)
+
+WORKERS = 4
+MODEL_FILE = 'Model.hdf5'
 
 DATASETS = {
     'MEG': [MEGDataset, MEGAgeRangesDataset],
@@ -26,7 +30,7 @@ def train_and_test(model, dataset, args, callbacks=None):
     model.fit_generator(s, np.ceil(s.n / s.batch_size),
                         validation_data=dataset.evaluationset(),
                         validation_steps=np.ceil(dataset.eval_points.shape[0] / dataset.batchsize),
-                        workers=4, epochs=args.epochs, callbacks=callbacks)
+                        workers=WORKERS, epochs=args.epochs, callbacks=callbacks)
 
     if args.test:
         print('Test performance')
@@ -35,9 +39,34 @@ def train_and_test(model, dataset, args, callbacks=None):
         print('Validation Performance')
         s = dataset.evaluationset()
 
-    metrics = model.evaluate_generator(s, np.ceil(s.n / s.batch_size), workers=4)
+    metrics = model.evaluate_generator(s, np.ceil(s.n / s.batch_size), workers=WORKERS)
     print(metrics)
     return metrics
+
+
+def test(model, dataset, args):
+    """
+    Method that loops through folds of saved models and returns test performance on each fold.
+    :param model: Model, must have testset() method
+    :param dataset: 
+    :param args: 
+    :return: Array of metrics x folds, reporting test metric of each 
+    """
+    ts = dataset.testset()
+    return model.evaluate_generator(ts, np.ceil(ts.n/ts.batch_size), workers=WORKERS)
+
+
+def print_metrics(metrics):
+    print('-' * 30)
+    metrics = np.array(metrics)
+    mean = np.mean(metrics, axis=0)
+    stddev = np.std(metrics, axis=0)
+    for i, m in enumerate([model.loss, *model.metrics]):
+        if hasattr(m, '__name__'):
+            print(m.__name__, ': Mean', mean[i], 'Stddev', stddev[i])
+        else:
+            print(m, ': Mean', mean[i], 'Stddev', stddev[i])
+    print('-' * 30)
 
 
 if __name__ == '__main__':
@@ -71,6 +100,15 @@ if __name__ == '__main__':
     # Load the appropriate dataset, considering whether it is regression or classification
     dataset = DATASETS[args.dataset][MODELS[args.model].TYPE](args.toplevel, batchsize=args.batch_size)
 
+    # Callbacks
+    callbacks = [keras.callbacks.ReduceLROnPlateau(verbose=1, epsilon=0.05, patience=5, factor=0.5),
+                 keras.callbacks.EarlyStopping(min_delta=0.005, verbose=1, mode='min', patience=5),
+                 keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min', patience=args.patience)]
+    if args.save_model_params is not None:
+        args.save_model_params = Path(args.save_model_params)
+        callbacks.append(keras.callbacks.ModelCheckpoint(str(args.save_model_params / 'Fold-1-weights.hdf5'), verbose=1,
+                                                         save_best_only=True))
+
     print('-' * 30)
     print('Using ', dataset.__class__.__name__)
     print('-'*30)
@@ -84,13 +122,27 @@ if __name__ == '__main__':
     model.compile()
     model.summary()
 
-    # Callbacks
-    callbacks = [keras.callbacks.ReduceLROnPlateau(verbose=1, epsilon=0.05, patience=5, factor=0.5),
-                 keras.callbacks.EarlyStopping(min_delta=0.005, verbose=1, mode='min', patience=5),
-                 keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min', patience=args.patience)]
-    if args.save_model_params is not None:
-        callbacks.append(keras.callbacks.ModelCheckpoint(args.save_model_params + '/Fold-1-weights.hdf5', verbose=1,
-                                                         save_best_only=True))
+    # Test without training, use saved models. If available, quit when finished, otherwise train.
+    if args.test and args.save_model_params is not None:
+        print('Using', args.save_model_params, 'to perform tests...')
+        d = [x for x in Path(args.save_model_params).glob('Fold-*-weights.hdf5')]
+        metrics = []
+        if len(d) > 0:
+            dataset.next_leaveout(force=0)
+            for f in d:
+                print('Loading model from', str(f))
+                model.load_weights(f)
+                print('Loaded previous weights!')
+                metrics.append(test(model, dataset, args))
+                if dataset.next_leaveout() is None:
+                    break
+            print_metrics(metrics)
+            exit()
+        else:
+            print('Could not use existing files...')
+            print('Training and then testing instead.')
+            print('-'*30)
+            print()
 
     # First fold
     metrics = [(train_and_test(model, dataset, args, callbacks=callbacks))]
@@ -106,21 +158,14 @@ if __name__ == '__main__':
         print('-' * 30)
 
         if args.save_model_params is not None:
-            callbacks[-1] = keras.callbacks.ModelCheckpoint(args.save_model_params +
-                                                            '/Fold-{0}-weights.hdf5'.format(fold),
+            callbacks[-1] = keras.callbacks.ModelCheckpoint(str(args.save_model_params /
+                                                                '/Fold-{0}-weights.hdf5'.format(fold)),
                                                             verbose=1, save_best_only=True)
         metrics.append(train_and_test(model, dataset, args, callbacks=callbacks))
 
     print('\n\nComplete.')
 
-    if args.test:
-        print('-' * 30)
-        metrics = np.array(metrics)
-        mean = np.mean(metrics, axis=0)
-        stddev = np.std(metrics, axis=0)
-        for i, m in enumerate([model.loss, *model.metrics]):
-            print(m.__name__, ': Mean', mean[i], 'Stddev', stddev[i])
-        print('-' * 30)
+    print_metrics(metrics)
 
 
 

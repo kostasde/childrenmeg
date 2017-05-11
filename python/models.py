@@ -127,10 +127,8 @@ class SimpleMLP(Sequential, Searchable):
 
     @staticmethod
     def parse_opt(params):
-        if isinstance(params[Searchable.PARAM_OPT], keras.optimizers.Optimizer):
+        if callable(params[Searchable.PARAM_OPT]):
             return params[Searchable.PARAM_OPT]
-        elif isinstance(params[Searchable.PARAM_OPT], int):
-            return [keras.optimizers.sgd, keras.optimizers.adam][params[Searchable.PARAM_OPT]]
         else:
             raise TypeError('Optimizer cannot be parsed from: ' + str(params))
 
@@ -143,7 +141,7 @@ class SimpleMLP(Sequential, Searchable):
             self.momentum = params[Searchable.PARAM_MOMENTUM]
             self.optimizer = self.parse_opt(params)
         else:
-            self.lunits = [50]
+            self.lunits = [50, 50]
             self.do = 0
             self.momentum = 0.0
             self.optimizer = keras.optimizers.adam
