@@ -1,4 +1,4 @@
-import os
+import re
 import argparse
 import pickle
 
@@ -133,7 +133,7 @@ if __name__ == '__main__':
         metrics = []
         if len(d) > 0:
             dataset.next_leaveout(force=0)
-            d.sort(key=lambda x: str(x))
+            d.sort(key=lambda x: re.findall(r'\d+', x)[0])
             for f in d:
                 print('Loading model from', str(f))
                 model.load_weights(f)
