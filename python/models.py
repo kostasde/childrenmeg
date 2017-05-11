@@ -37,13 +37,27 @@ class Searchable:
         """
         pass
 
+    @staticmethod
+    def parse_opt(params):
+        if callable(params[Searchable.PARAM_OPT]):
+            return params[Searchable.PARAM_OPT]
+        elif isinstance(params[Searchable.PARAM_OPT], int):
+            return [keras.optimizers.sgd, keras.optimizers.adam][params[Searchable.PARAM_OPT]]
+        else:
+            raise TypeError('Optimizer cannot be parsed from: ' + str(params))
+
     def __init__(self, params):
         if params is None:
-            params = {Searchable.PARAM_LR: 1e-3, Searchable.PARAM_BATCH: 10, Searchable.PARAM_REG: 0}
+            params = {
+                Searchable.PARAM_LR: 1e-3, Searchable.PARAM_BATCH: 10, Searchable.PARAM_REG: 0,
+                Searchable.PARAM_MOMENTUM: 0.0, Searchable.PARAM_OPT: keras.optimizers.adam
+            }
 
         self.lr = params[Searchable.PARAM_LR]
         self.batchsize = params[Searchable.PARAM_BATCH]
         self.reg = params[Searchable.PARAM_REG]
+        self.momentum = params[Searchable.PARAM_MOMENTUM]
+        self.optimizer = self.parse_opt(params)
 
 
 class LinearRegression(Sequential, Searchable):
@@ -125,28 +139,15 @@ class SimpleMLP(Sequential, Searchable):
         else:
             raise TypeError('Layers cannot be parsed from: ' + str(params))
 
-    @staticmethod
-    def parse_opt(params):
-        if callable(params[Searchable.PARAM_OPT]):
-            return params[Searchable.PARAM_OPT]
-        elif isinstance(params[Searchable.PARAM_OPT], int):
-            return [keras.optimizers.sgd, keras.optimizers.adam][params[Searchable.PARAM_OPT]]
-        else:
-            raise TypeError('Optimizer cannot be parsed from: ' + str(params))
-
     def __init__(self, inputlength, outputlength, activation=keras.activations.relu, params=None):
         Searchable.__init__(self, params=params)
 
         if params is not None:
             self.lunits = self.parse_layers(params)
             self.do = params[Searchable.PARAM_DROPOUT]
-            self.momentum = params[Searchable.PARAM_MOMENTUM]
-            self.optimizer = self.parse_opt(params)
         else:
             self.lunits = [50, 50]
             self.do = 0
-            self.momentum = 0.0
-            self.optimizer = keras.optimizers.adam
 
         super().__init__(name="Multi-Layer Perceptron")
 
@@ -162,9 +163,9 @@ class SimpleMLP(Sequential, Searchable):
 
     def compile(self, **kwargs):
         if self.optimizer is keras.optimizers.adam:
-            opt = keras.optimizers.adam(self.lr)
+            opt = keras.optimizers.Adam(self.lr)
         elif self.optimizer is keras.optimizers.sgd:
-            opt = keras.optimizers.sgd(self.lr, self.momentum, nesterov=True)
+            opt = keras.optimizers.SGD(self.lr, self.momentum, nesterov=True)
         else:
             raise AttributeError('Optimizer not properly initialized, got: ' + str(self.optimizer))
         super().compile(optimizer=opt, loss='categorical_crossentropy',
