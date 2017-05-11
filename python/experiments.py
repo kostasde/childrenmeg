@@ -57,16 +57,20 @@ def test(model, dataset, args):
 
 
 def print_metrics(metrics):
-    print('-' * 30)
+    print('=' * 100)
     metrics = np.array(metrics)
     mean = np.mean(metrics, axis=0)
     stddev = np.std(metrics, axis=0)
     for i, m in enumerate([model.loss, *model.metrics]):
         if hasattr(m, '__name__'):
-            print(m.__name__, ': Mean', mean[i], 'Stddev', stddev[i])
+            print(m.__name__)
         else:
-            print(m, ': Mean', mean[i], 'Stddev', stddev[i])
-    print('-' * 30)
+            print(m)
+        print('.' * 30)
+        print(metrics[:, i])
+        print('Mean', mean[i], 'Stddev', stddev[i])
+        print('-' * 100)
+    print('=' * 100)
 
 
 if __name__ == '__main__':
