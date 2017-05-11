@@ -88,6 +88,8 @@ class LinearRegression(Sequential, Searchable):
     def search_space():
         return {
             Searchable.PARAM_LR: hp.loguniform(Searchable.PARAM_LR, -7, -2),
+            Searchable.PARAM_OPT: hp.choice(Searchable.PARAM_OPT, [keras.optimizers.sgd, keras.optimizers.adam]),
+            Searchable.PARAM_MOMENTUM: hp.loguniform(Searchable.PARAM_MOMENTUM, -7, 0),
             Searchable.PARAM_BATCH: hp.quniform(Searchable.PARAM_BATCH, 10, 200, 10),
             Searchable.PARAM_REG: hp.loguniform(Searchable.PARAM_REG, -4, -1)
         }
@@ -117,6 +119,8 @@ class LogisticRegression(Sequential, Searchable):
     def search_space():
         return {
             Searchable.PARAM_LR: hp.loguniform(Searchable.PARAM_LR, -7, 0),
+            Searchable.PARAM_OPT: hp.choice(Searchable.PARAM_OPT, [keras.optimizers.sgd, keras.optimizers.adam]),
+            Searchable.PARAM_MOMENTUM: hp.loguniform(Searchable.PARAM_MOMENTUM, -7, 0),
             Searchable.PARAM_BATCH: hp.quniform(Searchable.PARAM_BATCH, 1, 1000, 10),
             Searchable.PARAM_REG: hp.loguniform(Searchable.PARAM_REG, -4, 0)
         }
