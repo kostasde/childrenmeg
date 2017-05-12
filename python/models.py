@@ -1,4 +1,5 @@
 import numpy as np
+import sklearn
 import keras
 import keras.backend as K
 from keras.models import Sequential
@@ -46,11 +47,21 @@ class Searchable:
         else:
             raise TypeError('Optimizer cannot be parsed from: ' + str(params))
 
+    def opt_param(self):
+        if self.optimizer is keras.optimizers.adam:
+            return keras.optimizers.Adam(self.lr)
+        elif self.optimizer is keras.optimizers.sgd:
+            return keras.optimizers.SGD(self.lr, self.momentum, nesterov=True)
+        elif callable(self.optimizer) and isinstance(self.optimizer(), keras.optimizers.Optimizer):
+            return self.optimizer(self.lr)
+        else:
+            raise AttributeError('Optimizer not properly initialized, got: ' + str(self.optimizer))
+
     def __init__(self, params):
         if params is None:
             params = {
-                Searchable.PARAM_LR: 1e-3, Searchable.PARAM_BATCH: 10, Searchable.PARAM_REG: 0,
-                Searchable.PARAM_MOMENTUM: 0.0, Searchable.PARAM_OPT: keras.optimizers.adam
+                Searchable.PARAM_LR: 1e-2, Searchable.PARAM_BATCH: 200, Searchable.PARAM_REG: 0.001,
+                Searchable.PARAM_MOMENTUM: 0.0, Searchable.PARAM_OPT: keras.optimizers.sgd
             }
 
         self.lr = params[Searchable.PARAM_LR]
@@ -73,7 +84,7 @@ class LinearRegression(Sequential, Searchable):
         ], 'Linear Regression')
 
     def compile(self, **kwargs):
-        super().compile(optimizer=keras.optimizers.adam(), loss=keras.losses.mean_squared_error,
+        super().compile(optimizer=self.opt_param(), loss=keras.losses.mean_squared_error,
                         metrics=[keras.metrics.mse, keras.metrics.mae], **kwargs)
 
     def summary(self, line_length=None, positions=None):
@@ -112,7 +123,7 @@ class LogisticRegression(Sequential, Searchable):
         ], 'Logistic Regression')
 
     def compile(self, **kwargs):
-        super().compile(optimizer=keras.optimizers.adam(), loss=keras.losses.categorical_crossentropy,
+        super().compile(optimizer=self.opt_param(), loss=keras.losses.categorical_crossentropy,
                         metrics=[keras.metrics.categorical_crossentropy, keras.metrics.categorical_accuracy], **kwargs)
 
     @staticmethod
@@ -124,6 +135,12 @@ class LogisticRegression(Sequential, Searchable):
             Searchable.PARAM_BATCH: hp.quniform(Searchable.PARAM_BATCH, 1, 1000, 10),
             Searchable.PARAM_REG: hp.loguniform(Searchable.PARAM_REG, -4, 0)
         }
+
+
+class LinearSVM(LogisticRegression):
+
+    def compile(self, **kwargs):
+        super().compile(optimizer=self.opt_param(), loss=keras.losses.squared_hinge, metrics=['accuracy'])
 
 
 class SimpleMLP(Sequential, Searchable):
@@ -150,7 +167,7 @@ class SimpleMLP(Sequential, Searchable):
             self.lunits = self.parse_layers(params)
             self.do = params[Searchable.PARAM_DROPOUT]
         else:
-            self.lunits = [50, 50]
+            self.lunits = [256, 256]
             self.do = 0
 
         super().__init__(name="Multi-Layer Perceptron")
@@ -164,14 +181,10 @@ class SimpleMLP(Sequential, Searchable):
             self.add(keras.layers.Dense(l, activation=activation))
             self.add(keras.layers.Dropout(self.do))
         self.add(keras.layers.Dense(outputlength, activation='softmax'))
+        # Consider using SVM output layer
+        # self.add(keras.layers.Dense(outputlength, activation='softmax', kernel_regularizer=keras.regularizers.l2(0.01)))
 
     def compile(self, **kwargs):
-        if self.optimizer is keras.optimizers.adam:
-            opt = keras.optimizers.Adam(self.lr)
-        elif self.optimizer is keras.optimizers.sgd:
-            opt = keras.optimizers.SGD(self.lr, self.momentum, nesterov=True)
-        else:
-            raise AttributeError('Optimizer not properly initialized, got: ' + str(self.optimizer))
         super().compile(optimizer=opt, loss='categorical_crossentropy',
                         metrics=[keras.metrics.categorical_accuracy, mean_pred, mean_class], **kwargs)
 
@@ -192,4 +205,4 @@ class SimpleMLP(Sequential, Searchable):
         }
 
 
-MODELS = [LinearRegression, LogisticRegression, SimpleMLP]
+MODELS = [LinearRegression, LogisticRegression, LinearSVM, SimpleMLP]

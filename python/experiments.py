@@ -106,7 +106,7 @@ if __name__ == '__main__':
 
     # Callbacks
     callbacks = [keras.callbacks.ReduceLROnPlateau(verbose=1, epsilon=0.05, patience=5, factor=0.5),
-                 keras.callbacks.EarlyStopping(min_delta=0.005, verbose=1, mode='min', patience=5),
+                 keras.callbacks.EarlyStopping(min_delta=0.005, verbose=1, mode='min', patience=args.patience//2),
                  keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min', patience=args.patience)]
     if args.save_model_params is not None:
         args.save_model_params = Path(args.save_model_params)
