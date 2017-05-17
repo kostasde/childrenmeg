@@ -164,7 +164,7 @@ if __name__ == '__main__':
 
         if args.save_model_params is not None:
             callbacks[-1] = keras.callbacks.ModelCheckpoint(str(args.save_model_params /
-                                                                '/Fold-{0}-weights.hdf5'.format(fold)),
+                                                                'Fold-{0}-weights.hdf5'.format(fold)),
                                                             verbose=1, save_best_only=True)
         metrics.append(train_and_test(model, dataset, args, callbacks=callbacks))
 

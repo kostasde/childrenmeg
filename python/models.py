@@ -174,18 +174,18 @@ class SimpleMLP(Sequential, Searchable):
 
         # Build layers
         # self.add(keras.layers.Dense(self.lunits[0], activation=activation, input_dim=inputlength))
-        self.add(keras.layers.Dense(self.lunits[0], activation=activation, input_dim=inputlength))
+        self.add(keras.layers.Dense(self.lunits[0], activation=activation, input_dim=inputlength, name='IN1'))
         self.add(keras.layers.normalization.BatchNormalization())
-        self.add(keras.layers.Dropout(self.do))
-        for l in self.lunits[1:]:
-            self.add(keras.layers.Dense(l, activation=activation))
-            self.add(keras.layers.Dropout(self.do))
-        self.add(keras.layers.Dense(outputlength, activation='softmax'))
+        self.add(keras.layers.Dropout(self.do, name='L1'))
+        for i, l in enumerate(self.lunits[1:]):
+            self.add(keras.layers.Dense(l, activation=activation, name='IN{0}'.format(i+2)))
+            self.add(keras.layers.Dropout(self.do, name='L{0}'.format(i+2)))
+        self.add(keras.layers.Dense(outputlength, activation='softmax', name='OUT'))
         # Consider using SVM output layer
         # self.add(keras.layers.Dense(outputlength, activation='softmax', kernel_regularizer=keras.regularizers.l2(0.01)))
 
     def compile(self, **kwargs):
-        super().compile(optimizer=opt, loss='categorical_crossentropy',
+        super().compile(optimizer=self.opt_param(), loss='categorical_crossentropy',
                         metrics=[keras.metrics.categorical_accuracy, mean_pred, mean_class], **kwargs)
 
     @staticmethod
@@ -205,4 +205,124 @@ class SimpleMLP(Sequential, Searchable):
         }
 
 
-MODELS = [LinearRegression, LogisticRegression, LinearSVM, SimpleMLP]
+class StackedAutoEncoder(SimpleMLP):
+    """
+    This encoder trains layer-wise by using Stacked Autoencoders.
+    
+    Only uses the fit_generator interface.
+    """
+
+    class LayerWiseGenWrapper(object):
+
+        def __init__(self, generator, layertransform=None):
+            self.gen = generator
+            self.transform = layertransform
+
+        def reset(self):
+            return self.gen.reset()
+
+        def __iter__(self):
+            return self.gen.__iter__()
+
+        def __next__(self):
+            x, y = self.gen.__next__()
+            if self.transform is not None:
+                x = self.transform(x)
+            return x, x
+
+    def __init__(self, inputlength, outputlength, activation=keras.activations.relu, params=None):
+        """
+        Create a stacked autoencoder
+        :param inputlength: 
+        :param outputlength: 
+        :param activation: 
+        :param params: 
+        """
+        super().__init__(inputlength, outputlength, activation, params)
+        # pop the classifier layer, and build the decoding layers
+        self.pop()
+
+        for i, l in enumerate(reversed(self.lunits[:-1])):
+            self.add(keras.layers.Dense(l, activation, name='DEC{0}'.format(i)))
+        self.add(keras.layers.Dense(inputlength, activation=activation, name='OUT'))
+
+    def fit_generator(self, generator,
+                      steps_per_epoch,
+                      layer_min_delta=1e-3,
+                      patience=5,
+                      fine_tune=True,
+                      epochs=1,
+                      verbose=1,
+                      callbacks=[],
+                      validation_data=None,
+                      validation_steps=None,
+                      class_weight=None,
+                      max_q_size=10,
+                      workers=1,
+                      pickle_safe=False,
+                      initial_epoch=0):
+        """
+        Special implementation of fit_generator that trains layer-wise, 
+        :param layer_min_delta: Minimum change that needs to occur to continue training the layer 
+        :param fine_tune: If true, after the model is finished being trained in a layer-wise fashion, a final training
+        step occurs where all the layers are trained via backpropagation.
+        :return: 
+        """
+        if verbose:
+            print('Beginning greedy training')
+
+        greedycb = keras.callbacks.EarlyStopping(min_delta=layer_min_delta, patience=patience)
+
+        def greedymodel(layername):
+            l = self.get_layer(layername)
+            return Sequential([
+                keras.layers.Dense.from_config(l.get_config()),
+                keras.layers.BatchNormalization(),
+                keras.layers.Dropout(self.do),
+                keras.layers.Dense(l.input_shape[-1], activation=l.activation, name='OUT')
+            ])
+
+        def trainlayer(model, train, val):
+            model.compile()
+            if verbose:
+                model.summary()
+            model.fit_generator(train, steps_per_epoch, epochs=epochs, verbose=verbose,
+                                callbacks=[greedycb, *callbacks], validation_data=val,
+                                validation_steps=validation_steps, class_weight=class_weight, max_q_size=max_q_size,
+                                workers=workers, pickle_safe=pickle_safe, initial_epoch=initial_epoch)
+            return model
+
+        if verbose:
+            print('\nLayer 1:\n')
+        # layer 1 does not need its data transformed
+        l0 = greedymodel('IN')
+        l0 = trainlayer(l0, StackedAutoEncoder.LayerWiseGenWrapper(generator, lambda x: x),
+                        StackedAutoEncoder.LayerWiseGenWrapper(validation_data, lambda x: x))
+        # Setting weights
+        self.get_layer('IN').set_weights(l0.get_layer('IN').get_weights())
+        self.get_layer('OUT').set_weights(l0.get_layer('OUT').get_weights())
+
+        for i, layer in enumerate(*self.lunits):
+            if verbose:
+                print('Pre-training layer {0}'.format(i))
+            in_id = 'L{0}'.format(i)
+            out_id = 'DEC{0}'.format(i)
+            model = greedymodel(in_id)
+            encode = keras.backend.function(inputs=[self.input, keras.backend.learning_phase()],
+                                            outputs=[self.get_layer(in_id).input])
+            gtrain = StackedAutoEncoder.LayerWiseGenWrapper(generator, encode)
+            geval = StackedAutoEncoder.LayerWiseGenWrapper(validation_data, encode)
+
+            model = trainlayer(model, gtrain, geval)
+
+            self.get_layer(in_id).set_weights(model.get_layer(in_id).get_weights())
+            self.get_layer(out_id).set_weights(model.get_layer(out_id).get_weights())
+
+        if fine_tune:
+
+    def compile(self, **kwargs):
+        super().compile(optimizer=self.opt_param(), loss='mse',
+                        metrics=[keras.metrics.categorical_accuracy, mean_pred, mean_class], **kwargs)
+
+
+MODELS = [LinearRegression, LogisticRegression, LinearSVM, SimpleMLP, StackedAutoEncoder]
