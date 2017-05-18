@@ -61,7 +61,7 @@ class Searchable:
         if params is None:
             params = {
                 Searchable.PARAM_LR: 1e-2, Searchable.PARAM_BATCH: 200, Searchable.PARAM_REG: 0.001,
-                Searchable.PARAM_MOMENTUM: 0.0, Searchable.PARAM_OPT: keras.optimizers.sgd
+                Searchable.PARAM_MOMENTUM: 0.01, Searchable.PARAM_OPT: keras.optimizers.sgd
             }
 
         self.lr = params[Searchable.PARAM_LR]
@@ -167,7 +167,7 @@ class SimpleMLP(Sequential, Searchable):
             self.lunits = self.parse_layers(params)
             self.do = params[Searchable.PARAM_DROPOUT]
         else:
-            self.lunits = [256, 256]
+            self.lunits = [64]
             self.do = 0
 
         super().__init__(name="Multi-Layer Perceptron")
@@ -186,7 +186,7 @@ class SimpleMLP(Sequential, Searchable):
 
     def compile(self, **kwargs):
         super().compile(optimizer=self.opt_param(), loss='categorical_crossentropy',
-                        metrics=[keras.metrics.categorical_accuracy, mean_pred, mean_class], **kwargs)
+                        metrics=[keras.metrics.categorical_accuracy], **kwargs)
 
     @staticmethod
     def search_space():
@@ -227,24 +227,20 @@ class StackedAutoEncoder(SimpleMLP):
         def __next__(self):
             x, y = self.gen.__next__()
             if self.transform is not None:
-                x = self.transform(x)
+                x = self.transform([x, 1])
             return x, x
 
-    def __init__(self, inputlength, outputlength, activation=keras.activations.relu, params=None):
-        """
-        Create a stacked autoencoder
-        :param inputlength: 
-        :param outputlength: 
-        :param activation: 
-        :param params: 
-        """
-        super().__init__(inputlength, outputlength, activation, params)
+    # def __init__(self, inputlength, outputlength, activation=keras.activations.relu, params=None):
+    #     """
+    #     Create a stacked autoencoder
+    #     :param inputlength:
+    #     :param outputlength:
+    #     :param activation:
+    #     :param params:
+    #     """
+    #     super().__init__(inputlength, outputlength, activation, params)
         # pop the classifier layer, and build the decoding layers
-        self.pop()
-
-        for i, l in enumerate(reversed(self.lunits[:-1])):
-            self.add(keras.layers.Dense(l, activation, name='DEC{0}'.format(i)))
-        self.add(keras.layers.Dense(inputlength, activation=activation, name='OUT'))
+        # self.pop()
 
     def fit_generator(self, generator,
                       steps_per_epoch,
@@ -275,15 +271,18 @@ class StackedAutoEncoder(SimpleMLP):
 
         def greedymodel(layername):
             l = self.get_layer(layername)
+            # workaround, input shape always there
+            conf = l.get_config()
+            conf['batch_input_shape'] = l.input_shape
             return Sequential([
-                keras.layers.Dense.from_config(l.get_config()),
+                keras.layers.Dense.from_config(conf),
                 keras.layers.BatchNormalization(),
                 keras.layers.Dropout(self.do),
                 keras.layers.Dense(l.input_shape[-1], activation=l.activation, name='OUT')
             ])
 
         def trainlayer(model, train, val):
-            model.compile()
+            model.compile(optimizer=self.optimizer, loss=keras.losses.mse, metrics=[keras.metrics.mae])
             if verbose:
                 model.summary()
             model.fit_generator(train, steps_per_epoch, epochs=epochs, verbose=verbose,
@@ -295,34 +294,41 @@ class StackedAutoEncoder(SimpleMLP):
         if verbose:
             print('\nLayer 1:\n')
         # layer 1 does not need its data transformed
-        l0 = greedymodel('IN')
-        l0 = trainlayer(l0, StackedAutoEncoder.LayerWiseGenWrapper(generator, lambda x: x),
-                        StackedAutoEncoder.LayerWiseGenWrapper(validation_data, lambda x: x))
-        # Setting weights
-        self.get_layer('IN').set_weights(l0.get_layer('IN').get_weights())
-        self.get_layer('OUT').set_weights(l0.get_layer('OUT').get_weights())
+        # l0 = greedymodel('IN')
+        # l0 = trainlayer(l0, StackedAutoEncoder.LayerWiseGenWrapper(generator, lambda x: x),
+        #                 StackedAutoEncoder.LayerWiseGenWrapper(validation_data, lambda x: x))
+        # # Setting weights
+        # self.get_layer('IN').set_weights(l0.get_layer('IN').get_weights())
+        # self.get_layer('OUT').set_weights(l0.get_layer('OUT').get_weights())
 
-        for i, layer in enumerate(*self.lunits):
+        for i, layer in enumerate(self.lunits):
             if verbose:
-                print('Pre-training layer {0}'.format(i))
-            in_id = 'L{0}'.format(i)
-            out_id = 'DEC{0}'.format(i)
+                print('Pre-training layer {0}'.format(i+1))
+            in_id = 'IN{0}'.format(i+1)
+            # out_id = 'DEC{0}'.format(i)
             model = greedymodel(in_id)
-            encode = keras.backend.function(inputs=[self.input, keras.backend.learning_phase()],
-                                            outputs=[self.get_layer(in_id).input])
+            if i > 0:
+                encode = keras.backend.function(inputs=[self.input, keras.backend.learning_phase()],
+                                                outputs=[self.get_layer(in_id).input])
+            else:
+                encode = None
             gtrain = StackedAutoEncoder.LayerWiseGenWrapper(generator, encode)
             geval = StackedAutoEncoder.LayerWiseGenWrapper(validation_data, encode)
 
             model = trainlayer(model, gtrain, geval)
 
             self.get_layer(in_id).set_weights(model.get_layer(in_id).get_weights())
-            self.get_layer(out_id).set_weights(model.get_layer(out_id).get_weights())
+            # self.get_layer(out_id).set_weights(model.get_layer(out_id).get_weights())
+            print('\nCompleted layer', i+1)
+            print()
 
         if fine_tune:
-
-    def compile(self, **kwargs):
-        super().compile(optimizer=self.opt_param(), loss='mse',
-                        metrics=[keras.metrics.categorical_accuracy, mean_pred, mean_class], **kwargs)
+            print('Fine Tuning...')
+            super().fit_generator(generator, steps_per_epoch, epochs=epochs, verbose=verbose,
+                                  callbacks=callbacks, validation_data=validation_data,
+                                  validation_steps=validation_steps, class_weight=class_weight,
+                                  max_q_size=max_q_size, workers=workers,
+                                  pickle_safe=pickle_safe, initial_epoch=initial_epoch)
 
 
 MODELS = [LinearRegression, LogisticRegression, LinearSVM, SimpleMLP, StackedAutoEncoder]
