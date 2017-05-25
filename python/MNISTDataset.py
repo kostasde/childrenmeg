@@ -35,7 +35,10 @@ class MNISTRegression:
         (self.x, self.y), (self.x_test, self.y_test) = mnist.load_data()
 
         self.x = np.reshape(self.x, [self.x.shape[0], -1])
+        self.x = self.x.astype(np.float32) / 255
+
         self.x_test = self.testpoints = np.reshape(self.x_test, [self.x_test.shape[0], -1])
+        self.x_test = self.x_test.astype(np.float32) / 255
 
         self.x = np.split(self.x, self.NUM_BUCKETS)
         self.y = np.split(self.y, self.NUM_BUCKETS)
