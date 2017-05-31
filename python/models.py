@@ -57,6 +57,10 @@ class Searchable:
         else:
             raise AttributeError('Optimizer not properly initialized, got: ' + str(self.optimizer))
 
+    @property
+    def needsflatdata(self):
+        return True
+
     def __init__(self, params):
         if params is None:
             params = {

@@ -1,6 +1,9 @@
 import numpy as np
+from pathlib import Path
 from scipy.signal import cwt, ricker
 from scipy.io import savemat
+
+#TODO pywavelets library and dwt rather than cwtaa
 
 NUM_OF_CHANNELS = 151
 SCALES = np.arange(4, 32)
@@ -17,6 +20,10 @@ def extractwaveletcoef(infile, outfile):
     csvin = np.loadtxt(infile, delimiter=',').astype(np.float32).T
     numscales = len(SCALES)
 
+    outfile = Path(outfile)
+    if outfile.exists():
+        print('Warning: Overwriting output file', outfile)
+
     numrows = csvin.shape[0]
     if numrows != NUM_OF_CHANNELS:
         print('WARNING: in file:', infile)
@@ -29,6 +36,13 @@ def extractwaveletcoef(infile, outfile):
         outmat[row, :, :] = cwt(csvin[row, :], ricker, SCALES).T
 
     print('Saving to: ', outfile, '...')
-    savemat(outfile, {MAT_VAR_NAME: outmat}, do_compression=True)
+    if outfile.suffix == 'mat':
+        savemat(str(outfile), {MAT_VAR_NAME: outmat}, do_compression=True)
+    elif outfile.suffix == 'npy':
+        np.save(str(outfile), outmat)
+    elif outfile.suffix == '':
+        np.save(str(outfile.with_suffix('npy')), outmat)
+    else:
+        raise NameError('Unknown suffix for outfile: "{0}", will not proceed'.format(outfile.suffix))
     print('Saved.')
 

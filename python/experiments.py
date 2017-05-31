@@ -24,7 +24,7 @@ def train_and_test(model, dataset, args, callbacks=None):
     print('Train Model')
     if args.sanity_set:
         print('Using small subset of data')
-        s = dataset.sanityset()
+        s = dataset.sanityset(model.needsflatdata())
     else:
         s = dataset.trainingset()
     model.fit_generator(s, np.ceil(s.n / s.batch_size),

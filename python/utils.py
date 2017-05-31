@@ -124,7 +124,7 @@ def run_catch_fail(function, *args, autotries=-1, failedon=None):
             exit(-1)
 
 
-def loopandsmile(toplevellist, config:Path, preserve=False, savemat=True, savepick=True):
+def loopandsmile(toplevellist, config: Path, preserve=False, savemat=True, savepick=True):
     """
     Loop through the assumed directory structure and run opensmile on each epoch.
     :param toplevellist:

@@ -10,7 +10,6 @@ from abc import ABCMeta, abstractmethod
 from scipy.io import loadmat
 from pathlib import Path
 
-
 PREV_EVAL_FILE = 'preprocessed.pkl'
 
 SUBJECT_TABLE = 'subject_table.mat'
@@ -106,9 +105,8 @@ class SubjectFileLoader(KerasDataloader):
     cache = RRCache(32768)
 
     # @lru_cache(maxsize=8192)
-    @staticmethod
     @cached(cache)
-    def get_flattened_features(path_to_file):
+    def get_features(self, path_to_file):
         """
         Loads arrays from file, and returned as a flattened vector, cached to save some time
         :param path_to_file:
@@ -121,15 +119,19 @@ class SubjectFileLoader(KerasDataloader):
         #     l = l[:, self.megind].squeeze()
 
         # l = zscore(l)
+        if self.flatten:
+            l = l.ravel()
 
-        return l.ravel()
+        return l
 
-    def __init__(self, x, longest_vector, subject_hash, target_cols, batchsize=-1, shuffle=True, seed=None):
+    def __init__(self, x, longest_vector, subject_hash, target_cols, batchsize=-1,
+                 flatten=True, shuffle=True, seed=None):
 
         self.x = np.asarray(x)
         self.longest_vector = longest_vector
         self.subject_hash = subject_hash
         self.targets = target_cols
+        self.flatten = flatten
 
         if batchsize < 0:
             batchsize = x.shape[0]
@@ -142,7 +144,7 @@ class SubjectFileLoader(KerasDataloader):
 
         for i, row in enumerate(index_array):
             ep = tuple(str(f) for f in self.x[row, 1:])
-            temp = self.get_flattened_features(ep)
+            temp = self.get_features(ep)
             x[i, :len(temp)] = temp
             y[i, :] = np.array([self.subject_hash[self.x[row, 0]][column] for column in self.targets])
 
@@ -311,7 +313,8 @@ class BaseDataset:
         if batchsize is None:
             batchsize = self.batchsize
 
-        return self.GENERATOR(np.array(self.buckets[fold]), self.longest_vector, self.subject_hash, self.DATASET_TARGETS, batchsize)
+        return self.GENERATOR(np.array(self.buckets[fold]), self.longest_vector, self.subject_hash,
+                              self.DATASET_TARGETS, batchsize)
 
     def trainingset(self, batchsize=None):
         """
@@ -439,9 +442,9 @@ class FusionDataset(MEGDataset, AcousticDataset):
             self.megind = None
 
     class FusionFileLoader(SubjectFileLoader):
-        @staticmethod
+
         @cached(SubjectFileLoader.cache)
-        def get_flattened_features(path_to_file):
+        def get_features(self, path_to_file):
             """
             Loads arrays from file, and returned as a flattened vector, cached to save some time
             :param path_to_file:
@@ -467,8 +470,11 @@ class FusionDataset(MEGDataset, AcousticDataset):
             #        elif np.isnan(a.max()):
             #            print('Bad Audio File.')
             #            exit()
+            if self.flatten:
+                m = m.ravel()
+                a = a.ravel()
 
-            return np.concatenate((m.ravel(), a.ravel()))
+            return np.concatenate((m, a))
 
             # return loadmat(path_to_file, squeeze_me=True)['features'].reshape(-1)
 
