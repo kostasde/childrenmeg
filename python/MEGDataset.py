@@ -9,14 +9,12 @@ from cachetools import cached, RRCache
 from abc import ABCMeta, abstractmethod
 from scipy.io import loadmat
 from pathlib import Path
+from pandas import read_csv
 
 PREV_EVAL_FILE = 'preprocessed.pkl'
 
 SUBJECT_TABLE = 'subject_table.mat'
 SUBJECT_STRUCT = 'subject_struct.mat'
-
-# Suffix in use
-LOAD_SUFFIX = '.npy'
 
 # Headers that we will import for the subjects
 HEADER_ID = 'ID'
@@ -161,6 +159,7 @@ class BaseDataset:
 
     DATASET_TARGETS = [HEADER_AGE]
     NUM_BUCKETS = 10
+    LOAD_SUFFIX = '.npy'
 
     # Not sure I like this...
     GENERATOR = SubjectFileLoader
@@ -256,7 +255,7 @@ class BaseDataset:
             for experiment in [t for e in self.modality_folders if (subject / e).exists()
                                for t in (subject / e).iterdir() if t.name in tests]:
 
-                for epoch in [l for l in experiment.iterdir() if l.suffix == LOAD_SUFFIX]:
+                for epoch in [l for l in experiment.iterdir() if l.suffix == self.LOAD_SUFFIX]:
                     try:
                         # f = loadmat(str(epoch), squeeze_me=True)
                         f = np.load(str(epoch))
@@ -305,7 +304,7 @@ class BaseDataset:
     def current_leaveout(self):
         return self.leaveout
 
-    def sanityset(self, fold=5, batchsize=None):
+    def sanityset(self, fold=5, batchsize=None, flatten=True):
         """
         Provides a generator for a small subset of data to ensure that the model can train to it
         :return: 
@@ -314,11 +313,12 @@ class BaseDataset:
             batchsize = self.batchsize
 
         return self.GENERATOR(np.array(self.buckets[fold]), self.longest_vector, self.subject_hash,
-                              self.DATASET_TARGETS, batchsize)
+                              self.DATASET_TARGETS, batchsize, flatten=flatten)
 
-    def trainingset(self, batchsize=None):
+    def trainingset(self, batchsize=None, flatten=True):
         """
         Provides a generator object with the current training set
+        :param flatten: Whether to flatten the resulting 
         :param batchsize:
         :return: Generator of type :class`.SubjectFileLoader`
         """
@@ -329,9 +329,9 @@ class BaseDataset:
             raise AttributeError('No fold initialized... Try calling next_leaveout')
 
         return self.GENERATOR(self.traindata, self.longest_vector, self.subject_hash, self.DATASET_TARGETS,
-                              batchsize)
+                              batchsize, flatten=flatten)
 
-    def evaluationset(self, batchsize=None):
+    def evaluationset(self, batchsize=None, flatten=True):
         """
         Provides a generator object with the current training set
         :param batchsize:
@@ -341,9 +341,9 @@ class BaseDataset:
             batchsize = self.batchsize
 
         return self.GENERATOR(self.eval_points, self.longest_vector, self.subject_hash, self.DATASET_TARGETS,
-                              batchsize)
+                              batchsize, flatten=flatten)
 
-    def testset(self, batchsize=None):
+    def testset(self, batchsize=None, flatten=True):
         """
         Provides a generator object with the current training set
         :param batchsize:
@@ -353,7 +353,7 @@ class BaseDataset:
             batchsize = self.batchsize
 
         return self.GENERATOR(self.testpoints, self.longest_vector, self.subject_hash, self.DATASET_TARGETS,
-                              batchsize)
+                              batchsize, flatten=flatten)
 
     def inputshape(self):
         return self.longest_vector
@@ -496,8 +496,8 @@ class FusionDataset(MEGDataset, AcousticDataset):
 
             for experiment in matched:
 
-                audioepochs = {x.stem: x for x in audiotests[experiment].iterdir() if x.suffix == LOAD_SUFFIX}
-                megepochs = {x.stem: x for x in megtests[experiment].iterdir() if x.suffix == LOAD_SUFFIX}
+                audioepochs = {x.stem: x for x in audiotests[experiment].iterdir() if x.suffix == self.LOAD_SUFFIX}
+                megepochs = {x.stem: x for x in megtests[experiment].iterdir() if x.suffix == self.LOAD_SUFFIX}
                 matched = set(audioepochs.keys()).intersection(set(megepochs.keys()))
 
                 for epoch in matched:
@@ -543,3 +543,37 @@ class FusionAgeRangesDataset(FusionDataset, BaseDatasetAgeRanges):
 
     GENERATOR = FusionAgeRangesFileLoader
 
+
+# Classes that are used for raw data rather than opensmile feature-sets
+class MEGAugmentedRawRanges(MEGAgeRangesDataset):
+    LOAD_SUFFIX = '.csv'
+
+    class AugmentedLoader(SubjectFileLoader):
+        @cached(SubjectFileLoader.cache)
+        def get_features(self, path_to_file):
+            # FIXME workaround for now, but using the csv seems shortsighted...
+            x = read_csv(path_to_file[0]).as_matrix()
+
+            if self.flatten:
+                x = x.ravel()
+
+            return x
+
+    GENERATOR = AugmentedLoader
+
+
+class FusionAugmentedRawRanges(FusionAgeRangesDataset):
+    LOAD_SUFFIX = '.csv'
+
+    class AugmentedFusionLoader(MEGAugmentedRawRanges.AugmentedLoader):
+
+        def get_features(self, path_to_file):
+            m, a = super().get_features(path_to_file[0]), super().get_features(path_to_file[1])
+            if self.flatten:
+                m = m.ravel()
+                a = a.ravel()
+                return np.concatenate((m, a))
+
+            return m, a
+
+    GENERATOR = AugmentedFusionLoader

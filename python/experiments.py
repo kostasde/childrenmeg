@@ -16,7 +16,9 @@ DATASETS = {
     'MEG': [MEGDataset, MEGAgeRangesDataset],
     'Audio': [AcousticDataset, AcousticAgeRangeDataset],
     'Fusion': [FusionDataset, FusionAgeRangesDataset],
-    'MNIST': [MNISTRegression, MNISTClassification]
+    'MNIST': [MNISTRegression, MNISTClassification],
+    'MEGraw': [None, MEGAugmentedRawRanges],
+    'FusionRaw': [None, FusionAugmentedRawRanges]
 }
 
 
