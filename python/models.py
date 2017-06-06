@@ -147,7 +147,7 @@ class LinearSVM(LogisticRegression):
         super().__init__(inputlength, outputlength, params=params, activation='linear')
 
     def compile(self, **kwargs):
-        super().compile(optimizer=self.opt_param(), loss=keras.losses.squared_hinge, metrics=['accuracy'])
+        Sequential.compile(self, optimizer=self.opt_param(), loss=keras.losses.squared_hinge, metrics=['accuracy'])
 
 
 class SimpleMLP(Sequential, Searchable):
@@ -174,7 +174,7 @@ class SimpleMLP(Sequential, Searchable):
             self.lunits = self.parse_layers(params)
             self.do = params[Searchable.PARAM_DROPOUT]
         else:
-            self.lunits = [128, 128]
+            self.lunits = [1024, 128]
             self.do = 0
 
         super().__init__(name=self.__class__.__name__)

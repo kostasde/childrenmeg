@@ -41,14 +41,14 @@ def handle_restore(args):
     for f in args.toplevel.glob('**/*.bak'):
         if not args.silent:
             print('Renaming {0} to {1}'.format(f, f.with_suffix('.csv')))
-        shutil.move(f, f.with_suffix('.csv'))
+        shutil.move(str(f), str(f.with_suffix('.csv')))
 
 
 def handle_hide(args):
     for f in args.toplevel.glob('**/*.csv'):
         if not args.silent:
             print('Renaming {0} to {1}'.format(f, f.with_suffix('.bak')))
-        shutil.move(f, f.with_suffix('.bak'))
+        shutil.move(str(f), str(f.with_suffix('.bak')))
 
 
 def handle_clean(args):
