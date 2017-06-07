@@ -141,7 +141,7 @@ class SubjectFileLoader(KerasDataloader):
             x = np.zeros([batch_size, self.longest_vector])
         else:
             # batches x (flattened time*features)
-            x = np.zeros([batch_size, np.ceil(self.longest_vector/self.slice_length), self.slice_length])
+            x = np.zeros([batch_size, int(np.ceil(self.longest_vector/self.slice_length)), self.slice_length])
 
         y = np.zeros([batch_size, 1])
 
@@ -154,10 +154,11 @@ class SubjectFileLoader(KerasDataloader):
                 temp = temp.ravel()
                 x[i, :len(temp)] = temp
             else:
-                x[i, :, temp.size[-1]] = temp
+                x[i, :, :temp.shape[-1]] = temp
             y[i, :] = np.array([self.subject_hash[self.x[row, 0]][column] for column in self.targets])
 
-        return x[~np.isnan(x).any(axis=1)], y[~np.isnan(x).any(axis=1)]
+        dims = tuple(i for i in range(1, len(x.shape)))
+        return x[~np.isnan(x).any(axis=dims)], y[~np.isnan(x).any(axis=dims)]
 
     def __next__(self):
         with self.lock:
@@ -397,7 +398,8 @@ class BaseDatasetAgeRanges(BaseDataset, metaclass=ABCMeta):
                 high = BaseDatasetAgeRanges.AGE_RANGES[i][1]
                 y[np.where((y_float[:, age_col] >= low) & (y_float[:, age_col] < high))[0], i] = 1
 
-            return x[~np.isnan(x).any(axis=1)], y[~np.isnan(x).any(axis=1)]
+            dims = tuple(i for i in range(1, len(x.shape)))
+            return x[~np.isnan(x).any(axis=dims)], y[~np.isnan(x).any(axis=dims)]
 
     GENERATOR = AgeSubjectLoader
 
@@ -572,6 +574,9 @@ class MEGAugmentedRawRanges(MEGAgeRangesDataset):
                 return None
 
             return x
+
+    def inputshape(self):
+        return self.longest_vector//self.slice_length, self.slice_length
 
     GENERATOR = AugmentedLoader
 

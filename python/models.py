@@ -17,6 +17,24 @@ def mean_class(y_true, y_pred):
     return K.max(y_true)
 
 
+class ExpandLayer(keras.layers.Layer):
+
+    def __init__(self, axis=-1, **kwargs):
+        self.axis = axis
+        super().__init__(**kwargs)
+
+    def compute_output_shape(self, input_shape):
+        ax = self.axis
+        input_shape = list(input_shape)
+        if ax < 0:
+            ax = len(input_shape) + ax
+        input_shape.insert(ax+1, 1)
+        return tuple(input_shape)
+
+    def call(self, inputs, **kwargs):
+        return K.expand_dims(inputs, axis=self.axis)
+
+
 class Searchable:
     """
     Makes the model searchable if it implements this interface
@@ -338,4 +356,56 @@ class StackedAutoEncoder(SimpleMLP):
                                   pickle_safe=pickle_safe, initial_epoch=initial_epoch)
 
 
-MODELS = [LinearRegression, LogisticRegression, LinearSVM, SimpleMLP, StackedAutoEncoder]
+class ShallowTSCNN(SimpleMLP):
+    """
+    This model implements a fairly straightforward CNN that first filters temporally, and then performs spatial 
+    filtering across the temporal filters and channels.
+    
+    The input data should have the form (time x channels) 
+    """
+
+    def __init__(self, inputshape, outputshape, activation=keras.activations.elu, params=None):
+        Searchable.__init__(self, params=params)
+        Sequential.__init__(self, name=self.__class__.__name__)
+
+        if params is not None:
+            self.lunits = self.parse_layers(params)
+            self.do = params[Searchable.PARAM_DROPOUT]
+        else:
+            self.lunits = [1024, 128]
+            self.do = 0
+
+        # Build layers
+        # Temporal Filtering
+        # self.add(keras.layers.Conv1D(
+        #     40, 25, padding='causal', activation=activation, input_shape=inputshape)
+        # )
+        self.add(ExpandLayer(input_shape=inputshape))
+        self.add(keras.layers.normalization.BatchNormalization())
+        self.add(keras.layers.Conv2D(
+            40, (1, 25), activation=activation, data_format='channels_last'
+        ))
+        self.add(keras.layers.normalization.BatchNormalization())
+        self.add(keras.layers.Dropout(self.do))
+
+        # Spatial Filtering
+        self.add(keras.layers.Conv2D(
+            10, (127, 40), activation=activation, data_format='channels_last'
+        ))
+
+        # Classifier
+        self.add(keras.layers.MaxPooling2D())
+        self.add(keras.layers.Flatten())
+        self.add(keras.layers.normalization.BatchNormalization())
+        self.add(keras.layers.Dropout(self.do))
+        self.add(keras.layers.Dense(outputshape, activation='softmax', name='OUT'))
+
+        # Consider using SVM output layer
+        # self.add(keras.layers.Dense(outputlength, activation='softmax', kernel_regularizer=keras.regularizers.l2(0.01)))
+
+    @property
+    def needsflatdata(self):
+        return False
+
+
+MODELS = [LinearRegression, LogisticRegression, LinearSVM, SimpleMLP, StackedAutoEncoder, ShallowTSCNN]
