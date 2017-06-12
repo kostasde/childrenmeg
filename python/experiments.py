@@ -30,9 +30,9 @@ def train_and_test(model, dataset, args, callbacks=None):
     else:
         s = dataset.trainingset(flatten=model.needsflatdata)
     model.fit_generator(s, np.ceil(s.n / s.batch_size),
-                        validation_data=dataset.evaluationset(),
+                        validation_data=dataset.evaluationset(flatten=model.needsflatdata),
                         validation_steps=np.ceil(dataset.eval_points.shape[0] / dataset.batchsize),
-                        workers=WORKERS, epochs=args.epochs, callbacks=callbacks)
+                        workers=args.workers, epochs=args.epochs, callbacks=callbacks)
 
     if args.test:
         print('Test performance')
@@ -41,7 +41,7 @@ def train_and_test(model, dataset, args, callbacks=None):
         print('Validation Performance')
         s = dataset.evaluationset()
 
-    metrics = model.evaluate_generator(s, np.ceil(s.n / s.batch_size), workers=WORKERS)
+    metrics = model.evaluate_generator(s, np.ceil(s.n / s.batch_size), workers=args.workers)
     print(metrics)
     return metrics
 
@@ -55,7 +55,7 @@ def test(model, dataset, args):
     :return: Array of metrics x folds, reporting test metric of each 
     """
     ts = dataset.testset()
-    return model.evaluate_generator(ts, np.ceil(ts.n/ts.batch_size), workers=WORKERS)
+    return model.evaluate_generator(ts, np.ceil(ts.n/ts.batch_size), workers=args.workers)
 
 
 def print_metrics(metrics):
@@ -101,6 +101,7 @@ if __name__ == '__main__':
     parser.add_argument('--save-model-params', '-p', default=None, help='If provided, this saves the best model '
                                                                         'parameters for each fold of an experiment in '
                                                                         'the provided directory.')
+    parser.add_argument('--workers', '-w', default=WORKERS, type=int, help='The number of threads to use to load data.')
     args = parser.parse_args()
 
     # Load the appropriate dataset, considering whether it is regression or classification

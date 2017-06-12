@@ -10,13 +10,17 @@ from models import TYPE_CLASSIFICATION, TYPE_REGRESSION
 
 class ArrayFeeder(KerasDataloader):
 
-    def __init__(self, x, y, batchsize, shuffle=True, seed=None):
+    def __init__(self, x, y, batchsize, shuffle=True, seed=None, flatten=True):
         self.x, self.y = x, y
+        self.flatten = flatten
         super().__init__(n=x.shape[0], batch_size=batchsize, shuffle=shuffle, seed=seed)
 
     def __next__(self):
         with self.lock:
             index_array, current_index, current_batch_size = next(self.index_generator)
+
+        if self.flatten:
+            return np.reshape(self.x[index_array], [self.x[index_array].shape[0], -1]), self.y
 
         return self.x[index_array], self.y[index_array]
 
@@ -34,10 +38,10 @@ class MNISTRegression:
 
         (self.x, self.y), (self.x_test, self.y_test) = mnist.load_data()
 
-        self.x = np.reshape(self.x, [self.x.shape[0], -1])
+        # self.x = np.reshape(self.x, [self.x.shape[0], -1])
         self.x = self.x.astype(np.float32) / 255
 
-        self.x_test = self.testpoints = np.reshape(self.x_test, [self.x_test.shape[0], -1])
+        # self.x_test = self.testpoints = np.reshape(self.x_test, [self.x_test.shape[0], -1])
         self.x_test = self.x_test.astype(np.float32) / 255
 
         self.x = np.split(self.x, self.NUM_BUCKETS)

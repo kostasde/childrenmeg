@@ -162,3 +162,8 @@ def loopandsmile(toplevellist, config: Path, preserve=False, savemat=True, savep
                 if savemat or savepick:
                     # remove original
                     epoch.unlink()
+
+
+def azimuthal_projection(args):
+    pass
+
