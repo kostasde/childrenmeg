@@ -131,7 +131,8 @@ for i = 1:length(decoded.subjects)
         end
         EEG.icachansind = decoded.ica_chan;
         
-        % Resample
+        % Filter and Resample
+        EEG = pop_eegfilt();%TODO FILTER DATA FIRST
         EEG = pop_resample(EEG, decoded.downsample);
         EEG = eeg_checkset(EEG);
         

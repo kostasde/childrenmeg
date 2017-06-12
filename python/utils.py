@@ -164,6 +164,58 @@ def loopandsmile(toplevellist, config: Path, preserve=False, savemat=True, savep
                     epoch.unlink()
 
 
-def azimuthal_projection(args):
-    pass
+def cart2spherical(x, y, z):
+    return 0,0,0
+
+def spher2cart():
+    return 0,0,0
+
+# TODO verify theta and phi calculations
+def azimuthal_projection(pts, coordsystem='cart'):
+    """
+    Projects a 3D representation of channel locations into a 2D cartesian representation
+    :param pts: A tuplish arguemnt of length three conforming to the coordsystem
+    :param coordsystem: Either 'cart' or 'sphere'
+    :return: x, y cartesian representation of the point.
+    """
+    if len(pts) != 3:
+        raise TypeError('Point must be tupleish sequence of 3 spherical coordinates.')
+
+    if coordsystem == 'cart':
+        [rho, phi, theta] = cart2spherical(**pts)
+    elif coordsystem == 'sphere':
+        rho, phi, theta = pts
+    else:
+        raise TypeError('Coordinate system provided', coordsystem, 'is not supported')
+
+    # Chop off what should be z values of ~0
+    return spher2cart()[:1]
+
+
+def chan2spatial(chanlocfile, coordsystem='cart', maxgridlen=100):
+    """
+    Provides a transformation to convert the channel locations into a 2D spatial tensor
+    :param chanlocfile: File to load the channel locations from.
+    :param coordsystem: The coordinate system the file uses, should be 'cart' or 'sphere'
+    :param maxgridlen: Maximum dimensions length the x and y axis can take, to minimize input model size
+    :return: Matrix to apply to incoming tensors of the form [samples x ... x channels] into
+    [samples x ... x X_loc x Y_loc]
+    """
+    if type(chanlocfile) is not Path:
+        chanlocfile = Path(chanlocfile)
+
+    if not chanlocfile.exists():
+        FileNotFoundError('Could not find channel location file', chanlocfile)
+
+    # TODO LOAD file into variable chans
+    chans = None
+
+    vfunc = np.vectorize(azimuthal_projection)
+    chans = vfunc(chans)
+
+    # shift the x and y positions so they start at 0,0
+    chans = chans - chans.min(axis=0)
+
+
+
 
