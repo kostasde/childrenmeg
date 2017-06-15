@@ -167,8 +167,10 @@ def loopandsmile(toplevellist, config: Path, preserve=False, savemat=True, savep
 def cart2spherical(x, y, z):
     return 0,0,0
 
+
 def spher2cart():
     return 0,0,0
+
 
 # TODO verify theta and phi calculations
 def azimuthal_projection(pts, coordsystem='cart'):
@@ -192,12 +194,12 @@ def azimuthal_projection(pts, coordsystem='cart'):
     return spher2cart()[:1]
 
 
-def chan2spatial(chanlocfile, coordsystem='cart', maxgridlen=100):
+def chan2spatial(chanlocfile, coordsystem='cart', grid=100):
     """
     Provides a transformation to convert the channel locations into a 2D spatial tensor
     :param chanlocfile: File to load the channel locations from.
     :param coordsystem: The coordinate system the file uses, should be 'cart' or 'sphere'
-    :param maxgridlen: Maximum dimensions length the x and y axis can take, to minimize input model size
+    :param grid: Dimensions length the x and y axis can take, to keep a consistent model size
     :return: Matrix to apply to incoming tensors of the form [samples x ... x channels] into
     [samples x ... x X_loc x Y_loc]
     """
@@ -211,10 +213,20 @@ def chan2spatial(chanlocfile, coordsystem='cart', maxgridlen=100):
     chans = None
 
     vfunc = np.vectorize(azimuthal_projection)
-    chans = vfunc(chans)
+    locs = vfunc(chans)
 
-    # shift the x and y positions so they start at 0,0
-    chans = chans - chans.min(axis=0)
+    # shift the x and y positions so they are always centered, and span no further than the size of the grid
+    locs -= locs.mean(axis=0)
+    locs /= abs(locs.max())
+
+    # Scale to grid size, and round to integers
+    locs *= grid
+    locs = np.round(locs).astype('int32')
+
+    # Create transformation matrix
+    xform = np.zeros((grid, grid))
+    for i, l in enumerate(locs):
+        xform[i, l[0], l[1]] = 1
 
 
 

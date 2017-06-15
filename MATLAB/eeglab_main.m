@@ -3,10 +3,13 @@
 % Add path for any libs being used
 addpath('../libs/voicebox_tools/');
 
-subjects = {'all'};
-toplevel = '';
-destination = toplevel;
+%subjects = {'all'};
+%toplevel = '';
+%destination = toplevel;
 MEGEEG_CHANNELS = 37:187;
+
+% Export conditions
+chanfile = 1;
 
 % Create datasets and study to contain them
 [STUDY, ALLEEG] = eeglab_process(toplevel, 'subjects', subjects,...
@@ -29,7 +32,7 @@ elseif any(cellfun(@isempty, {ALLEEG.icaweights}))
        for j = 1:length(ind)
           [ALLEEG, EEG, CURRENSET] = pop_newset(ALLEEG, ALLEEG, 1, 'retrieve', ind(j), 'study', 1);
           EEG = eeg_checkset(EEG);
-          eeg_export(ALLEEG, j);
+          eeg_export(ALLEEG, destination, j, 'extractchans', chanfile);
        end       
     end
     pop_savestudy(STUDY, ALLEEG, 'filepath', STUDY.filepath, 'filename', STUDY.filename);

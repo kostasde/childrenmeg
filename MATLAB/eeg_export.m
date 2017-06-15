@@ -24,8 +24,9 @@ DEFAULT_CROP_SECONDS = 0;
 
 % Decode the Optional argument pairs
 decoded = finputcheck(varargin, {
-    'ICA',     'integer',   [0, 1],  0;
-    'crop',    'real',      [],      DEFAULT_CROP_SECONDS
+    'ICA',           'integer',   [0, 1],  0;
+    'crop',          'real',      [],      DEFAULT_CROP_SECONDS;
+    'extractchans',  'integer',   [0, 1],  0
     });
 if isstr(decoded), error('varargin malformatted'); end;
 
@@ -34,8 +35,15 @@ if isstr(decoded), error('varargin malformatted'); end;
 EEG = eeg_checkset(EEG);
 fprintf('Loaded %s\nExporting...\n', EEG.setname);
 
-meg_outdir = fullfile(destination, EEG.subject, 'MEG', EEG.condition);
-audio_outdir = fullfile(destination, EEG.subject, 'Audio', EEG.condition);
+subj_outdir = fullfile(destination, EEG.subject);
+meg_outdir = fullfile(subj_outdir, 'MEG', EEG.condition);
+audio_outdir = fullfile(subj_outdir, 'Audio', EEG.condition);
+
+% Export channels file
+if decoded.extractchans
+   fprintf('Extracting channels file...\n');
+   writetable(struct2table(EEG.chanlocs), fullfile(subj_outdir, 'chanlocs.csv'));
+end
 
 %   if exist(meg_outdir) == 2 && exist(audio_outdir) == 2, continue; end
 mkdir(meg_outdir);
@@ -48,21 +56,21 @@ if decoded.ICA, eegdata = EEG.icaact; else, eegdata = EEG.data; end
 
 for j=1:size(eegdata, 3)
     if decoded.crop <= 0
-        crops = 1:size(eegdata,1);
+        crops = 1:size(eegdata,2);
     else
-        croplen = decoded.crop*EEG.samplerate;
-        crops = zeros(size(eegdata,1)-croplen, croplen);
+        croplen = decoded.crop*EEG.srate;
+        crops = zeros(size(eegdata,2)-croplen, croplen);
         for i = 0:size(crops, 1)
             crops(i, :) = i:i+croplen;
         end
     end
     
-    for i = 1:length(crops)
+    for i = 1:size(crops, 1)
         ep_fname = strcat('/epoch_', int2str(j)); 
         if exist(fullfile(meg_outdir, strcat(ep_fname, '.bak'))) == 2, continue; end
        
         % transpose for opensmile
-        csvwrite(fullfile(meg_outdir, strcat(ep_fname, '.csv')), eegdata(crops(i,:),:,j)');
+        csvwrite(fullfile(meg_outdir, strcat(ep_fname, '.csv')), eegdata(:, crops(i,:),j)');
         csvwrite(fullfile(audio_outdir, strcat(ep_fname, '.csv')), EEG.acoustic(crops(i,:),j));
         fprintf('.');
     end

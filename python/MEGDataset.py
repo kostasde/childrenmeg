@@ -559,7 +559,7 @@ class FusionAgeRangesDataset(FusionDataset, BaseDatasetAgeRanges):
 
 
 # Classes that are used for raw data rather than opensmile feature-sets
-class MEGAugmentedRawRanges(MEGAgeRangesDataset):
+class MEGRawRanges(MEGAgeRangesDataset):
     LOAD_SUFFIX = '.csv'
 
     class AugmentedLoader(BaseDatasetAgeRanges.AgeSubjectLoader):
@@ -581,10 +581,10 @@ class MEGAugmentedRawRanges(MEGAgeRangesDataset):
     GENERATOR = AugmentedLoader
 
 
-class FusionAugmentedRawRanges(FusionAgeRangesDataset):
+class FusionRawRanges(FusionAgeRangesDataset):
     LOAD_SUFFIX = '.csv'
 
-    class AugmentedFusionLoader(MEGAugmentedRawRanges.AugmentedLoader):
+    class AugmentedFusionLoader(MEGRawRanges.AugmentedLoader):
 
         @staticmethod
         @cached(SubjectFileLoader.cache)
@@ -593,3 +593,5 @@ class FusionAugmentedRawRanges(FusionAgeRangesDataset):
             return np.concatenate((m, a))
 
     GENERATOR = AugmentedFusionLoader
+
+

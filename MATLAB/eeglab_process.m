@@ -19,11 +19,11 @@ function [ STUDY, ALLEEG ] = eeglab_process( toplevel, varargin )
 % Defualt Parameters for preprocessing
 % ------------------------------------
 DEFAULT_FILTER = [0.5, 100];
-DEFAULT_DOWNSAMPLE = 200;
+DEFAULT_DOWNSAMPLE = -1;
 EP_LABEL_CHOICES = {'Trial_prompt', 'VOnset'};
 DEFAULT_EP_LABEL = EP_LABEL_CHOICES{1};
 % Seconds window around event above for epoch
-DEFAULT_EP_WINDOW = [-0.5, 1.5];
+DEFAULT_EP_WINDOW = [-0.5, 3.0];
 MEGEEG_CHANNELS = 37:187;
 
 % Experiment types
@@ -34,6 +34,7 @@ EXPERIMENT_TYPES = {'PA', 'PDK', 'MO', 'VG'};
 decoded = finputcheck(varargin, {
     'filter',       'real',    [],                   DEFAULT_FILTER;
     'downsample',   'integer', [],                   DEFAULT_DOWNSAMPLE;
+    'eogremoval',   'integer', [0, 1],               0;
     'epoch_label',  'string',  {},                   DEFAULT_EP_LABEL;
     'ica',          'string',  {'none', 'subject', 'group'}, 'none';
     'ica_chan',     'integer', [],                   MEGEEG_CHANNELS;
@@ -64,6 +65,8 @@ if length(decoded.subjects) == 1 && strcmp(decoded.subjects{1}, 'all')
     fprintf(['Preprocessing all subjects in: ', toplevel, '\n']);
     names = dir([toplevel 'CC*']);
     decoded.subjects = {names.name};
+else
+    fprintf('Using subjects: %s\n', join(decoded.subjects, ', '));
 end
 
 datasets = {};
@@ -132,8 +135,10 @@ for i = 1:length(decoded.subjects)
         EEG.icachansind = decoded.ica_chan;
         
         % Filter and Resample
-        EEG = pop_eegfilt();%TODO FILTER DATA FIRST
-        EEG = pop_resample(EEG, decoded.downsample);
+        EEG = pop_eegfiltnew(EEG, decoded.filter(1), decoded.filter(2));
+        if decoded.downsample > 0
+            EEG = pop_resample(EEG, decoded.downsample);
+        end
         EEG = eeg_checkset(EEG);
         
         % Epoch the data
@@ -141,19 +146,21 @@ for i = 1:length(decoded.subjects)
         EEG = pop_rmbase(EEG, [decoded.epoch_window(1)*1000 0], []);
         EEG = eeg_checkset(EEG);
         
-        try
-            % Filtering out EOG signals using BSS methods
-            % eigratio - determines the number of principal components that will
-            %           be kept in the pre-processing PCA step which is performed before 
-            %            any BSS algorithm
-            % eog_fd - fractional dimensions as criterion
-            % range - specifies the minimum and maximum number of components 
-            %         that are to be marked as artifactual in each analysis window.
-            EEG = pop_autobsseog(EEG, 440, 440, 'sobi', {'eigratio',1e6}, 'eog_fd', {'range',[2,73]});
-        catch ME
-            warning(ME.message);
-            fileID = fopen([EEG.filepath experiment '.error'], 'a+');
-            fprintf(fileID, ME.message);
+        if decoded.eogremoval
+            try
+                % Filtering out EOG signals using BSS methods
+                % eigratio - determines the number of principal components that will
+                %           be kept in the pre-processing PCA step which is performed before
+                %            any BSS algorithm
+                % eog_fd - fractional dimensions as criterion
+                % range - specifies the minimum and maximum number of components
+                %         that are to be marked as artifactual in each analysis window.
+                EEG = pop_autobsseog(EEG, 440, 440, 'sobi', {'eigratio',1e6}, 'eog_fd', {'range',[2,73]});
+            catch ME
+                warning(ME.message);
+                fileID = fopen([EEG.filepath experiment '.error'], 'a+');
+                fprintf(fileID, ME.message);
+            end
         end
         
         EEG = eeg_checkset(EEG);
