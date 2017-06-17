@@ -3,6 +3,7 @@ import re
 import time
 
 import shutil
+import matplotlib.pyplot as plt
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -218,12 +219,12 @@ def chan2spatial(chanlocfile, coordsystem='sphere', grid=100):
     locs = vfunc(chans)
 
     # shift the x and y positions so they are always centered, and span no further than the size of the grid
-    locs -= locs.mean(axis=0)
-    locs /= abs(locs.max())
+    # locs -= locs.mean(axis=0)
+    # locs /= abs(locs.max())
 
     # Scale to grid size, and round to integers
-    locs *= grid
-    locs = np.round(locs).astype('int32')
+    # locs *= grid/2
+    # locs = np.round(locs).astype('int32')
 
     # Create transformation matrix
     # xform = np.zeros((grid, grid))
@@ -232,5 +233,16 @@ def chan2spatial(chanlocfile, coordsystem='sphere', grid=100):
 
     return locs
 
+def animated(x, samplefreq=200):
+    """
+    Provides an animated plot of the data provided in x
+    :param x: A 3D tensor made up of (Samples) x (X) x (Y)
+    :param samplefreq: The frequency at which the samples are taken
+    :return:
+    """
+    fig, ax = plt.subplot()
+
+    def plotsample(t):
+        plt.imshow(x[, :, :])
 
 

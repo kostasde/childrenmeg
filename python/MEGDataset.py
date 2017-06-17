@@ -9,6 +9,7 @@ from keras.preprocessing.image import Iterator as KerasDataloader
 from cachetools import cached, RRCache
 from abc import ABCMeta, abstractmethod
 from scipy.io import loadmat
+from scipy import interpolate
 from pathlib import Path
 from pandas import read_csv
 
@@ -160,6 +161,7 @@ class SpatialChannelAugmentation(SubjectFileLoader):
         if subject in cls.LOCATION_LOOKUP.keys():
             return cls.LOCATION_LOOKUP[subject]
         else:
+            print('Looking up channels file for subject:', subject)
             if type(toplevel) is not Path:
                 toplevel = Path(toplevel)
             l = [x for x in toplevel.glob('**/' + subject + '/') if x.is_dir()]
@@ -176,24 +178,36 @@ class SpatialChannelAugmentation(SubjectFileLoader):
     def make_transform(locs, cov):
         return None
 
-    def __init__(self, loader: SubjectFileLoader, toplevel, cov=((1e-3, 0), (0, 1e-3))):
+    def __init__(self, loader: SubjectFileLoader, toplevel, cov=((1e-3, 0), (0, 1e-3)), gridsize=100):
         self.__class__ = type(loader.__class__.__name__, (self.__class__, loader.__class__), {})
         self.__dict__ = loader.__dict__
 
         self.loader = loader
         self.cov = cov
         self.toplevel = toplevel
+        self.gridsize = gridsize
 
     def _load(self, index_array, batch_size):
         x, y = self.loader._load(index_array, batch_size)
         # Determine which subjects are involved
         subject_labels = self.x[index_array, 0]
 
+        x_new = np.zeros((*x.shape[:-1], self.gridsize, self.gridsize))
+        grid_x, grid_y = np.mgrid[0:self.gridsize, 0:self.gridsize]
+
+        # For loop ugliness...
         for i, subject in enumerate(subject_labels):
             locs = SpatialChannelAugmentation.chan_locations(subject)
-            xform = SpatialChannelAugmentation.make_transform(locs, self.cov)
 
             # apply the noise to it
+            locs += np.random.multivariate_normal(0.0, self.cov, locs.shape)
+
+            # Transform all timeslices (assumed to be the second dimension)
+            for j in range(x.shape[1]):
+                x_new[i, j, :] = interpolate.griddata(locs, x[i, j, :], (grid_x, grid_y), method='nearest', rescale=True)
+
+
+
 
 
 class TemporalAugmentation(SubjectFileLoader):
