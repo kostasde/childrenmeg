@@ -54,6 +54,8 @@ end
 
 if decoded.ICA, eegdata = EEG.icaact; else, eegdata = EEG.data; end
 
+fprintf('Epochs: ');
+
 for j=1:size(eegdata, 3)
     if decoded.crop <= 0
         crops = 1:size(eegdata,2);

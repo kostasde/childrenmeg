@@ -30,7 +30,7 @@ mkdir = local['mkdir']['-p']
 rm = local['rm']['-r']
 
 #matlab_cmd = local['matlab']
-print('Starting MATLAB...')
+# print('Starting MATLAB...')
 #mtlbeng = mtlb.start_matlab()
 #mtlbeng.addpath(MATLAB_DIR, nargout=0)
 #print('MATLAB ready!')
@@ -165,14 +165,16 @@ def loopandsmile(toplevellist, config: Path, preserve=False, savemat=True, savep
 
 
 def cart2spherical(x, y, z):
-    return 0,0,0
+    xy = np.hypot(x, y)
+    return np.arctan2(y, x), np.arctan2(z, xy), np.hypot(xy, z)
 
 
-def spher2cart():
-    return 0,0,0
+def spher2cart(theta, phi, rho):
+    xy = rho*np.sin(phi)
+    return xy*np.cos(theta), xy*np.sin(theta), rho*np.cos(phi)
 
 
-# TODO verify theta and phi calculations
+# TODO further verify calculations
 def azimuthal_projection(pts, coordsystem='cart'):
     """
     Projects a 3D representation of channel locations into a 2D cartesian representation
@@ -184,17 +186,17 @@ def azimuthal_projection(pts, coordsystem='cart'):
         raise TypeError('Point must be tupleish sequence of 3 spherical coordinates.')
 
     if coordsystem == 'cart':
-        [rho, phi, theta] = cart2spherical(**pts)
+        [theta, phi, rho] = cart2spherical(**pts)
     elif coordsystem == 'sphere':
-        rho, phi, theta = pts
+        theta, phi, rho = pts
     else:
         raise TypeError('Coordinate system provided', coordsystem, 'is not supported')
 
     # Chop off what should be z values of ~0
-    return spher2cart()[:1]
+    return spher2cart(theta, 0, np.pi/2 - phi)[:1]
 
 
-def chan2spatial(chanlocfile, coordsystem='cart', grid=100):
+def chan2spatial(chanlocfile, coordsystem='sphere', grid=100):
     """
     Provides a transformation to convert the channel locations into a 2D spatial tensor
     :param chanlocfile: File to load the channel locations from.
@@ -209,9 +211,9 @@ def chan2spatial(chanlocfile, coordsystem='cart', grid=100):
     if not chanlocfile.exists():
         FileNotFoundError('Could not find channel location file', chanlocfile)
 
-    # TODO LOAD file into variable chans
-    chans = None
+    columns = {'sphere': ['sph_theta', 'sph_phi', 'sph_radius'], 'cart': ['X', 'Y', 'Z']}
 
+    chans = pd.read_csv(chanlocfile).as_matrix(columns[coordsystem])
     vfunc = np.vectorize(azimuthal_projection)
     locs = vfunc(chans)
 
@@ -224,10 +226,11 @@ def chan2spatial(chanlocfile, coordsystem='cart', grid=100):
     locs = np.round(locs).astype('int32')
 
     # Create transformation matrix
-    xform = np.zeros((grid, grid))
-    for i, l in enumerate(locs):
-        xform[i, l[0], l[1]] = 1
+    # xform = np.zeros((grid, grid))
+    # for i, l in enumerate(locs):
+    #     xform[i, l[0], l[1]] = 1
 
+    return locs
 
 
 

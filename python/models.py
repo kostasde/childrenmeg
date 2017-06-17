@@ -199,7 +199,7 @@ class SimpleMLP(Sequential, Searchable):
 
         # Build layers
         # self.add(keras.layers.Dense(self.lunits[0], activation=activation, input_dim=inputlength))
-        self.add(keras.layers.Dense(self.lunits[0], activation=activation, input_dim=inputlength, name='IN1'))
+        self.add(keras.layers.Dense(self.lunits[0], activation=activation, input_dim=np.prod(inputlength, dtype=np.int), name='IN1'))
         self.add(keras.layers.normalization.BatchNormalization())
         self.add(keras.layers.Dropout(self.do, name='L1'))
         for i, l in enumerate(self.lunits[1:]):
@@ -383,14 +383,14 @@ class ShallowTSCNN(SimpleMLP):
         self.add(ExpandLayer(input_shape=inputshape))
         self.add(keras.layers.normalization.BatchNormalization())
         self.add(keras.layers.Conv2D(
-            40, (1, 25), activation=activation, data_format='channels_last'
+            40, (50, 1), activation=activation, data_format='channels_last'
         ))
         self.add(keras.layers.normalization.BatchNormalization())
         self.add(keras.layers.Dropout(self.do))
 
         # Spatial Filtering
         self.add(keras.layers.Conv2D(
-            10, (127, 40), activation=activation, data_format='channels_last'
+            10, (40, 40), activation=activation, data_format='channels_last'
         ))
 
         # Classifier

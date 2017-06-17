@@ -18,6 +18,7 @@ DATASETS = {
     'Fusion': [FusionDataset, FusionAgeRangesDataset],
     'MNIST': [MNISTRegression, MNISTClassification],
     'MEGraw': [None, MEGRawRanges],
+    'MEGAugRaw': [None, MEGAugmentedRawRanges],
     'FusionRaw': [None, FusionRawRanges]
 }
 
@@ -29,9 +30,9 @@ def train_and_test(model, dataset, args, callbacks=None):
         s = dataset.sanityset(flatten=model.needsflatdata)
     else:
         s = dataset.trainingset(flatten=model.needsflatdata)
+    e = dataset.evaluationset(flatten=model.needsflatdata)
     model.fit_generator(s, np.ceil(s.n / s.batch_size),
-                        validation_data=dataset.evaluationset(flatten=model.needsflatdata),
-                        validation_steps=np.ceil(dataset.eval_points.shape[0] / dataset.batchsize),
+                        validation_data=e, validation_steps=np.ceil(e.n / e.batch_size),
                         workers=args.workers, epochs=args.epochs, callbacks=callbacks)
 
     if args.test:

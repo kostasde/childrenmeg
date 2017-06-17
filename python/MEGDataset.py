@@ -1,5 +1,6 @@
 import pickle
 import numpy as np
+import utils
 from time import sleep
 
 from keras.preprocessing.image import Iterator as KerasDataloader
@@ -100,27 +101,7 @@ class SubjectFileLoader(KerasDataloader):
     This class is a somewhat generic generator used for the training, validation and test datasets of the Dataset classes.
     """
 
-    cache = RRCache(32768)
-
-    @staticmethod
-    # @lru_cache(maxsize=8192)
-    @cached(cache)
-    def get_features(path_to_file):
-        """
-        Loads arrays from file, and returned as a flattened vector, cached to save some time
-        :param path_to_file:
-        :return: numpy vector
-        """
-        # return loadmat(path_to_file, squeeze_me=True)['features'].ravel()
-        l = np.load(path_to_file[0])
-        #
-        # if self.megind is not None:
-        #     l = l[:, self.megind].squeeze()
-
-        # l = zscore(l)
-        return l
-
-    def __init__(self, x, longest_vector, subject_hash, target_cols, slice_length, batchsize=-1,
+    def __init__(self, x, longest_vector, subject_hash, target_cols, slice_length, f_loader, batchsize=-1,
                  flatten=True, shuffle=True, seed=None):
 
         self.x = np.asarray(x)
@@ -128,6 +109,7 @@ class SubjectFileLoader(KerasDataloader):
         self.slice_length = slice_length
         self.subject_hash = subject_hash
         self.targets = target_cols
+        self.f_loader = f_loader
         self.flatten = flatten
 
         if batchsize < 0:
@@ -147,7 +129,7 @@ class SubjectFileLoader(KerasDataloader):
 
         for i, row in enumerate(index_array):
             ep = tuple(str(f) for f in self.x[row, 1:])
-            temp = self.get_features(ep)
+            temp = self.f_loader(ep)
             if temp is None:
                 temp = np.full_like(x[i], np.nan)
             if self.flatten:
@@ -167,6 +149,104 @@ class SubjectFileLoader(KerasDataloader):
         return self._load(index_array, current_batch_size)
 
 
+class SpatialChannelAugmentation(SubjectFileLoader):
+
+    LOCATION_LOOKUP = {}
+    CHAN_LOCS_FILE = 'chanlocs.csv'
+
+    @staticmethod
+    def chan_locations(toplevel, subject):
+        cls = SpatialChannelAugmentation
+        if subject in cls.LOCATION_LOOKUP.keys():
+            return cls.LOCATION_LOOKUP[subject]
+        else:
+            if type(toplevel) is not Path:
+                toplevel = Path(toplevel)
+            l = [x for x in toplevel.glob('**/' + subject + '/') if x.is_dir()]
+            if len(l) > 1:
+                print('Warning, multiple directories found for ', subject)
+                for i in l:
+                    print(5*' ', i)
+                print('Using, ', l[0])
+
+            cls.LOCATION_LOOKUP[subject] = utils.chan2spatial(toplevel / cls.CHAN_LOCS_FILE)
+            return cls.LOCATION_LOOKUP[subject]
+
+    @staticmethod
+    def make_transform(locs, cov):
+        return None
+
+    def __init__(self, loader: SubjectFileLoader, toplevel, cov=((1e-3, 0), (0, 1e-3))):
+        self.__class__ = type(loader.__class__.__name__, (self.__class__, loader.__class__), {})
+        self.__dict__ = loader.__dict__
+
+        self.loader = loader
+        self.cov = cov
+        self.toplevel = toplevel
+
+    def _load(self, index_array, batch_size):
+        x, y = self.loader._load(index_array, batch_size)
+        # Determine which subjects are involved
+        subject_labels = self.x[index_array, 0]
+
+        for i, subject in enumerate(subject_labels):
+            locs = SpatialChannelAugmentation.chan_locations(subject)
+            xform = SpatialChannelAugmentation.make_transform(locs, self.cov)
+
+            # apply the noise to it
+
+
+class TemporalAugmentation(SubjectFileLoader):
+
+    DATASET_SAMPLE_RATE = 4000
+
+    def __init__(self, loader: SubjectFileLoader, croplen=2.0, skipsrate=200, inflate=True):
+        self.__class__ = type(loader.__class__.__name__, (self.__class__, loader.__class__), {})
+        self.__dict__ = loader.__dict__
+
+        self.loader = loader
+        self.croplen = croplen
+        self.skipsrate = skipsrate
+        self.inflate = 1
+        self.step = int(self.DATASET_SAMPLE_RATE // skipsrate)
+
+        # If we are inflating the size of an epoch, modify the loader's size
+        if inflate:
+            # crops, time should always be first dimension, ensure croplen is less than time slices
+            f = loader.f_loader([loader.x[0][1]])
+            self.crops = (f.shape[0] - croplen*self.DATASET_SAMPLE_RATE) / self.step
+            if self.crops > 0:
+                self.inflate *= self.crops
+                loader.n *= self.inflate
+            # Skip resampling
+            # loader.n *= self.step
+            # self.inflate *= self.step
+
+    def _load(self, index_array, batch_size):
+        x, y = self.loader._load(index_array, batch_size)
+        starts = np.arange(self.crops*self.step, step=self.step, dtype=np.int)
+
+        x_new = np.zeros((x.shape[0]*len(starts), int(self.croplen*self.skipsrate), *x.shape[2:]))
+        y = np.repeat(y, len(starts), axis=0)
+
+        if self.inflate > 1:
+            for i in range(x.shape[0]):
+                for j, s in enumerate(starts):
+                    ind = np.arange(s, s+(self.croplen * self.DATASET_SAMPLE_RATE), int(self.step), dtype=np.int)
+                    if self.flatten:
+                        x_new[i*len(starts)+j, :] = x[i, ind, :].ravel()
+                    else:
+                        x_new[i*len(starts)+j, :] = x[i, ind, :]
+            x = x_new
+        else:
+            # Uniformly select
+            if self.skipsrate <= 0:
+                # TODO interpolate
+                pass
+
+        return x, y
+
+
 class BaseDataset:
 
     DATASET_TARGETS = [HEADER_AGE]
@@ -175,6 +255,26 @@ class BaseDataset:
 
     # Not sure I like this...
     GENERATOR = SubjectFileLoader
+
+    cache = RRCache(32768)
+
+    @staticmethod
+    # @lru_cache(maxsize=8192)
+    @cached(cache)
+    def get_features(path_to_file):
+        """
+        Loads arrays from file, and returned as a flattened vector, cached to save some time
+        :param path_to_file:
+        :return: numpy vector
+        """
+        # return loadmat(path_to_file, squeeze_me=True)['features'].ravel()
+        l = np.load(path_to_file[0])
+        #
+        # if self.megind is not None:
+        #     l = l[:, self.megind].squeeze()
+
+        # l = zscore(l)
+        return l
 
     def __init__(self, toplevel, PDK=True, PA=True, VG=True, MO=False, batchsize=2):
         self.toplevel = Path(toplevel)
@@ -270,13 +370,14 @@ class BaseDataset:
                 for epoch in [l for l in experiment.iterdir() if l.suffix == self.LOAD_SUFFIX]:
                     try:
                         # f = loadmat(str(epoch), squeeze_me=True)
-                        f = self.GENERATOR.get_features(tuple([epoch]))
+                        f = self.get_features(tuple([epoch]))
                         # slice_length = max(slice_length, len(f['header']))
                         # longest_vector = max(longest_vector,
                         #                           len(f['features'].reshape(-1)))
                         slice_length = max(slice_length, f.shape[1])
                         longest_vector = max(longest_vector, f.shape[0]*f.shape[1])
                         loaded_subjects[subject.stem].append((subject.stem, epoch))
+                        print('.', end='', flush=True)
                     except Exception as e:
                         print('Warning: Skipping file, error occurred loading:', epoch)
 
@@ -325,7 +426,8 @@ class BaseDataset:
             batchsize = self.batchsize
 
         return self.GENERATOR(np.array(self.buckets[fold]), self.longest_vector, self.subject_hash,
-                              self.DATASET_TARGETS, self.slice_length, batchsize=batchsize, flatten=flatten)
+                              self.DATASET_TARGETS, self.slice_length, self.get_features, batchsize=batchsize,
+                              flatten=flatten)
 
     def trainingset(self, batchsize=None, flatten=True):
         """
@@ -341,7 +443,7 @@ class BaseDataset:
             raise AttributeError('No fold initialized... Try calling next_leaveout')
 
         return self.GENERATOR(self.traindata, self.longest_vector, self.subject_hash, self.DATASET_TARGETS,
-                              self.slice_length, batchsize=batchsize, flatten=flatten)
+                              self.slice_length, self.get_features, batchsize=batchsize, flatten=flatten)
 
     def evaluationset(self, batchsize=None, flatten=True):
         """
@@ -353,7 +455,7 @@ class BaseDataset:
             batchsize = self.batchsize
 
         return self.GENERATOR(self.eval_points, self.longest_vector, self.subject_hash, self.DATASET_TARGETS,
-                              self.slice_length, batchsize=batchsize, flatten=flatten)
+                              self.slice_length, self.get_features, batchsize=batchsize, flatten=flatten)
 
     def testset(self, batchsize=None, flatten=True):
         """
@@ -365,7 +467,7 @@ class BaseDataset:
             batchsize = self.batchsize
 
         return self.GENERATOR(self.testpoints, self.longest_vector, self.subject_hash, self.DATASET_TARGETS,
-                              self.slice_length, batchsize=batchsize, flatten=flatten)
+                              self.slice_length, self.get_features, batchsize=batchsize, flatten=flatten)
 
     def inputshape(self):
         return self.longest_vector
@@ -457,42 +559,38 @@ class FusionDataset(MEGDataset, AcousticDataset):
         else:
             self.megind = None
 
-    class FusionFileLoader(SubjectFileLoader):
+    @staticmethod
+    # @cached(BaseDataset.cache)
+    def get_features(path_to_file):
+        """
+        Loads arrays from file, and returned as a flattened vector, cached to save some time
+        :param path_to_file:
+        :return: numpy vector
+        """
+        # m = loadmat(str(path_to_file[0]), squeeze_me=True)['features'].ravel()
+        # a = loadmat(str(path_to_file[1]), squeeze_me=True)['features'].ravel(
 
-        @staticmethod
-        @cached(SubjectFileLoader.cache)
-        def get_features(path_to_file):
-            """
-            Loads arrays from file, and returned as a flattened vector, cached to save some time
-            :param path_to_file:
-            :return: numpy vector
-            """
-            # m = loadmat(str(path_to_file[0]), squeeze_me=True)['features'].ravel()
-            # a = loadmat(str(path_to_file[1]), squeeze_me=True)['features'].ravel(
+        #        print(path_to_file)
 
-            #        print(path_to_file)
+        m = np.load(str(path_to_file[0]))
+        a = np.load(str(path_to_file[1]))
 
-            m = np.load(str(path_to_file[0]))
-            a = np.load(str(path_to_file[1]))
+        if megind is not None:
+            m = m[:, megind].squeeze()
 
-            if megind is not None:
-                m = m[:, megind].squeeze()
+        # m = zscore(m)
+        # a = zscore(a)
 
-            # m = zscore(m)
-            # a = zscore(a)
+        #        if np.isnan(m.max()):
+        #            print('Bad MEG file.')
+        #            exit()
+        #        elif np.isnan(a.max()):
+        #            print('Bad Audio File.')
+        #            exit()
 
-            #        if np.isnan(m.max()):
-            #            print('Bad MEG file.')
-            #            exit()
-            #        elif np.isnan(a.max()):
-            #            print('Bad Audio File.')
-            #            exit()
+        return np.concatenate((m, a), axis=-1)
 
-            return np.concatenate((m, a))
-
-            # return loadmat(path_to_file, squeeze_me=True)['features'].reshape(-1)
-
-    GENERATOR = FusionFileLoader
+        # return loadmat(path_to_file, squeeze_me=True)['features'].reshape(-1)
 
     def files_to_load(self, tests):
         longest_vector = -1
@@ -539,59 +637,43 @@ class FusionDataset(MEGDataset, AcousticDataset):
 
 
 class FusionAgeRangesDataset(FusionDataset, BaseDatasetAgeRanges):
-
-    class FusionAgeRangesFileLoader(FusionDataset.FusionFileLoader):
-
-        def _load(self, batch: np.ndarray, cols: list):
-            x, y_float = super(FusionDataset.FusionFileLoader, self)._load(batch, cols)
-
-            y = np.zeros([batch.shape[0], len(BaseDatasetAgeRanges.AGE_RANGES)])
-
-            age_col = BaseDataset.DATASET_TARGETS.index(HEADER_AGE)
-            for i in range(len(BaseDatasetAgeRanges.AGE_RANGES)):
-                low = BaseDatasetAgeRanges.AGE_RANGES[i][0]
-                high = BaseDatasetAgeRanges.AGE_RANGES[i][1]
-                y[np.where((y_float[:, age_col] >= low) & (y_float[:, age_col] < high))[0], i] = 1
-
-            return x[~np.isnan(x).any(axis=1)], y[~np.isnan(x).any(axis=1)]
-
-    GENERATOR = FusionAgeRangesFileLoader
+    pass
 
 
 # Classes that are used for raw data rather than opensmile feature-sets
 class MEGRawRanges(MEGAgeRangesDataset):
     LOAD_SUFFIX = '.csv'
 
-    class AugmentedLoader(BaseDatasetAgeRanges.AgeSubjectLoader):
-        @staticmethod
-        @cached(SubjectFileLoader.cache)
-        def get_features(path_to_file):
-            # FIXME workaround for now, but using the csv seems shortsighted...
-            x = read_csv(str(path_to_file[0])).as_matrix()
+    @staticmethod
+    # @cached(MEGAgeRangesDataset.cache)
+    def get_features(path_to_file):
+        # FIXME workaround for now, but using the csv seems shortsighted...
+        x = read_csv(str(path_to_file[0])).as_matrix()
 
-            if x.dtype.type is not np.float64:
-                print('Unable to read as float,', path_to_file[0])
-                return None
+        if x.dtype.type is not np.float64:
+            print('Unable to read as float,', path_to_file[0])
+            return None
 
-            return x
+        return x
 
     def inputshape(self):
-        return self.longest_vector//self.slice_length, self.slice_length
-
-    GENERATOR = AugmentedLoader
+        return 400, self.slice_length
 
 
 class FusionRawRanges(FusionAgeRangesDataset):
     LOAD_SUFFIX = '.csv'
 
-    class AugmentedFusionLoader(MEGRawRanges.AugmentedLoader):
+    @staticmethod
+    @cached(FusionAgeRangesDataset.cache)
+    def get_features(path_to_file):
+        m, a = super().get_features(path_to_file[0]), super().get_features(path_to_file[1])
+        return np.concatenate((m, a))
 
-        @staticmethod
-        @cached(SubjectFileLoader.cache)
-        def get_features(path_to_file):
-            m, a = super().get_features(path_to_file[0]), super().get_features(path_to_file[1])
-            return np.concatenate((m, a))
 
-    GENERATOR = AugmentedFusionLoader
+class MEGAugmentedRawRanges(MEGRawRanges):
+    @staticmethod
+    def GENERATOR(*args, **kwargs):
+        return TemporalAugmentation(MEGRawRanges.GENERATOR(*args, **kwargs))
+
 
 
