@@ -174,10 +174,6 @@ class SpatialChannelAugmentation(SubjectFileLoader):
             cls.LOCATION_LOOKUP[subject] = utils.chan2spatial(toplevel / cls.CHAN_LOCS_FILE)
             return cls.LOCATION_LOOKUP[subject]
 
-    @staticmethod
-    def make_transform(locs, cov):
-        return None
-
     def __init__(self, loader: SubjectFileLoader, toplevel, cov=((1e-3, 0), (0, 1e-3)), gridsize=100):
         self.__class__ = type(loader.__class__.__name__, (self.__class__, loader.__class__), {})
         self.__dict__ = loader.__dict__
@@ -197,17 +193,15 @@ class SpatialChannelAugmentation(SubjectFileLoader):
 
         # For loop ugliness...
         for i, subject in enumerate(subject_labels):
-            locs = SpatialChannelAugmentation.chan_locations(subject)
+            locs = SpatialChannelAugmentation.chan_locations(self.toplevel, subject)
 
             # apply the noise to it
             locs += np.random.multivariate_normal(0.0, self.cov, locs.shape)
 
             # Transform all timeslices (assumed to be the second dimension)
             for j in range(x.shape[1]):
-                x_new[i, j, :] = interpolate.griddata(locs, x[i, j, :], (grid_x, grid_y), method='nearest', rescale=True)
-
-
-
+                x_new[i, j, :] = interpolate.griddata(locs, x[i, j, :], (grid_x, grid_y),
+                                                      method='nearest', rescale=True)
 
 
 class TemporalAugmentation(SubjectFileLoader):

@@ -3,6 +3,7 @@ import re
 import time
 
 import shutil
+import matplotlib.animation as anim
 import matplotlib.pyplot as plt
 from pathlib import Path
 import numpy as np
@@ -167,7 +168,7 @@ def loopandsmile(toplevellist, config: Path, preserve=False, savemat=True, savep
 
 def cart2spherical(x, y, z):
     xy = np.hypot(x, y)
-    return np.arctan2(y, x), np.arctan2(z, xy), np.hypot(xy, z)
+    return np.arctan2(y, x), np.arctan2(xy, z), np.hypot(xy, z)
 
 
 def spher2cart(theta, phi, rho):
@@ -184,7 +185,8 @@ def azimuthal_projection(pts, coordsystem='cart'):
     :return: x, y cartesian representation of the point.
     """
     if len(pts) != 3:
-        raise TypeError('Point must be tupleish sequence of 3 spherical coordinates.')
+        raise TypeError('Points provided returned length,', len(pts),
+                        'Point must be tupleish sequence of 3 spherical coordinates.')
 
     if coordsystem == 'cart':
         [theta, phi, rho] = cart2spherical(**pts)
@@ -194,7 +196,8 @@ def azimuthal_projection(pts, coordsystem='cart'):
         raise TypeError('Coordinate system provided', coordsystem, 'is not supported')
 
     # Chop off what should be z values of ~0
-    return spher2cart(theta, 0, np.pi/2 - phi)[:1]
+    # return spher2cart(theta, np.pi/2, np.pi/2 - phi)[:2]
+    return spher2cart(theta, phi, rho)[:2]
 
 
 def chan2spatial(chanlocfile, coordsystem='sphere', grid=100):
@@ -215,8 +218,7 @@ def chan2spatial(chanlocfile, coordsystem='sphere', grid=100):
     columns = {'sphere': ['sph_theta', 'sph_phi', 'sph_radius'], 'cart': ['X', 'Y', 'Z']}
 
     chans = pd.read_csv(chanlocfile).as_matrix(columns[coordsystem])
-    vfunc = np.vectorize(azimuthal_projection)
-    locs = vfunc(chans)
+    locs = np.apply_along_axis(azimuthal_projection, 0, chans, coordsystem=coordsystem)
 
     # shift the x and y positions so they are always centered, and span no further than the size of the grid
     # locs -= locs.mean(axis=0)
@@ -233,6 +235,7 @@ def chan2spatial(chanlocfile, coordsystem='sphere', grid=100):
 
     return locs
 
+
 def animated(x, samplefreq=200):
     """
     Provides an animated plot of the data provided in x
@@ -240,9 +243,14 @@ def animated(x, samplefreq=200):
     :param samplefreq: The frequency at which the samples are taken
     :return:
     """
-    fig, ax = plt.subplot()
+    fig = plt.figure()
+    im = plt.imshow(x[0, :, :], animated=True)
 
     def plotsample(t):
-        plt.imshow(x[, :, :])
+        im.set_array(x[t, :, :])
+
+    a = anim.FuncAnimation(fig, plotsample, range(x.shape[0]), interval=1000/samplefreq)
+
+    plt.show()
 
 
