@@ -155,7 +155,7 @@ for i = 1:length(decoded.subjects)
                 % eog_fd - fractional dimensions as criterion
                 % range - specifies the minimum and maximum number of components
                 %         that are to be marked as artifactual in each analysis window.
-                EEG = pop_autobsseog(EEG, 440, 440, 'sobi', {'eigratio',1e6}, 'eog_fd', {'range',[2,73]});
+                EEG = pop_autobsseog(ica_chanEEG, 440, 440, 'sobi', {'eigratio',1e6}, 'eog_fd', {'range',[2,73]});
             catch ME
                 warning(ME.message);
                 fileID = fopen([EEG.filepath experiment '.error'], 'a+');

@@ -3,8 +3,8 @@ import re
 import time
 
 import shutil
-import matplotlib.animation as anim
-import matplotlib.pyplot as plt
+# import matplotlib.animation as anim
+# import matplotlib.pyplot as plt
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -37,7 +37,7 @@ rm = local['rm']['-r']
 #mtlbeng.addpath(MATLAB_DIR, nargout=0)
 #print('MATLAB ready!')
 #matlab_nogui = matlab_cmd['-nojvm']['-nodisplay']['-nosplash']['-r']
-open_smile = local['SMILExtract']
+# open_smile = local['SMILExtract']
 
 
 # Todo remove when this is no longer necessary
@@ -200,11 +200,12 @@ def azimuthal_projection(pts, coordsystem='cart'):
     return spher2cart(theta, phi, rho)[:2]
 
 
-def chan2spatial(chanlocfile, coordsystem='sphere', grid=100):
+def chan2spatial(chanlocfile, coordsystem='sphere', channels=(range(36, 187)), grid=100):
     """
     Provides a transformation to convert the channel locations into a 2D spatial tensor
     :param chanlocfile: File to load the channel locations from.
     :param coordsystem: The coordinate system the file uses, should be 'cart' or 'sphere'
+    :param channels: Which channels to keep
     :param grid: Dimensions length the x and y axis can take, to keep a consistent model size
     :return: Matrix to apply to incoming tensors of the form [samples x ... x channels] into
     [samples x ... x X_loc x Y_loc]
@@ -217,15 +218,16 @@ def chan2spatial(chanlocfile, coordsystem='sphere', grid=100):
 
     columns = {'sphere': ['sph_theta', 'sph_phi', 'sph_radius'], 'cart': ['X', 'Y', 'Z']}
 
-    chans = pd.read_csv(chanlocfile).as_matrix(columns[coordsystem])
-    locs = np.apply_along_axis(azimuthal_projection, 0, chans, coordsystem=coordsystem)
+    chans = pd.read_csv(chanlocfile).as_matrix(columns[coordsystem])[channels]
+    locs = np.apply_along_axis(azimuthal_projection, 1, chans, coordsystem=coordsystem)
 
     # shift the x and y positions so they are always centered, and span no further than the size of the grid
-    # locs -= locs.mean(axis=0)
-    # locs /= abs(locs.max())
+    locs -= locs.mean(axis=0)
+    locs /= abs(locs).max()
 
     # Scale to grid size, and round to integers
-    # locs *= grid/2
+    locs *= grid/2
+    locs += grid/2
     # locs = np.round(locs).astype('int32')
 
     # Create transformation matrix
@@ -236,21 +238,21 @@ def chan2spatial(chanlocfile, coordsystem='sphere', grid=100):
     return locs
 
 
-def animated(x, samplefreq=200):
-    """
-    Provides an animated plot of the data provided in x
-    :param x: A 3D tensor made up of (Samples) x (X) x (Y)
-    :param samplefreq: The frequency at which the samples are taken
-    :return:
-    """
-    fig = plt.figure()
-    im = plt.imshow(x[0, :, :], animated=True)
-
-    def plotsample(t):
-        im.set_array(x[t, :, :])
-
-    a = anim.FuncAnimation(fig, plotsample, range(x.shape[0]), interval=1000/samplefreq)
-
-    plt.show()
+# def animated(x, samplefreq=200):
+#     """
+#     Provides an animated plot of the data provided in x
+#     :param x: A 3D tensor made up of (Samples) x (X) x (Y)
+#     :param samplefreq: The frequency at which the samples are taken
+#     :return:
+#     """
+#     fig = plt.figure()
+#     im = plt.imshow(x[0, :, :], animated=True)
+#
+#     def plotsample(t):
+#         im.set_array(x[t, :, :])
+#
+#     a = anim.FuncAnimation(fig, plotsample, frames=range(x.shape[0]), interval=1000/samplefreq)
+#
+#     plt.show()
 
 

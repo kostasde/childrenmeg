@@ -10,22 +10,33 @@ function [ ] = eeg_export( ALLEEG , destination, ind, varargin )
 %         - ind: The index of the subject to be exported
 %
 % Optional Argument Pairs:
-%         - 'ICA', 0/1:  Disable/Enable the ICA output, or the raw signal
-%                        output of the trials.
-%         - 'crop', SECONDS: Enables crop-based data augmentations, where
-%                            given a trial of T seconds, a sliding crop t'
-%                            is produced of SECONDS length starting at t'=0,
-%                            for each sample until t'+SECONDS hits the end
-%                            of the trial.
+%         - 'ICA',          0/1: Disable/Enable the ICA output, or the raw 
+%                                signal output of the trials.
+%
+%         - 'crop',     SECONDS: Enables crop-based data augmentations, 
+%                                where given a trial of T seconds, a 
+%                                sliding crop t' is produced of SECONDS 
+%                                length starting at t'=0, for each sample 
+%                                until t'+SECONDS hits the end
+%                                of the trial.
+%
+%         - 'channels, indecies: The indecies of the channels that are to
+%                                be extracted (applies to extractchans as
+%                                well)
+%
+%         - 'extractchans', 0/1: True/False export a file that contains the
+%                                locations of all channels in use
 % 
 
 % Default optional argument parameters
 DEFAULT_CROP_SECONDS = 0;
+MEGEEG_CHANNELS = 37:187;
 
 % Decode the Optional argument pairs
 decoded = finputcheck(varargin, {
     'ICA',           'integer',   [0, 1],  0;
     'crop',          'real',      [],      DEFAULT_CROP_SECONDS;
+    'channels',      'integer',   [],      MEGEEG_CHANNELS;
     'extractchans',  'integer',   [0, 1],  0
     });
 if isstr(decoded), error('varargin malformatted'); end;

@@ -174,7 +174,7 @@ class SpatialChannelAugmentation(SubjectFileLoader):
             cls.LOCATION_LOOKUP[subject] = utils.chan2spatial(toplevel / cls.CHAN_LOCS_FILE)
             return cls.LOCATION_LOOKUP[subject]
 
-    def __init__(self, loader: SubjectFileLoader, toplevel, cov=((1e-3, 0), (0, 1e-3)), gridsize=100):
+    def __init__(self, loader: SubjectFileLoader, toplevel, cov=1e-2*np.eye(2), gridsize=100):
         self.__class__ = type(loader.__class__.__name__, (self.__class__, loader.__class__), {})
         self.__dict__ = loader.__dict__
 
@@ -196,7 +196,7 @@ class SpatialChannelAugmentation(SubjectFileLoader):
             locs = SpatialChannelAugmentation.chan_locations(self.toplevel, subject)
 
             # apply the noise to it
-            locs += np.random.multivariate_normal(0.0, self.cov, locs.shape)
+            locs += np.random.multivariate_normal([0, 0], self.cov, locs.shape[0])
 
             # Transform all timeslices (assumed to be the second dimension)
             for j in range(x.shape[1]):
@@ -208,7 +208,7 @@ class TemporalAugmentation(SubjectFileLoader):
 
     DATASET_SAMPLE_RATE = 4000
 
-    def __init__(self, loader: SubjectFileLoader, croplen=2.0, skipsrate=200, inflate=True):
+    def __init__(self, loader: SubjectFileLoader, croplen=2.0, skipsrate=200, inflate=True, cropstyle='uniform',):
         self.__class__ = type(loader.__class__.__name__, (self.__class__, loader.__class__), {})
         self.__dict__ = loader.__dict__
 
