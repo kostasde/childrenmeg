@@ -102,10 +102,11 @@ class SubjectFileLoader(KerasDataloader):
     This class is a somewhat generic generator used for the training, validation and test datasets of the Dataset classes.
     """
 
-    def __init__(self, x, longest_vector, subject_hash, target_cols, slice_length, f_loader, batchsize=-1,
+    def __init__(self, x, toplevel, longest_vector, subject_hash, target_cols, slice_length, f_loader, batchsize=-1,
                  flatten=True, shuffle=True, seed=None):
 
         self.x = np.asarray(x)
+        self.toplevel = toplevel
         self.longest_vector = longest_vector
         self.slice_length = slice_length
         self.subject_hash = subject_hash
@@ -174,13 +175,12 @@ class SpatialChannelAugmentation(SubjectFileLoader):
             cls.LOCATION_LOOKUP[subject] = utils.chan2spatial(toplevel / cls.CHAN_LOCS_FILE)
             return cls.LOCATION_LOOKUP[subject]
 
-    def __init__(self, loader: SubjectFileLoader, toplevel, cov=1e-2*np.eye(2), gridsize=100):
+    def __init__(self, loader: SubjectFileLoader, cov=1e-2*np.eye(2), gridsize=100):
         self.__class__ = type(loader.__class__.__name__, (self.__class__, loader.__class__), {})
         self.__dict__ = loader.__dict__
 
         self.loader = loader
         self.cov = cov
-        self.toplevel = toplevel
         self.gridsize = gridsize
 
     def _load(self, index_array, batch_size):
@@ -193,7 +193,7 @@ class SpatialChannelAugmentation(SubjectFileLoader):
 
         # For loop ugliness...
         for i, subject in enumerate(subject_labels):
-            locs = SpatialChannelAugmentation.chan_locations(self.toplevel, subject)
+            locs = SpatialChannelAugmentation.chan_locations(self.loader.toplevel, subject)
 
             # apply the noise to it
             locs += np.random.multivariate_normal([0, 0], self.cov, locs.shape[0])
@@ -223,36 +223,27 @@ class TemporalAugmentation(SubjectFileLoader):
             # crops, time should always be first dimension, ensure croplen is less than time slices
             f = loader.f_loader([loader.x[0][1]])
             self.crops = (f.shape[0] - croplen*self.DATASET_SAMPLE_RATE) / self.step
+            self.starts = np.arange(self.crops * self.step, step=self.step, dtype=np.int)
+
             if self.crops > 0:
                 self.inflate *= self.crops
-                loader.n *= self.inflate
-            # Skip resampling
+                # loader.n *= self.inflate
+            # resampling
             # loader.n *= self.step
-            # self.inflate *= self.step
+            self.inflate *= self.step
 
     def _load(self, index_array, batch_size):
         x, y = self.loader._load(index_array, batch_size)
-        starts = np.arange(self.crops*self.step, step=self.step, dtype=np.int)
 
-        x_new = np.zeros((x.shape[0]*len(starts), int(self.croplen*self.skipsrate), *x.shape[2:]))
-        y = np.repeat(y, len(starts), axis=0)
+        x_new = np.zeros((x.shape[0], int(self.croplen*self.skipsrate), *x.shape[2:]))
 
-        if self.inflate > 1:
-            for i in range(x.shape[0]):
-                for j, s in enumerate(starts):
-                    ind = np.arange(s, s+(self.croplen * self.DATASET_SAMPLE_RATE), int(self.step), dtype=np.int)
-                    if self.flatten:
-                        x_new[i*len(starts)+j, :] = x[i, ind, :].ravel()
-                    else:
-                        x_new[i*len(starts)+j, :] = x[i, ind, :]
-            x = x_new
-        else:
-            # Uniformly select
-            if self.skipsrate <= 0:
-                # TODO interpolate
-                pass
+        # select resampling offset and starting point
+        offset = int(self.step*np.random.uniform())
+        starts = np.random.choice(self.starts, size=x.shape[0])
+        for i, s in enumerate(starts):
+            x_new[i, :] = x[i, np.arange(s+offset, s+offset+int(self.croplen*self.DATASET_SAMPLE_RATE), self.step), :]
 
-        return x, y
+        return x_new, y
 
 
 class BaseDataset:
@@ -433,7 +424,7 @@ class BaseDataset:
         if batchsize is None:
             batchsize = self.batchsize
 
-        return self.GENERATOR(np.array(self.buckets[fold]), self.longest_vector, self.subject_hash,
+        return self.GENERATOR(np.array(self.buckets[fold]), self.toplevel, self.longest_vector, self.subject_hash,
                               self.DATASET_TARGETS, self.slice_length, self.get_features, batchsize=batchsize,
                               flatten=flatten)
 
@@ -450,7 +441,7 @@ class BaseDataset:
         if self.traindata is None:
             raise AttributeError('No fold initialized... Try calling next_leaveout')
 
-        return self.GENERATOR(self.traindata, self.longest_vector, self.subject_hash, self.DATASET_TARGETS,
+        return self.GENERATOR(self.traindata, self.toplevel, self.longest_vector, self.subject_hash, self.DATASET_TARGETS,
                               self.slice_length, self.get_features, batchsize=batchsize, flatten=flatten)
 
     def evaluationset(self, batchsize=None, flatten=True):
@@ -462,7 +453,7 @@ class BaseDataset:
         if batchsize is None:
             batchsize = self.batchsize
 
-        return self.GENERATOR(self.eval_points, self.longest_vector, self.subject_hash, self.DATASET_TARGETS,
+        return self.GENERATOR(self.eval_points, self.toplevel, self.longest_vector, self.subject_hash, self.DATASET_TARGETS,
                               self.slice_length, self.get_features, batchsize=batchsize, flatten=flatten)
 
     def testset(self, batchsize=None, flatten=True):
@@ -474,7 +465,7 @@ class BaseDataset:
         if batchsize is None:
             batchsize = self.batchsize
 
-        return self.GENERATOR(self.testpoints, self.longest_vector, self.subject_hash, self.DATASET_TARGETS,
+        return self.GENERATOR(self.testpoints, self.toplevel, self.longest_vector, self.subject_hash, self.DATASET_TARGETS,
                               self.slice_length, self.get_features, batchsize=batchsize, flatten=flatten)
 
     def inputshape(self):
@@ -652,6 +643,8 @@ class FusionAgeRangesDataset(FusionDataset, BaseDatasetAgeRanges):
 class MEGRawRanges(MEGAgeRangesDataset):
     LOAD_SUFFIX = '.csv'
 
+    CHANNELS = np.arange(36, 187, dtype=np.int)
+
     @staticmethod
     # @cached(MEGAgeRangesDataset.cache)
     def get_features(path_to_file):
@@ -662,7 +655,7 @@ class MEGRawRanges(MEGAgeRangesDataset):
             print('Unable to read as float,', path_to_file[0])
             return None
 
-        return x
+        return x[:, MEGRawRanges.CHANNELS]
 
     def inputshape(self):
         return 400, self.slice_length

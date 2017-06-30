@@ -109,7 +109,7 @@ if __name__ == '__main__':
     dataset = DATASETS[args.dataset][MODELS[args.model].TYPE](args.toplevel, batchsize=args.batch_size)
 
     # Callbacks
-    callbacks = [keras.callbacks.ReduceLROnPlateau(verbose=1, epsilon=0.05, patience=5, factor=0.5),
+    callbacks = [keras.callbacks.ReduceLROnPlateau(verbose=1, epsilon=0.05, patience=int(args.patience/5), factor=0.5),
                  keras.callbacks.EarlyStopping(min_delta=0.005, verbose=1, mode='min', patience=args.patience//2),
                  keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min', patience=args.patience)]
     if args.save_model_params is not None:
