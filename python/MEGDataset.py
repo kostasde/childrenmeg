@@ -264,7 +264,7 @@ class BaseDataset:
     # Not sure I like this...
     GENERATOR = SubjectFileLoader
 
-    cache = RRCache(32768)
+    cache = RRCache(16384)
 
     @staticmethod
     # @lru_cache(maxsize=8192)
@@ -665,6 +665,11 @@ class MEGRawRanges(MEGAgeRangesDataset):
     #         return None
     #
     #     return x[:, MEGRawRanges.CHANNELS]
+
+    # Do not cache the raw data
+    @staticmethod
+    def get_features(path_to_file):
+        return np.load(path_to_file[0])
 
     @property
     def modality_folders(self):
