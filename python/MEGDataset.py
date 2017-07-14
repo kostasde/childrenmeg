@@ -1,6 +1,7 @@
 import pickle
 import numpy as np
 import utils
+from tqdm import tqdm
 from time import sleep
 
 from keras.preprocessing.image import Iterator as KerasDataloader
@@ -103,7 +104,7 @@ class SubjectFileLoader(KerasDataloader):
     """
 
     def __init__(self, x, toplevel, longest_vector, subject_hash, target_cols, slice_length, f_loader, batchsize=-1,
-                 flatten=True, shuffle=True, seed=None):
+                 flatten=True, shuffle=True, seed=None, evaluate=False):
 
         self.x = np.asarray(x)
         self.toplevel = toplevel
@@ -113,6 +114,7 @@ class SubjectFileLoader(KerasDataloader):
         self.targets = target_cols
         self.f_loader = f_loader
         self.flatten = flatten
+        self.evaluate = evaluate
 
         if batchsize < 0:
             batchsize = x.shape[0]
@@ -195,8 +197,9 @@ class SpatialChannelAugmentation(SubjectFileLoader):
         for i, subject in enumerate(subject_labels):
             locs = SpatialChannelAugmentation.chan_locations(self.loader.toplevel, subject)
 
-            # apply the noise to it
-            locs += np.random.multivariate_normal([0, 0], self.cov, locs.shape[0])
+            # apply the noise to it if not evaluation
+            if not self.evaluate:
+                locs += np.random.multivariate_normal([0, 0], self.cov, locs.shape[0])
 
             # Transform all timeslices (assumed to be the second dimension)
             for j in range(x.shape[1]):
@@ -208,7 +211,8 @@ class TemporalAugmentation(SubjectFileLoader):
 
     DATASET_SAMPLE_RATE = 4000
 
-    def __init__(self, loader: SubjectFileLoader, croplen=2.0, skipsrate=200, inflate=True, cropstyle='uniform',):
+    def __init__(self, loader: SubjectFileLoader, croplen=2.0, limits=(-0.5, 3.0), skipsrate=200,
+                 inflate=True, cropstyle='uniform',):
         self.__class__ = type(loader.__class__.__name__, (self.__class__, loader.__class__), {})
         self.__dict__ = loader.__dict__
 
@@ -238,10 +242,15 @@ class TemporalAugmentation(SubjectFileLoader):
         x_new = np.zeros((x.shape[0], int(self.croplen*self.skipsrate), *x.shape[2:]))
 
         # select resampling offset and starting point
-        offset = int(self.step*np.random.uniform())
-        starts = np.random.choice(self.starts, size=x.shape[0])
-        for i, s in enumerate(starts):
-            x_new[i, :] = x[i, np.arange(s+offset, s+offset+int(self.croplen*self.DATASET_SAMPLE_RATE), self.step), :]
+        if not self.evaluate:
+            offset = int(self.step*np.random.uniform())
+            starts = np.random.choice(self.starts, size=x.shape[0])
+            for i, s in enumerate(starts):
+                x_new[i, :] = \
+                    x[i, np.arange(s+offset, s+offset+int(self.croplen*self.DATASET_SAMPLE_RATE), self.step), :]
+        else:
+            # Just do the first croplen length for evaulation
+            x_new = x[:, 0:x_new.shape[1], :]
 
         return x_new, y
 
@@ -360,13 +369,13 @@ class BaseDataset:
         longest_vector = -1
         slice_length = -1
         loaded_subjects = {}
-        for subject in [x for x in self.toplevel.iterdir() if x.is_dir() and x.name in self.subject_hash.keys()]:
-            print('Loading subject', subject.stem, '...')
+        for subject in tqdm([x for x in self.toplevel.iterdir() if x.is_dir() and x.name in self.subject_hash.keys()]):
+            tqdm.write('Loading subject ' + subject.stem + '...')
             loaded_subjects[subject.stem] = []
-            for experiment in [t for e in self.modality_folders if (subject / e).exists()
-                               for t in (subject / e).iterdir() if t.name in tests]:
+            for experiment in tqdm([t for e in self.modality_folders if (subject / e).exists()
+                                    for t in (subject / e).iterdir() if t.name in tests]):
 
-                for epoch in [l for l in experiment.iterdir() if l.suffix == self.LOAD_SUFFIX]:
+                for epoch in tqdm([l for l in experiment.iterdir() if l.suffix == self.LOAD_SUFFIX]):
                     try:
                         # f = loadmat(str(epoch), squeeze_me=True)
                         f = self.get_features(tuple([epoch]))
@@ -376,9 +385,8 @@ class BaseDataset:
                         slice_length = max(slice_length, f.shape[1])
                         longest_vector = max(longest_vector, f.shape[0]*f.shape[1])
                         loaded_subjects[subject.stem].append((subject.stem, epoch))
-                        print('.', end='', flush=True)
                     except Exception as e:
-                        print('Warning: Skipping file, error occurred loading:', epoch)
+                        tqdm.write('Warning: Skipping file, error occurred loading: ' + str(epoch))
 
         return loaded_subjects, longest_vector, slice_length
 
@@ -454,7 +462,7 @@ class BaseDataset:
             batchsize = self.batchsize
 
         return self.GENERATOR(self.eval_points, self.toplevel, self.longest_vector, self.subject_hash, self.DATASET_TARGETS,
-                              self.slice_length, self.get_features, batchsize=batchsize, flatten=flatten)
+                              self.slice_length, self.get_features, batchsize=batchsize, flatten=flatten, evaluate=True)
 
     def testset(self, batchsize=None, flatten=True):
         """
@@ -466,7 +474,7 @@ class BaseDataset:
             batchsize = self.batchsize
 
         return self.GENERATOR(self.testpoints, self.toplevel, self.longest_vector, self.subject_hash, self.DATASET_TARGETS,
-                              self.slice_length, self.get_features, batchsize=batchsize, flatten=flatten)
+                              self.slice_length, self.get_features, batchsize=batchsize, flatten=flatten, evaluate=True)
 
     def inputshape(self):
         return self.longest_vector
@@ -595,8 +603,8 @@ class FusionDataset(MEGDataset, AcousticDataset):
         longest_vector = -1
         slice_length = -1
         loaded_subjects = {}
-        for subject in [x for x in self.toplevel.iterdir() if x.is_dir() and x.name in self.subject_hash.keys()]:
-            print('Loading subject', subject.stem, '...')
+        for subject in tqdm([x for x in self.toplevel.iterdir() if x.is_dir() and x.name in self.subject_hash.keys()]):
+            tqdm.write('Loading subject ' + subject.stem + '...')
             loaded_subjects[subject.stem] = []
 
             # Determine overlap of MEG and Audio data
@@ -626,7 +634,7 @@ class FusionDataset(MEGDataset, AcousticDataset):
                         #                      len(megf['features'].reshape(-1)) + len(audf['features'].reshape(-1)))
                         loaded_subjects[subject.stem].append((subject.stem, audioepochs[epoch], megepochs[epoch]))
                     except Exception:
-                        print('Warning: Skipping file, error occurred loading:', epoch)
+                        tqdm.write('Warning: Skipping file, error occurred loading: ' + str(epoch))
 
         return loaded_subjects, longest_vector, slice_length
 
@@ -641,23 +649,29 @@ class FusionAgeRangesDataset(FusionDataset, BaseDatasetAgeRanges):
 
 # Classes that are used for raw data rather than opensmile feature-sets
 class MEGRawRanges(MEGAgeRangesDataset):
-    LOAD_SUFFIX = '.csv'
+    LOAD_SUFFIX = '.npy'
 
-    CHANNELS = np.arange(36, 187, dtype=np.int)
+    # Shouldn't need this section anymore
+    # CHANNELS = np.arange(36, 187, dtype=np.int)
+    #
+    # @staticmethod
+    # # @cached(MEGAgeRangesDataset.cache)
+    # def get_features(path_to_file):
+    #     # FIXME workaround for now, but using the csv seems shortsighted...
+    #     x = read_csv(str(path_to_file[0])).as_matrix()
+    #
+    #     if x.dtype.type is not np.float64:
+    #         print('Unable to read as float,', path_to_file[0])
+    #         return None
+    #
+    #     return x[:, MEGRawRanges.CHANNELS]
 
-    @staticmethod
-    # @cached(MEGAgeRangesDataset.cache)
-    def get_features(path_to_file):
-        # FIXME workaround for now, but using the csv seems shortsighted...
-        x = read_csv(str(path_to_file[0])).as_matrix()
-
-        if x.dtype.type is not np.float64:
-            print('Unable to read as float,', path_to_file[0])
-            return None
-
-        return x[:, MEGRawRanges.CHANNELS]
+    @property
+    def modality_folders(self):
+        return ['raw/MEG']
 
     def inputshape(self):
+        # FIXME should not have magic number 400, comes from assumed sample rate of 200
         return 400, self.slice_length
 
 
