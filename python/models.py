@@ -9,14 +9,6 @@ TYPE_REGRESSION = 0
 TYPE_CLASSIFICATION = 1
 
 
-def mean_pred(y_true, y_pred):
-    return K.mean(K.max(y_pred))
-
-
-def mean_class(y_true, y_pred):
-    return K.max(y_true)
-
-
 class ExpandLayer(keras.layers.Layer):
 
     def __init__(self, axis=-1, **kwargs):
@@ -82,8 +74,8 @@ class Searchable:
     def __init__(self, params):
         if params is None:
             params = {
-                Searchable.PARAM_LR: 1e-3, Searchable.PARAM_BATCH: 200, Searchable.PARAM_REG: 0.001,
-                Searchable.PARAM_MOMENTUM: 0.01, Searchable.PARAM_OPT: keras.optimizers.sgd
+                Searchable.PARAM_LR: 1e-2, Searchable.PARAM_BATCH: 200, Searchable.PARAM_REG: 0.001,
+                Searchable.PARAM_MOMENTUM: 0.01, Searchable.PARAM_OPT: keras.optimizers.adam
             }
 
         self.lr = params[Searchable.PARAM_LR]
@@ -373,6 +365,9 @@ class ShallowTSCNN(SimpleMLP):
             self.do = params[Searchable.PARAM_DROPOUT]
             params[self.PARAM_OPT] = keras.optimizers.sgd
         else:
+            params = {}
+            params[self.PARAM_FILTER_TEMPORAL] = [4, 1]
+            params[self.PARAM_FILTER_SPATIAL] = [4, 4]
             self.lunits = [32, 16]
             self.do = 0
 

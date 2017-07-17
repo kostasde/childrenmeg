@@ -2,7 +2,6 @@ import pickle
 import numpy as np
 import utils
 from tqdm import tqdm
-from time import sleep
 
 from keras.preprocessing.image import Iterator as KerasDataloader
 
@@ -12,7 +11,6 @@ from abc import ABCMeta, abstractmethod
 from scipy.io import loadmat
 from scipy import interpolate
 from pathlib import Path
-from pandas import read_csv
 
 PREV_EVAL_FILE = 'preprocessed.pkl'
 
@@ -212,12 +210,13 @@ class TemporalAugmentation(SubjectFileLoader):
     DATASET_SAMPLE_RATE = 4000
 
     def __init__(self, loader: SubjectFileLoader, croplen=2.0, limits=(-0.5, 3.0), skipsrate=200,
-                 inflate=True, cropstyle='uniform',):
+                 inflate=True, cropstyle='none',):
         self.__class__ = type(loader.__class__.__name__, (self.__class__, loader.__class__), {})
         self.__dict__ = loader.__dict__
 
         self.loader = loader
         self.croplen = croplen
+        self.cropstyle = cropstyle
         self.skipsrate = skipsrate
         self.inflate = 1
         self.step = int(self.DATASET_SAMPLE_RATE // skipsrate)
@@ -243,11 +242,16 @@ class TemporalAugmentation(SubjectFileLoader):
 
         # select resampling offset and starting point
         if not self.evaluate:
-            offset = int(self.step*np.random.uniform())
-            starts = np.random.choice(self.starts, size=x.shape[0])
+            if self.cropstyle == 'uniform':
+                offset = int(self.step*np.random.uniform())
+                starts = np.random.choice(self.starts, size=x.shape[0])
+            else:
+                offset = 0
+                starts = np.zeros(x.shape[0])
             for i, s in enumerate(starts):
                 x_new[i, :] = \
-                    x[i, np.arange(s+offset, s+offset+int(self.croplen*self.DATASET_SAMPLE_RATE), self.step), :]
+                    x[i, np.arange(s+offset, s+offset+int(self.croplen*self.DATASET_SAMPLE_RATE),
+                                   self.step, dtype=np.int), :]
         else:
             # Just do the first croplen length for evaulation
             x_new = x[:, 0:x_new.shape[1], :]
@@ -650,21 +654,6 @@ class FusionAgeRangesDataset(FusionDataset, BaseDatasetAgeRanges):
 # Classes that are used for raw data rather than opensmile feature-sets
 class MEGRawRanges(MEGAgeRangesDataset):
     LOAD_SUFFIX = '.npy'
-
-    # Shouldn't need this section anymore
-    # CHANNELS = np.arange(36, 187, dtype=np.int)
-    #
-    # @staticmethod
-    # # @cached(MEGAgeRangesDataset.cache)
-    # def get_features(path_to_file):
-    #     # FIXME workaround for now, but using the csv seems shortsighted...
-    #     x = read_csv(str(path_to_file[0])).as_matrix()
-    #
-    #     if x.dtype.type is not np.float64:
-    #         print('Unable to read as float,', path_to_file[0])
-    #         return None
-    #
-    #     return x[:, MEGRawRanges.CHANNELS]
 
     # Do not cache the raw data
     @staticmethod
