@@ -14,7 +14,7 @@ DATASETS = {
     'Fusion': [FusionDataset, FusionAgeRangesDataset],
     'MNIST': [MNISTRegression, MNISTClassification],
     'MEGraw': [None, MEGRawRanges],
-    'MEGAugRaw': [None, MEGAugmentedRawRanges],
+    'MEGAugRaw': [None, MEGRawRangesTA],
     'FusionRaw': [None, FusionRawRanges]
 }
 WORKERS = 4
@@ -58,13 +58,15 @@ def train_and_test(model, dataset, args, callbacks=None):
     print('Train Model')
     if args.sanity_set:
         print('Using small subset of data')
-        s = dataset.sanityset(flatten=model.needsflatdata)
+        s = dataset.sanityset(flatten=model.NEEDS_FLAT)
+        model.fit_generator(s, np.ceil(s.n / s.batch_size), use_multiprocessing=True,
+                            workers=args.workers, epochs=args.epochs)
     else:
-        s = dataset.trainingset(flatten=model.needsflatdata)
-    e = dataset.evaluationset(flatten=model.needsflatdata)
-    model.fit_generator(s, np.ceil(s.n / s.batch_size),
-                        validation_data=e, validation_steps=np.ceil(e.n / e.batch_size),
-                        workers=args.workers, epochs=args.epochs, callbacks=callbacks)
+        s = dataset.trainingset(flatten=model.NEEDS_FLAT)
+        e = dataset.evaluationset(flatten=model.NEEDS_FLAT)
+        model.fit_generator(s, np.ceil(s.n / s.batch_size), use_multiprocessing=True,
+                            validation_data=e, validation_steps=np.ceil(e.n / e.batch_size),
+                            workers=args.workers, epochs=args.epochs, callbacks=callbacks)
 
     if args.test:
         print('Test performance')
@@ -112,10 +114,18 @@ if __name__ == '__main__':
     # Load the appropriate dataset, considering whether it is regression or classification
     dataset = DATASETS[args.dataset][MODELS[args.model].TYPE](args.toplevel, batchsize=args.batch_size)
 
+    def scheduler(ep):
+        new_lr = np.exp(-ep/3 - 1)
+        print('New LR:', new_lr)
+        return new_lr
+
     # Callbacks
-    callbacks = [keras.callbacks.ReduceLROnPlateau(verbose=1, patience=5, factor=0.5),
-                 keras.callbacks.EarlyStopping(min_delta=0.005, verbose=1, mode='min', patience=args.patience//2),
-                 keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min', patience=args.patience)]
+    callbacks = [keras.callbacks.ReduceLROnPlateau(verbose=1, patience=args.patience//10, factor=0.5, mode='min'),
+                 keras.callbacks.EarlyStopping(min_delta=0.005, verbose=1, mode='min', patience=args.patience//5),
+                 keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min', patience=args.patience),
+                 keras.callbacks.TensorBoard(histogram_freq=1, write_grads=True, write_images=True,
+                                             write_batch_performance=True)
+                 ]
     if args.save_model_params is not None:
         args.save_model_params = Path(args.save_model_params)
         callbacks.append(keras.callbacks.ModelCheckpoint(str(args.save_model_params / 'Fold-1-weights.hdf5'), verbose=1,

@@ -73,8 +73,8 @@ def hp_search(model_constructor, dataset_constructor, args):
         model.summary()
 
         try:
-            s = dataset.trainingset(flatten=model.needsflatdata)
-            e = dataset.evaluationset(flatten=model.needsflatdata)
+            s = dataset.trainingset(flatten=model.NEEDS_FLAT)
+            e = dataset.evaluationset(flatten=model.NEEDS_FLAT)
 
             model.fit_generator(s, np.ceil(s.n / s.batch_size),
                                 validation_data=e, validation_steps=np.ceil(e.n / e.batch_size),

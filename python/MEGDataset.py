@@ -4,6 +4,7 @@ import utils
 from tqdm import tqdm
 
 from keras.preprocessing.image import Iterator as KerasDataloader
+from keras.utils import normalize
 
 # from functools import lru_cache
 from cachetools import cached, RRCache
@@ -90,10 +91,6 @@ def parsesubjects(subjecttable):
     return subject_dictionary
 
 
-class CrossValidationComplete(Exception):
-    pass
-
-
 class SubjectFileLoader(KerasDataloader):
     """
     This implements a thread-safe loader based on the examples related to Keras ImageDataGenerator
@@ -131,8 +128,12 @@ class SubjectFileLoader(KerasDataloader):
 
         for i, row in enumerate(index_array):
             ep = tuple(str(f) for f in self.x[row, 1:])
-            temp = self.f_loader(ep)
-            if temp is None:
+            try:
+                temp = self.f_loader(ep)
+            # if temp is None:
+            except ValueError as e:
+                print('Error occurred in: {0}.\n{1}'.format(ep, e))
+                print('Skipping Datapoint...')
                 temp = np.full_like(x[i], np.nan)
             if self.flatten:
                 temp = temp.ravel()
@@ -210,7 +211,7 @@ class TemporalAugmentation(SubjectFileLoader):
     DATASET_SAMPLE_RATE = 4000
 
     def __init__(self, loader: SubjectFileLoader, croplen=2.0, limits=(-0.5, 3.0), skipsrate=200,
-                 inflate=True, cropstyle='none',):
+                 inflate=True, cropstyle='uniform',):
         self.__class__ = type(loader.__class__.__name__, (self.__class__, loader.__class__), {})
         self.__dict__ = loader.__dict__
 
@@ -238,7 +239,14 @@ class TemporalAugmentation(SubjectFileLoader):
     def _load(self, index_array, batch_size):
         x, y = self.loader._load(index_array, batch_size)
 
-        x_new = np.zeros((x.shape[0], int(self.croplen*self.skipsrate), *x.shape[2:]))
+        if len(x.shape) > 3:
+            raise TypeError('Cannot handle data with shape {0}, must be 2 or 3'.format(len(x.shape)))
+        if len(x.shape) == 2:
+            # Basically undoing operation that was done
+            # TODO see if this redundant operation can be removed
+            x = x.reshape((x.shape[0], -1, self.slice_length))
+
+        x_new = np.zeros((x.shape[0], int(self.croplen * self.skipsrate), *x.shape[2:]))
 
         # select resampling offset and starting point
         if not self.evaluate:
@@ -256,7 +264,12 @@ class TemporalAugmentation(SubjectFileLoader):
             # Just do the first croplen length for evaulation
             x_new = x[:, 0:x_new.shape[1], :]
 
-        return x_new, y
+        if self.loader.flatten:
+            x = x_new.reshape((x.shape[0], -1))
+        else:
+            x = x_new
+
+        return x, y
 
 
 class BaseDataset:
@@ -428,7 +441,7 @@ class BaseDataset:
     def current_leaveout(self):
         return self.leaveout
 
-    def sanityset(self, fold=5, batchsize=None, flatten=True):
+    def sanityset(self, fold=3, batchsize=None, flatten=True):
         """
         Provides a generator for a small subset of data to ensure that the model can train to it
         :return: 
@@ -436,9 +449,9 @@ class BaseDataset:
         if batchsize is None:
             batchsize = self.batchsize
 
-        return self.GENERATOR(np.array(self.buckets[fold]), self.toplevel, self.longest_vector, self.subject_hash,
-                              self.DATASET_TARGETS, self.slice_length, self.get_features, batchsize=batchsize,
-                              flatten=flatten)
+        return self.GENERATOR(np.array(self.buckets[fold][int(0*len(self.buckets[fold])):int(1*len(self.buckets[fold]))]),
+                              self.toplevel, self.longest_vector, self.subject_hash, self.DATASET_TARGETS,
+                              self.slice_length, self.get_features, batchsize=batchsize, flatten=flatten)
 
     def trainingset(self, batchsize=None, flatten=True):
         """
@@ -481,7 +494,7 @@ class BaseDataset:
                               self.slice_length, self.get_features, batchsize=batchsize, flatten=flatten, evaluate=True)
 
     def inputshape(self):
-        return self.longest_vector
+        return int(self.longest_vector // self.slice_length), self.slice_length
 
     def outputshape(self):
         return len(self.DATASET_TARGETS)
@@ -503,7 +516,7 @@ class BaseDatasetAgeRanges(BaseDataset, metaclass=ABCMeta):
 
         def _load(self, batch: np.ndarray, cols: list):
             x, y_float = super()._load(batch, cols)
-            y = np.zeros([batch.shape[0], len(BaseDatasetAgeRanges.AGE_RANGES)])
+            y = np.zeros([x.shape[0], len(BaseDatasetAgeRanges.AGE_RANGES)])
 
             age_col = BaseDataset.DATASET_TARGETS.index(HEADER_AGE)
             for i in range(len(BaseDatasetAgeRanges.AGE_RANGES)):
@@ -512,7 +525,7 @@ class BaseDatasetAgeRanges(BaseDataset, metaclass=ABCMeta):
                 y[np.where((y_float[:, age_col] >= low) & (y_float[:, age_col] < high))[0], i] = 1
 
             dims = tuple(i for i in range(1, len(x.shape)))
-            return x[~np.isnan(x).any(axis=dims)], y[~np.isnan(x).any(axis=dims)]
+            return x, y
 
     GENERATOR = AgeSubjectLoader
 
@@ -586,8 +599,8 @@ class FusionDataset(MEGDataset, AcousticDataset):
         m = np.load(str(path_to_file[0]))
         a = np.load(str(path_to_file[1]))
 
-        if megind is not None:
-            m = m[:, megind].squeeze()
+        # if megind is not None:
+        #     m = m[:, megind].squeeze()
 
         # m = zscore(m)
         # a = zscore(a)
@@ -655,6 +668,28 @@ class FusionAgeRangesDataset(FusionDataset, BaseDatasetAgeRanges):
 class MEGRawRanges(MEGAgeRangesDataset):
     LOAD_SUFFIX = '.npy'
 
+    class DownSamplingLoader(BaseDatasetAgeRanges.AgeSubjectLoader):
+        DOWNSAMPLE_FACTOR = 20
+
+        def _load(self, batch: np.ndarray, cols: list):
+            x, y = super()._load(batch, cols)
+            # Simple mean interpolation downsampling
+            if len(x.shape) > 3:
+                raise TypeError('Cannot handle data with shape {0}, must be 2 or 3'.format(len(x.shape)))
+            if len(x.shape) == 2:
+                # Basically undoing operation that was done
+                # TODO see if this redundant operation can be removed
+                x = x.reshape((x.shape[0], -1, self.slice_length))
+            elif len(x.shape) == 3:
+                raise NotImplementedError('Currently do not handle unflattened Raw Ranges')
+            pad = self.DOWNSAMPLE_FACTOR - x.shape[1] % self.DOWNSAMPLE_FACTOR
+            x = np.append(x, np.nan * np.zeros((x.shape[0], pad, self.slice_length)), axis=1)
+            x = np.reshape(x, (x.shape[0], -1, self.DOWNSAMPLE_FACTOR, self.slice_length))
+            x = np.nanmean(x, axis=-2).reshape((x.shape[0], -1))
+            return x, y
+
+    GENERATOR = DownSamplingLoader
+
     # Do not cache the raw data
     @staticmethod
     def get_features(path_to_file):
@@ -665,8 +700,8 @@ class MEGRawRanges(MEGAgeRangesDataset):
         return ['raw/MEG']
 
     def inputshape(self):
-        # FIXME should not have magic number 400, comes from assumed sample rate of 200
-        return 400, self.slice_length
+        # FIXME should not have magic number, comes from assumed sample rate of 200
+        return 700, self.slice_length
 
 
 class FusionRawRanges(FusionAgeRangesDataset):
@@ -679,10 +714,33 @@ class FusionRawRanges(FusionAgeRangesDataset):
         return np.concatenate((m, a))
 
 
-class MEGAugmentedRawRanges(MEGRawRanges):
+class MEGRawRangesTA(MEGRawRanges):
+
+    @staticmethod
+    def get_features(path_to_file):
+        m = MEGRawRanges.get_features(path_to_file)
+        return normalize(m)
+
     @staticmethod
     def GENERATOR(*args, **kwargs):
-        return TemporalAugmentation(MEGRawRanges.GENERATOR(*args, **kwargs))
+        return TemporalAugmentation(BaseDatasetAgeRanges.GENERATOR(*args, **kwargs))
+
+    def inputshape(self):
+        # FIXME should not have magic number, comes from assumed sample rate of 200
+        return 400, self.slice_length
+
+
+class MEGRawRangesSA(MEGRawRangesTA):
+    @staticmethod
+    def GENERATOR(*args, **kwargs):
+        return SpatialChannelAugmentation(BaseDatasetAgeRanges.GENERATOR(*args, **kwargs))
+
+
+class MEGRawRangesTSA(MEGRawRangesTA):
+    @staticmethod
+    def GENERATOR(*args, **kwargs):
+        return SpatialChannelAugmentation(MEGRawRangesTA.GENERATOR(*args, **kwargs))
+
 
 
 
