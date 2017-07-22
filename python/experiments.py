@@ -3,54 +3,11 @@ import re
 import argparse
 import argcomplete
 
-from models import MODELS
+# from models import MODELS
 from MEGDataset import *
 from MNISTDataset import *
 
-DATASETS = {
-    'MEG': [MEGDataset, MEGAgeRangesDataset],
-    'Audio': [AcousticDataset, AcousticAgeRangeDataset],
-    'Fusion': [FusionDataset, FusionAgeRangesDataset],
-    'MNIST': [MNISTRegression, MNISTClassification],
-    'MEGraw': [None, MEGRawRanges],
-    'MEGTAugRaw': [None, MEGRawRangesTA],
-    'MEGSAugRaw': [None, MEGRawRangesSA],
-    'FusionRaw': [None, FusionRawRanges]
-}
-WORKERS = 4
-MODEL_FILE = 'Model.hdf5'
-
-# Perform argparse early
-MODELS = {x.__name__: x for x in MODELS}
-
-parser = argparse.ArgumentParser(description='Main interface to train and run experiments from.')
-parser.add_argument('toplevel')
-parser.add_argument('model', choices=MODELS.keys())
-parser.add_argument('dataset', choices=DATASETS.keys())
-
-parser.add_argument('--epochs', default=50, type=int)
-parser.add_argument('--batch-size', default=100, type=int)
-parser.add_argument('--test', '-t', action='store_true', help='Actually test the best trained model for each fold')
-parser.add_argument('--patience', default=10, help='How many epochs of no change from which we determine there is no'
-                                                  'need to proceed and can stop early.', type=int)
-parser.add_argument('--cross-validation', '-x', action='store_true', help='Loop through all the folds of the '
-                                                                          'dataset to perform cross validation and'
-                                                                          'report the score')
-parser.add_argument('--hyper-params', '-y', default=None, help='File that contains the hyper-parameters to be used'
-                                                               'to train the model. Expecting a pickle file, or '
-                                                               'another file that can be interpreted by pickle',
-                    type=argparse.FileType('rb'))
-parser.add_argument('--sanity-set', '-s', action='store_true', help='Use the small dataset to ensure that training'
-                                                                   'data is going down.')
-parser.add_argument('--save-model-params', '-p', default=None, help='If provided, this saves the best model '
-                                                                    'parameters for each fold of an experiment in '
-                                                                    'the provided directory.')
-parser.add_argument('--workers', '-w', default=WORKERS, type=int, help='The number of threads to use to load data.')
-argcomplete.autocomplete(parser)
-args = parser.parse_args()
-
 from models import *
-MODELS = {x.__name__: x for x in MODELS}
 # np.random.seed(10)
 
 
@@ -108,8 +65,51 @@ def print_metrics(metrics):
         print('-' * 100)
     print('=' * 100)
 
+DATASETS = {
+        'MEG': [MEGDataset, MEGAgeRangesDataset],
+        'Audio': [AcousticDataset, AcousticAgeRangeDataset],
+        'Fusion': [FusionDataset, FusionAgeRangesDataset],
+        'MNIST': [MNISTRegression, MNISTClassification],
+        'MEGraw': [None, MEGRawRanges],
+        'MEGTAugRaw': [None, MEGRawRangesTA],
+        'MEGSAugRaw': [None, MEGRawRangesSA],
+        'FusionRaw': [None, FusionRawRanges]
+    }
 
 if __name__ == '__main__':
+
+    WORKERS = 4
+    MODEL_FILE = 'Model.hdf5'
+
+    # Perform argparse early
+    MODELS = {x.__name__: x for x in MODELS}
+
+    parser = argparse.ArgumentParser(description='Main interface to train and run experiments from.')
+    parser.add_argument('toplevel')
+    parser.add_argument('model', choices=MODELS.keys())
+    parser.add_argument('dataset', choices=DATASETS.keys())
+
+    parser.add_argument('--epochs', default=50, type=int)
+    parser.add_argument('--batch-size', default=100, type=int)
+    parser.add_argument('--test', '-t', action='store_true', help='Actually test the best trained model for each fold')
+    parser.add_argument('--patience', default=10,
+                        help='How many epochs of no change from which we determine there is no'
+                             'need to proceed and can stop early.', type=int)
+    parser.add_argument('--cross-validation', '-x', action='store_true', help='Loop through all the folds of the '
+                                                                              'dataset to perform cross validation and'
+                                                                              'report the score')
+    parser.add_argument('--hyper-params', '-y', default=None, help='File that contains the hyper-parameters to be used'
+                                                                   'to train the model. Expecting a pickle file, or '
+                                                                   'another file that can be interpreted by pickle',
+                        type=argparse.FileType('rb'))
+    parser.add_argument('--sanity-set', '-s', action='store_true', help='Use the small dataset to ensure that training'
+                                                                        'data is going down.')
+    parser.add_argument('--save-model-params', '-p', default=None, help='If provided, this saves the best model '
+                                                                        'parameters for each fold of an experiment in '
+                                                                        'the provided directory.')
+    parser.add_argument('--workers', '-w', default=WORKERS, type=int, help='The number of threads to use to load data.')
+    argcomplete.autocomplete(parser)
+    args = parser.parse_args()
 
     # Load the appropriate dataset, considering whether it is regression or classification
     dataset = DATASETS[args.dataset][MODELS[args.model].TYPE](args.toplevel, batchsize=args.batch_size)

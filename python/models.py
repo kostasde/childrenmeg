@@ -241,7 +241,7 @@ class SimpleMLP(Sequential, Searchable):
             Searchable.PARAM_MOMENTUM: hp.loguniform(Searchable.PARAM_MOMENTUM, -7, 0),
             Searchable.PARAM_BATCH: hp.quniform(Searchable.PARAM_BATCH, 1, 100, 5),
             Searchable.PARAM_DROPOUT: hp.normal(Searchable.PARAM_DROPOUT, 0.6, 0.05),
-            Searchable.PARAM_REG: hp.uniform(Searchable.PARAM_REG, 0, 1e-4),
+            Searchable.PARAM_REG: hp.loguniform(Searchable.PARAM_REG, -4, 0),
             Searchable.PARAM_LAYERS: hp.choice(Searchable.PARAM_LAYERS, [
                 [hp.quniform('1layer1', 50, 1000, 10)],
                 [hp.quniform('2layer1', 50, 700, 10), hp.quniform('2layer2', 20, 100, 10)],
@@ -391,12 +391,13 @@ class ShallowTSCNN(SimpleMLP):
         if params is not None:
             self.lunits = self.parse_layers(params)
             self.do = params[Searchable.PARAM_DROPOUT]
-            params[self.PARAM_OPT] = keras.optimizers.sgd
+            self.temporal = [int(params[self.PARAM_FILTER_TEMPORAL])]
+            self.spatial = [int(params[self.PARAM_FILTER_SPATIAL])]
         else:
             params = {}
-            params[self.PARAM_FILTER_TEMPORAL] = 200
-            params[self.PARAM_FILTER_SPATIAL] = 16
-            self.lunits = [8, 8]
+            self.temporal = 200
+            self.spatial = 16
+            self.lunits = [8, 8, 8]
             self.do = 0.4
         return params
 
@@ -406,8 +407,9 @@ class ShallowTSCNN(SimpleMLP):
         # Build layers
         # Temporal Filtering
         self.add(keras.layers.Conv1D(
-            self.lunits[0], 128, padding='causal', activation=activation, input_shape=inputshape)
-        )
+            self.lunits[0], self.temporal, padding='causal', activation=activation, input_shape=inputshape,
+            # activity_regularizer=keras.regularizers.l2(self.reg)
+        ))
         self.add(keras.layers.MaxPool1D())
         # self.add(ExpandLayer(input_shape=inputshape))
         self.add(keras.layers.normalization.BatchNormalization())
@@ -416,7 +418,8 @@ class ShallowTSCNN(SimpleMLP):
         # Spatial Filtering
         # self.add(keras.layers.Permute((2, 1)))
         self.add(keras.layers.Conv1D(
-            self.lunits[1], 16, padding='valid', activation=activation
+            self.lunits[1], self.spatial, padding='valid', activation=activation,
+            # activity_regularizer=keras.regularizers.l2(self.reg)
         ))
 
         # Classifier
@@ -424,12 +427,11 @@ class ShallowTSCNN(SimpleMLP):
         self.add(keras.layers.Flatten())
         self.add(keras.layers.normalization.BatchNormalization())
         self.add(keras.layers.Dropout(self.do))
-        self.add(keras.layers.Dense(128, activation=activation))
+        self.add(keras.layers.Dense(
+            self.lunits[2], activation=activation, activity_regularizer=keras.regularizers.l2(self.reg))
+        )
         self.add(keras.layers.Dropout(self.do))
         self.add(keras.layers.Dense(outputshape, activation='softmax', name='OUT'))
-
-        # Consider using SVM output layer
-        # self.add(keras.layers.Dense(outputlength, activation='softmax', kernel_regularizer=keras.regularizers.l2(0.01)))
 
     NEEDS_FLAT = False
 
@@ -440,7 +442,11 @@ class ShallowTSCNN(SimpleMLP):
     def search_space():
         cnn_space = SimpleMLP.search_space()
         cnn_space[Searchable.PARAM_BATCH] = hp.quniform(Searchable.PARAM_BATCH, 1, 50, 5)
-        cnn_space[Searchable.PARAM_LAYERS] = [hp.quniform('2layer1', 2, 64, 10), hp.quniform('2layer2', 2, 64, 10)]
+        cnn_space[Searchable.PARAM_LAYERS] = [
+            hp.quniform('3layer1', 16, 128, 2),
+            hp.quniform('3layer2', 2, 64, 2),
+            hp.quniform('3layer3', 20, 100, 10)
+        ]
         cnn_space[ShallowTSCNN.PARAM_FILTER_TEMPORAL] = hp.quniform('_t', 1, 200, 10)
         cnn_space[ShallowTSCNN.PARAM_FILTER_SPATIAL] = hp.quniform('_x', 1, 50, 5)
         return cnn_space

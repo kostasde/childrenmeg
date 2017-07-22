@@ -669,7 +669,7 @@ class MEGRawRanges(MEGAgeRangesDataset):
     LOAD_SUFFIX = '.npy'
 
     class DownSamplingLoader(BaseDatasetAgeRanges.AgeSubjectLoader):
-        DOWNSAMPLE_FACTOR = 1
+        DOWNSAMPLE_FACTOR = 20
 
         def _load(self, batch: np.ndarray, cols: list):
             x, y = super(MEGRawRanges.DownSamplingLoader, self)._load(batch, cols)
@@ -703,7 +703,7 @@ class MEGRawRanges(MEGAgeRangesDataset):
 
     def inputshape(self):
         # FIXME should not have magic number, comes from assumed sample rate of 200
-        return 13999, self.slice_length
+        return 700, self.slice_length
 
 
 class FusionRawRanges(FusionAgeRangesDataset):

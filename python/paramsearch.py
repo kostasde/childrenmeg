@@ -48,9 +48,10 @@ def hp_search(model_constructor, dataset_constructor, args):
     trials_file = Path(args.save_trials)
 
     callbacks = [
-        keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min', patience=20),
-        keras.callbacks.EarlyStopping(min_delta=0.001, verbose=1, mode='min', patience=10),
-        keras.callbacks.ReduceLROnPlateau(min_lr=1e-12, verbose=1, epsilon=0.05, patience=5, factor=0.5),
+        keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min', patience=args.patience),
+        keras.callbacks.EarlyStopping(min_delta=0.001, verbose=1, mode='min', patience=args.patience//2),
+        keras.callbacks.ReduceLROnPlateau(verbose=1, epsilon=0.05, patience=args.patience//10, factor=0.5),
+        keras.callbacks.TerminateOnNaN(),
         SkipOnKeypress()
     ]
 
@@ -112,6 +113,9 @@ if __name__ == '__main__':
     parser.add_argument('dataset', choices=DATASETS.keys())
 
     parser.add_argument('--epochs', default=50, type=int, help='Number of epochs to run each trial')
+    parser.add_argument('--patience', default=10,
+                        help='How many epochs of no change from which we determine there is no'
+                             'need to proceed and can stop early.', type=int)
     parser.add_argument('--max-evals', default=10, type=int, help='Number of search trials to run')
     parser.add_argument('--save-best', '-p', help='File to save the best model parameters to.',
                         type=argparse.FileType('wb'))
