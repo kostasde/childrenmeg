@@ -210,7 +210,7 @@ def chan2spatial(chanlocfile, coordsystem='sphere', channels=(range(36, 187)), g
     :return: Matrix to apply to incoming tensors of the form [samples x ... x channels] into
     [samples x ... x X_loc x Y_loc]
     """
-    if type(chanlocfile) is not Path:
+    if not isinstance(chanlocfile, Path):
         chanlocfile = Path(chanlocfile)
 
     if not chanlocfile.exists():

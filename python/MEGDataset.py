@@ -4,7 +4,6 @@ import utils
 from tqdm import tqdm
 
 from keras.preprocessing.image import Iterator as KerasDataloader
-from keras.utils import normalize
 
 # from functools import lru_cache
 from cachetools import cached, RRCache
@@ -164,7 +163,7 @@ class SpatialChannelAugmentation(SubjectFileLoader):
             return cls.LOCATION_LOOKUP[subject]
         else:
             print('Looking up channels file for subject:', subject)
-            if type(toplevel) is not Path:
+            if not isinstance(toplevel, Path):
                 toplevel = Path(toplevel)
             l = [x for x in toplevel.glob('**/' + subject + '/') if x.is_dir()]
             if len(l) > 1:
@@ -173,7 +172,7 @@ class SpatialChannelAugmentation(SubjectFileLoader):
                     print(5*' ', i)
                 print('Using, ', l[0])
 
-            cls.LOCATION_LOOKUP[subject] = utils.chan2spatial(toplevel / cls.CHAN_LOCS_FILE)
+            cls.LOCATION_LOOKUP[subject] = utils.chan2spatial((l[0] / cls.CHAN_LOCS_FILE))
             return cls.LOCATION_LOOKUP[subject]
 
     def __init__(self, loader: SubjectFileLoader, cov=1e-2*np.eye(2), gridsize=100):
@@ -204,6 +203,7 @@ class SpatialChannelAugmentation(SubjectFileLoader):
             for j in range(x.shape[1]):
                 x_new[i, j, :] = interpolate.griddata(locs, x[i, j, :], (grid_x, grid_y),
                                                       method='nearest', rescale=True)
+        return x_new, y
 
 
 class TemporalAugmentation(SubjectFileLoader):
@@ -669,10 +669,12 @@ class MEGRawRanges(MEGAgeRangesDataset):
     LOAD_SUFFIX = '.npy'
 
     class DownSamplingLoader(BaseDatasetAgeRanges.AgeSubjectLoader):
-        DOWNSAMPLE_FACTOR = 20
+        DOWNSAMPLE_FACTOR = 1
 
         def _load(self, batch: np.ndarray, cols: list):
-            x, y = super()._load(batch, cols)
+            x, y = super(MEGRawRanges.DownSamplingLoader, self)._load(batch, cols)
+            if self.DOWNSAMPLE_FACTOR <= 1:
+                return x, y
             # Simple mean interpolation downsampling
             if len(x.shape) > 3:
                 raise TypeError('Cannot handle data with shape {0}, must be 2 or 3'.format(len(x.shape)))
@@ -680,12 +682,12 @@ class MEGRawRanges(MEGAgeRangesDataset):
                 # Basically undoing operation that was done
                 # TODO see if this redundant operation can be removed
                 x = x.reshape((x.shape[0], -1, self.slice_length))
-            elif len(x.shape) == 3:
-                raise NotImplementedError('Currently do not handle unflattened Raw Ranges')
             pad = self.DOWNSAMPLE_FACTOR - x.shape[1] % self.DOWNSAMPLE_FACTOR
             x = np.append(x, np.nan * np.zeros((x.shape[0], pad, self.slice_length)), axis=1)
             x = np.reshape(x, (x.shape[0], -1, self.DOWNSAMPLE_FACTOR, self.slice_length))
-            x = np.nanmean(x, axis=-2).reshape((x.shape[0], -1))
+            x = np.nanmean(x, axis=-2)
+            if len(x.shape) == 2:
+                x = np.reshape(x, (x.shape[0], -1))
             return x, y
 
     GENERATOR = DownSamplingLoader
@@ -701,7 +703,7 @@ class MEGRawRanges(MEGAgeRangesDataset):
 
     def inputshape(self):
         # FIXME should not have magic number, comes from assumed sample rate of 200
-        return 700, self.slice_length
+        return 13999, self.slice_length
 
 
 class FusionRawRanges(FusionAgeRangesDataset):
@@ -717,11 +719,6 @@ class FusionRawRanges(FusionAgeRangesDataset):
 class MEGRawRangesTA(MEGRawRanges):
 
     @staticmethod
-    def get_features(path_to_file):
-        m = MEGRawRanges.get_features(path_to_file)
-        return normalize(m)
-
-    @staticmethod
     def GENERATOR(*args, **kwargs):
         return TemporalAugmentation(BaseDatasetAgeRanges.GENERATOR(*args, **kwargs))
 
@@ -730,10 +727,18 @@ class MEGRawRangesTA(MEGRawRanges):
         return 400, self.slice_length
 
 
-class MEGRawRangesSA(MEGRawRangesTA):
+class MEGRawRangesSA(MEGRawRanges):
+
+    GRID_SIZE = 100
+
     @staticmethod
     def GENERATOR(*args, **kwargs):
-        return SpatialChannelAugmentation(BaseDatasetAgeRanges.GENERATOR(*args, **kwargs))
+        return SpatialChannelAugmentation(MEGRawRanges.GENERATOR(*args, **kwargs),
+                                          gridsize=MEGRawRangesSA.GRID_SIZE)
+
+    def inputshape(self):
+        # FIXME should not have magic number, comes from assumed sample rate of 200
+        return 700, self.GRID_SIZE, self.GRID_SIZE
 
 
 class MEGRawRangesTSA(MEGRawRangesTA):

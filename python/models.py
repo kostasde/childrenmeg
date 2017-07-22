@@ -9,6 +9,32 @@ TYPE_REGRESSION = 0
 TYPE_CLASSIFICATION = 1
 
 
+def mean_true_positive(y_true, y_pred):
+    return K.mean(K.round(K.clip(y_true * y_pred, 0, 1)))
+
+
+def mean_false_positive(y_true, y_pred):
+    return K.mean(K.round(K.clip((1 - y_true) * y_pred, 0, 1)))
+
+
+def mean_false_negative(y_true, y_pred):
+    # Warning: may not be ideal if not using sigmoid/something that explicitly ranges 0->1
+    return K.mean(K.round(K.clip((1 - y_pred) * y_true, 0, 1)))
+
+
+def mean_true_negative(y_true, y_pred):
+    return K.mean(K.round(K.clip((1 - y_true) * (1 - y_pred), 0, 1)))
+
+
+def prf1(tp, fp, tn, fn):
+    precision = tp/(tp+fp)
+    recall = tp/(tp, fn)
+    return precision, recall, precision*recall/(precision * recall)
+
+f1_stats = []
+# f1_stats = [mean_true_positive, mean_true_negative, mean_false_negative, mean_false_positive]
+
+
 class ExpandLayer(keras.layers.Layer):
 
     def __init__(self, axis=-1, **kwargs):
@@ -72,7 +98,7 @@ class Searchable:
     def __init__(self, params):
         if params is None:
             params = {
-                Searchable.PARAM_LR: 1e-5, Searchable.PARAM_BATCH: 100, Searchable.PARAM_REG: 0.01,
+                Searchable.PARAM_LR: 1e-3, Searchable.PARAM_BATCH: 100, Searchable.PARAM_REG: 0.01,
                 Searchable.PARAM_MOMENTUM: 0.1, Searchable.PARAM_OPT: keras.optimizers.adam
             }
 
@@ -138,7 +164,8 @@ class LogisticRegression(Sequential, Searchable):
 
     def compile(self, **kwargs):
         super().compile(optimizer=self.opt_param(), loss=keras.losses.categorical_crossentropy,
-                        metrics=[keras.metrics.categorical_crossentropy, keras.metrics.categorical_accuracy], **kwargs)
+                        metrics=[keras.metrics.categorical_crossentropy, keras.metrics.categorical_accuracy, *f1_stats],
+                        **kwargs)
 
     @staticmethod
     def search_space():
@@ -204,7 +231,7 @@ class SimpleMLP(Sequential, Searchable):
 
     def compile(self, **kwargs):
         super().compile(optimizer=self.opt_param(), loss='categorical_crossentropy',
-                        metrics=[keras.metrics.categorical_accuracy], **kwargs)
+                        metrics=[keras.metrics.categorical_accuracy, *f1_stats], **kwargs)
 
     @staticmethod
     def search_space():
@@ -367,42 +394,38 @@ class ShallowTSCNN(SimpleMLP):
             params[self.PARAM_OPT] = keras.optimizers.sgd
         else:
             params = {}
-            params[self.PARAM_FILTER_TEMPORAL] = [200, 1]
-            params[self.PARAM_FILTER_SPATIAL] = [16, 64]
+            params[self.PARAM_FILTER_TEMPORAL] = 200
+            params[self.PARAM_FILTER_SPATIAL] = 16
             self.lunits = [8, 8]
-            self.do = 0.6
+            self.do = 0.4
         return params
 
-    def __init__(self, inputshape, outputshape, activation=keras.activations.relu, params=None):
+    def __init__(self, inputshape, outputshape, activation=keras.activations.elu, params=None):
         params = self.setupcnnparams(params)
 
         # Build layers
         # Temporal Filtering
-        # self.add(keras.layers.Conv1D(
-        #     40, 25, padding='causal', activation=activation, input_shape=inputshape)
-        # )
-        self.add(ExpandLayer(input_shape=inputshape))
-        self.add(keras.layers.normalization.BatchNormalization())
-        self.add(keras.layers.Conv2D(
-            self.lunits[0], [int(x) for x in params[self.PARAM_FILTER_TEMPORAL]],
-            activation=activation, data_format='channels_last'
-        ))
-        self.add(keras.layers.MaxPool2D(pool_size=(8, 1)))
+        self.add(keras.layers.Conv1D(
+            self.lunits[0], 128, padding='causal', activation=activation, input_shape=inputshape)
+        )
+        self.add(keras.layers.MaxPool1D())
+        # self.add(ExpandLayer(input_shape=inputshape))
         self.add(keras.layers.normalization.BatchNormalization())
         self.add(keras.layers.Dropout(self.do))
 
         # Spatial Filtering
-        self.add(keras.layers.Conv2D(
-            self.lunits[1], [int(x) for x in params[self.PARAM_FILTER_SPATIAL]], activation=activation, data_format='channels_last'
+        # self.add(keras.layers.Permute((2, 1)))
+        self.add(keras.layers.Conv1D(
+            self.lunits[1], 16, padding='valid', activation=activation
         ))
 
         # Classifier
-        self.add(keras.layers.MaxPooling2D())
         # self.add(keras.layers.MaxPool1D())
         self.add(keras.layers.Flatten())
         self.add(keras.layers.normalization.BatchNormalization())
         self.add(keras.layers.Dropout(self.do))
-        # self.add(keras.layers.Dense(self.lu))
+        self.add(keras.layers.Dense(128, activation=activation))
+        self.add(keras.layers.Dropout(self.do))
         self.add(keras.layers.Dense(outputshape, activation='softmax', name='OUT'))
 
         # Consider using SVM output layer
@@ -418,34 +441,33 @@ class ShallowTSCNN(SimpleMLP):
         cnn_space = SimpleMLP.search_space()
         cnn_space[Searchable.PARAM_BATCH] = hp.quniform(Searchable.PARAM_BATCH, 1, 50, 5)
         cnn_space[Searchable.PARAM_LAYERS] = [hp.quniform('2layer1', 2, 64, 10), hp.quniform('2layer2', 2, 64, 10)]
-        cnn_space[ShallowTSCNN.PARAM_FILTER_TEMPORAL] = [hp.quniform('_t', 1, 100, 10), 1]
-        cnn_space[ShallowTSCNN.PARAM_FILTER_SPATIAL] = [hp.quniform('_x', 1, 100, 10), hp.quniform('_y', 1, 100, 10)]
+        cnn_space[ShallowTSCNN.PARAM_FILTER_TEMPORAL] = hp.quniform('_t', 1, 200, 10)
+        cnn_space[ShallowTSCNN.PARAM_FILTER_SPATIAL] = hp.quniform('_x', 1, 50, 5)
         return cnn_space
 
 
-class ShallowT2DSCNN(ShallowTSCNN):
+class Shallow2DSTCNN(ShallowTSCNN):
 
     def __init__(self, inputshape, outputshape, activation=keras.activations.relu, params=None):
         params = self.setupcnnparams(params)
 
-        self.add(ExpandLayer(input_shape=inputshape))
-        self.add(keras.layers.normalization.BatchNormalization())
+        # Start with 2D Spatial filtering
         self.add(keras.layers.Conv2D(
-            self.lunits[0], [int(x) for x in params[self.PARAM_FILTER_TEMPORAL]],
-            activation=activation, data_format='channels_last'
+            64, (16, 16),
+            activation=activation, data_format='channels_first', input_shape=inputshape
         ))
-        self.add(keras.layers.MaxPool2D(pool_size=(1, 4)))
         self.add(keras.layers.normalization.BatchNormalization())
+        self.add(keras.layers.MaxPool2D(pool_size=(4, 4), data_format='channels_first'))
         self.add(keras.layers.Dropout(self.do))
 
-        # Spatial Filtering
+        # Another Level
         self.add(keras.layers.Conv2D(
-            self.lunits[1], [int(x) for x in params[self.PARAM_FILTER_SPATIAL]], activation=activation,
-            data_format='channels_last'
+            32, (4, 4), activation=activation,
+            data_format='channels_first'
         ))
 
         # Classifier
-        self.add(keras.layers.MaxPooling2D())
+        self.add(keras.layers.MaxPooling2D(data_format='channels_first'))
         # self.add(keras.layers.MaxPool1D())
         self.add(keras.layers.Flatten())
         self.add(keras.layers.normalization.BatchNormalization())
@@ -453,4 +475,28 @@ class ShallowT2DSCNN(ShallowTSCNN):
         self.add(keras.layers.Dense(outputshape, activation='softmax', name='OUT'))
 
 
-MODELS = [LinearRegression, LogisticRegression, LinearSVM, SimpleMLP, StackedAutoEncoder, ShallowTSCNN]
+class SimpleGRU(SimpleMLP):
+
+    NEEDS_FLAT = False
+
+    def __init__(self, inputshape, outputshape, activation=keras.activations.elu, params=None):
+        Searchable.__init__(self, params=params)
+        Sequential.__init__(self, name=self.__class__.__name__)
+
+        self.add(keras.layers.GRU(16, activation=activation, dropout=0.4,
+                                  recurrent_dropout=0.4, return_sequences=True, input_shape=inputshape))
+        self.add(keras.layers.BatchNormalization())
+        self.add(keras.layers.Flatten())
+        self.add(keras.layers.Dense(outputshape, activation='softmax', name='OUT'))
+
+
+MODELS = [
+    # Basic Regression
+    LinearRegression,
+    # Basic Classification
+    LogisticRegression, LinearSVM, SimpleMLP, StackedAutoEncoder,
+    # CNN Based
+    ShallowTSCNN, Shallow2DSTCNN,
+    # RNN Based
+    SimpleGRU
+]

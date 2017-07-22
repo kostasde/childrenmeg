@@ -7,6 +7,11 @@ from tqdm import tqdm
 from pandas import read_csv
 
 
+def apply_to_all(toplevel: Path, featuretypes: dict, f, *args, **kwargs):
+    subjects = [x for x in toplevel.iterdir() if x.is_dir() and 'CC' in x.stem]
+    for subject in tqdm(subjects, unit='subjects', unit_scale=True):
+        pass
+
 def handle_open_smile(args):
     meg_config = Path(args.meg_config)
     audio_config = Path(args.audio_config)

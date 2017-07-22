@@ -2,7 +2,6 @@
 import re
 import argparse
 import argcomplete
-import pickle
 
 from models import MODELS
 from MEGDataset import *
@@ -14,7 +13,8 @@ DATASETS = {
     'Fusion': [FusionDataset, FusionAgeRangesDataset],
     'MNIST': [MNISTRegression, MNISTClassification],
     'MEGraw': [None, MEGRawRanges],
-    'MEGAugRaw': [None, MEGRawRangesTA],
+    'MEGTAugRaw': [None, MEGRawRangesTA],
+    'MEGSAugRaw': [None, MEGRawRangesSA],
     'FusionRaw': [None, FusionRawRanges]
 }
 WORKERS = 4
@@ -31,7 +31,7 @@ parser.add_argument('dataset', choices=DATASETS.keys())
 parser.add_argument('--epochs', default=50, type=int)
 parser.add_argument('--batch-size', default=100, type=int)
 parser.add_argument('--test', '-t', action='store_true', help='Actually test the best trained model for each fold')
-parser.add_argument('--patience', default=50, help='How many epochs of no change from which we determine there is no'
+parser.add_argument('--patience', default=10, help='How many epochs of no change from which we determine there is no'
                                                   'need to proceed and can stop early.', type=int)
 parser.add_argument('--cross-validation', '-x', action='store_true', help='Loop through all the folds of the '
                                                                           'dataset to perform cross validation and'
@@ -59,12 +59,12 @@ def train_and_test(model, dataset, args, callbacks=None):
     if args.sanity_set:
         print('Using small subset of data')
         s = dataset.sanityset(flatten=model.NEEDS_FLAT)
-        model.fit_generator(s, np.ceil(s.n / s.batch_size), use_multiprocessing=True,
+        model.fit_generator(s, np.ceil(s.n / s.batch_size), #use_multiprocessing=True,
                             workers=args.workers, epochs=args.epochs)
     else:
         s = dataset.trainingset(flatten=model.NEEDS_FLAT)
         e = dataset.evaluationset(flatten=model.NEEDS_FLAT)
-        model.fit_generator(s, np.ceil(s.n / s.batch_size), use_multiprocessing=True,
+        model.fit_generator(s, np.ceil(s.n / s.batch_size), #use_multiprocessing=True,
                             validation_data=e, validation_steps=np.ceil(e.n / e.batch_size),
                             workers=args.workers, epochs=args.epochs, callbacks=callbacks)
 
@@ -113,11 +113,6 @@ if __name__ == '__main__':
 
     # Load the appropriate dataset, considering whether it is regression or classification
     dataset = DATASETS[args.dataset][MODELS[args.model].TYPE](args.toplevel, batchsize=args.batch_size)
-
-    def scheduler(ep):
-        new_lr = np.exp(-ep/3 - 1)
-        print('New LR:', new_lr)
-        return new_lr
 
     # Callbacks
     callbacks = [keras.callbacks.ReduceLROnPlateau(verbose=1, patience=args.patience//10, factor=0.5, mode='min'),
