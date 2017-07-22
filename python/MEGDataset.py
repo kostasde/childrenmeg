@@ -3,10 +3,12 @@ import numpy as np
 import utils
 from tqdm import tqdm
 
-from keras.preprocessing.image import Iterator as KerasDataloader
+from keras.preprocessing.image import Iterator as KerasDataLoader
+from keras.utils import Sequence
 
 # from functools import lru_cache
 from cachetools import cached, RRCache
+from threading import Lock
 from abc import ABCMeta, abstractmethod
 from scipy.io import loadmat
 from scipy import interpolate
@@ -90,7 +92,7 @@ def parsesubjects(subjecttable):
     return subject_dictionary
 
 
-class SubjectFileLoader(KerasDataloader):
+class SubjectFileLoader(Sequence):
     """
     This implements a thread-safe loader based on the examples related to Keras ImageDataGenerator
 
@@ -100,6 +102,7 @@ class SubjectFileLoader(KerasDataloader):
     def __init__(self, x, toplevel, longest_vector, subject_hash, target_cols, slice_length, f_loader, batchsize=-1,
                  flatten=True, shuffle=True, seed=None, evaluate=False):
 
+        Sequence.__init__(self)
         self.x = np.asarray(x)
         self.toplevel = toplevel
         self.longest_vector = longest_vector
@@ -113,7 +116,13 @@ class SubjectFileLoader(KerasDataloader):
         if batchsize < 0:
             batchsize = x.shape[0]
 
-        super().__init__(x.shape[0], batchsize, shuffle=shuffle, seed=seed)
+        self.shuffle = shuffle
+        self.seed = seed
+        self.batch_size = batchsize
+        self.n = self.x.shape[0]
+
+    def __len__(self):
+        return int(np.ceil(self.n / self.batch_size))
 
     def _load(self, index_array, batch_size):
         if self.flatten:
@@ -144,11 +153,13 @@ class SubjectFileLoader(KerasDataloader):
         dims = tuple(i for i in range(1, len(x.shape)))
         return x[~np.isnan(x).any(axis=dims)], y[~np.isnan(x).any(axis=dims)]
 
-    def __next__(self):
-        with self.lock:
-            index_array, current_index, current_batch_size = next(self.index_generator)
-
-        return self._load(index_array, current_batch_size)
+    def __getitem__(self, index):
+        index *= self.batch_size
+        if index + self.batch_size > self.n:
+            current_batch_size = self.n - index
+        else:
+            current_batch_size = self.batch_size
+        return self._load(list(range(index, index+current_batch_size)), current_batch_size)
 
 
 class SpatialChannelAugmentation(SubjectFileLoader):
@@ -500,6 +511,22 @@ class BaseDataset:
         return len(self.DATASET_TARGETS)
 
 
+class AgeSubjectLoader(SubjectFileLoader):
+
+    def _load(self, batch: np.ndarray, cols: list):
+        x, y_float = super()._load(batch, cols)
+        y = np.zeros([x.shape[0], len(BaseDatasetAgeRanges.AGE_RANGES)])
+
+        age_col = BaseDataset.DATASET_TARGETS.index(HEADER_AGE)
+        for i in range(len(BaseDatasetAgeRanges.AGE_RANGES)):
+            low = BaseDatasetAgeRanges.AGE_RANGES[i][0]
+            high = BaseDatasetAgeRanges.AGE_RANGES[i][1]
+            y[np.where((y_float[:, age_col] >= low) & (y_float[:, age_col] < high))[0], i] = 1
+
+        # dims = tuple(i for i in range(1, len(x.shape)))
+        return x, y
+
+
 class BaseDatasetAgeRanges(BaseDataset, metaclass=ABCMeta):
 
     # Age Ranges, lower inclusive, upper exclusive
@@ -511,21 +538,6 @@ class BaseDatasetAgeRanges(BaseDataset, metaclass=ABCMeta):
     AGE_14_15 = (14, 16)
     AGE_16_18 = (16, 19)
     AGE_RANGES = [AGE_4_5, AGE_6_7, AGE_8_9, AGE_10_11, AGE_12_13, AGE_14_15, AGE_16_18]
-
-    class AgeSubjectLoader(SubjectFileLoader):
-
-        def _load(self, batch: np.ndarray, cols: list):
-            x, y_float = super()._load(batch, cols)
-            y = np.zeros([x.shape[0], len(BaseDatasetAgeRanges.AGE_RANGES)])
-
-            age_col = BaseDataset.DATASET_TARGETS.index(HEADER_AGE)
-            for i in range(len(BaseDatasetAgeRanges.AGE_RANGES)):
-                low = BaseDatasetAgeRanges.AGE_RANGES[i][0]
-                high = BaseDatasetAgeRanges.AGE_RANGES[i][1]
-                y[np.where((y_float[:, age_col] >= low) & (y_float[:, age_col] < high))[0], i] = 1
-
-            dims = tuple(i for i in range(1, len(x.shape)))
-            return x, y
 
     GENERATOR = AgeSubjectLoader
 
@@ -664,31 +676,32 @@ class FusionAgeRangesDataset(FusionDataset, BaseDatasetAgeRanges):
     pass
 
 
+class DownSamplingLoader(AgeSubjectLoader):
+    DOWNSAMPLE_FACTOR = 1
+
+    def _load(self, batch: np.ndarray, cols: list):
+        x, y = super(MEGRawRanges.DownSamplingLoader, self)._load(batch, cols)
+        if self.DOWNSAMPLE_FACTOR <= 1:
+            return x, y
+        # Simple mean interpolation downsampling
+        if len(x.shape) > 3:
+            raise TypeError('Cannot handle data with shape {0}, must be 2 or 3'.format(len(x.shape)))
+        if len(x.shape) == 2:
+            # Basically undoing operation that was done
+            # TODO see if this redundant operation can be removed
+            x = x.reshape((x.shape[0], -1, self.slice_length))
+        pad = self.DOWNSAMPLE_FACTOR - x.shape[1] % self.DOWNSAMPLE_FACTOR
+        x = np.append(x, np.nan * np.zeros((x.shape[0], pad, self.slice_length)), axis=1)
+        x = np.reshape(x, (x.shape[0], -1, self.DOWNSAMPLE_FACTOR, self.slice_length))
+        x = np.nanmean(x, axis=-2)
+        if len(x.shape) == 2:
+            x = np.reshape(x, (x.shape[0], -1))
+        return x, y
+
+
 # Classes that are used for raw data rather than opensmile feature-sets
 class MEGRawRanges(MEGAgeRangesDataset):
     LOAD_SUFFIX = '.npy'
-
-    class DownSamplingLoader(BaseDatasetAgeRanges.AgeSubjectLoader):
-        DOWNSAMPLE_FACTOR = 1
-
-        def _load(self, batch: np.ndarray, cols: list):
-            x, y = super(MEGRawRanges.DownSamplingLoader, self)._load(batch, cols)
-            if self.DOWNSAMPLE_FACTOR <= 1:
-                return x, y
-            # Simple mean interpolation downsampling
-            if len(x.shape) > 3:
-                raise TypeError('Cannot handle data with shape {0}, must be 2 or 3'.format(len(x.shape)))
-            if len(x.shape) == 2:
-                # Basically undoing operation that was done
-                # TODO see if this redundant operation can be removed
-                x = x.reshape((x.shape[0], -1, self.slice_length))
-            pad = self.DOWNSAMPLE_FACTOR - x.shape[1] % self.DOWNSAMPLE_FACTOR
-            x = np.append(x, np.nan * np.zeros((x.shape[0], pad, self.slice_length)), axis=1)
-            x = np.reshape(x, (x.shape[0], -1, self.DOWNSAMPLE_FACTOR, self.slice_length))
-            x = np.nanmean(x, axis=-2)
-            if len(x.shape) == 2:
-                x = np.reshape(x, (x.shape[0], -1))
-            return x, y
 
     GENERATOR = DownSamplingLoader
 

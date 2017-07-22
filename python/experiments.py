@@ -59,7 +59,7 @@ def train_and_test(model, dataset, args, callbacks=None):
     if args.sanity_set:
         print('Using small subset of data')
         s = dataset.sanityset(flatten=model.NEEDS_FLAT)
-        model.fit_generator(s, np.ceil(s.n / s.batch_size), #use_multiprocessing=True,
+        model.fit_generator(s, np.ceil(s.n / s.batch_size), use_multiprocessing=True,
                             workers=args.workers, epochs=args.epochs)
     else:
         s = dataset.trainingset(flatten=model.NEEDS_FLAT)
