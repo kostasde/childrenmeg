@@ -12,6 +12,7 @@ def apply_to_all(toplevel: Path, featuretypes: dict, f, *args, **kwargs):
     for subject in tqdm(subjects, unit='subjects', unit_scale=True):
         pass
 
+
 def handle_open_smile(args):
     meg_config = Path(args.meg_config)
     audio_config = Path(args.audio_config)

@@ -89,7 +89,16 @@ def hp_search(model_constructor, dataset_constructor, args):
             print('Saving trial...')
             pickle.dump(trials, trials_file.open('wb'))
 
-        return {'loss': metrics[0], 'status': STATUS_OK}
+        if metrics[0] == np.nan or metrics[0] is np.nan:
+            print('NaN Found loss, forcing evaluation loss of inf...')
+            l = np.inf
+        elif 0 <= args.opt_metric < len(model.metrics_names):
+            l = metrics[args.opt_metric]
+            print('Using optimization metric:', model.metrics_names[args.opt_metric], 'Value:', l)
+        else:
+            l = metrics[0]
+
+        return {'loss': l, 'status': STATUS_OK}
 
     best_model = fmin(loss, space=model_constructor.search_space(), trials=trials,
                       algo=tpe.suggest, verbose=1, max_evals=args.max_evals)
@@ -113,6 +122,10 @@ if __name__ == '__main__':
     parser.add_argument('dataset', choices=DATASETS.keys())
 
     parser.add_argument('--epochs', default=50, type=int, help='Number of epochs to run each trial')
+    parser.add_argument('--opt-metric', '-m', type=int, default=0, help='From the metrics that the model calculates,'
+                                                                        ' the index of the metric that will be used to'
+                                                                        'evaluate the minimization during the parameter'
+                                                                        ' search.')
     parser.add_argument('--patience', default=10,
                         help='How many epochs of no change from which we determine there is no'
                              'need to proceed and can stop early.', type=int)
