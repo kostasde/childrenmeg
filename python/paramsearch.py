@@ -52,7 +52,7 @@ def hp_search(model_constructor, dataset_constructor, args):
         keras.callbacks.EarlyStopping(min_delta=0.001, verbose=1, mode='min', patience=args.patience//2),
         keras.callbacks.ReduceLROnPlateau(verbose=1, epsilon=0.05, patience=args.patience//10, factor=0.5),
         keras.callbacks.TerminateOnNaN(),
-        SkipOnKeypress()
+        SkipOnKeypress(),
     ]
 
     try:

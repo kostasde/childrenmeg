@@ -108,6 +108,9 @@ parser = argparse.ArgumentParser(
 
 subparsers = parser.add_subparsers()
 
+# ----------------------------------------------------------------------------------------------------------------------
+# Parser that handles the openSMILE Feature extractor
+# ----------------------------------------------------------------------------------------------------------------------
 os_parser = subparsers.add_parser('os', help='Extract openSMILE features from eeglab extracted data')
 os_parser.set_defaults(func=handle_open_smile)
 os_parser.add_argument('toplevel', type=str, help='Top level of where the study and datasets are located')
@@ -124,6 +127,9 @@ os_parser.add_argument('--no-meg', action='store_true', help='Do not extract MEG
 os_parser.add_argument('--no-audio', action='store_true', help='Do not extract audio features')
 os_parser.add_argument('--threads', type=int, default=1, choices=range(1, 5), help='Number of threads to use to process')
 
+# ----------------------------------------------------------------------------------------------------------------------
+# The next three parsers are responsible for managing the csv files
+# ----------------------------------------------------------------------------------------------------------------------
 res_parser = subparsers.add_parser('restore', help='Restore ".csv" files from the ".bak" backups.')
 res_parser.add_argument('toplevel', type=str, help='Top level of where the study and datasets are located')
 res_parser.add_argument('--silent', '-s', help='', action='store_true')
@@ -155,7 +161,9 @@ raw_parser.add_argument('--overwrite', '-f', help='Overwrite any existing files,
                         action='store_true')
 raw_parser.set_defaults(func=handle_raw)
 
-
+# ----------------------------------------------------------------------------------------------------------------------
+# Main
+# ----------------------------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
     args = parser.parse_args()
 

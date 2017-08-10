@@ -1,38 +1,71 @@
 import numpy as np
-import sklearn
 import keras
 import keras.backend as K
+from threading import Lock
+from keras.callbacks import Callback
+from tensorflow import confusion_matrix
 from keras.models import Sequential
 from hyperopt import hp
+
+from MEGDataset import BaseDatasetAgeRanges as AgeRanges
 
 TYPE_REGRESSION = 0
 TYPE_CLASSIFICATION = 1
 
 
-def mean_true_positive(y_true, y_pred):
-    return K.mean(K.round(K.clip(y_true * y_pred, 0, 1)))
+def dumb_metric(y_true, y_pred):
+    return K.sum(K.round(y_pred), axis=0)[-1]
 
 
-def mean_false_positive(y_true, y_pred):
-    return K.mean(K.round(K.clip((1 - y_true) * y_pred, 0, 1)))
+class ConfusionMatrix(Callback):
+    """
+    Callback that reports the confusion matrix at the end of each epoch. This is a workaround to deal with the fact that
+    the confusion matrix is hard to do batchwise.
 
+    WARNING: I doubt this implementation would work for a multi-process implementation
+    """
+    metric_string = 'conf_mat_{0}_{1}'
 
-def mean_false_negative(y_true, y_pred):
-    # Warning: may not be ideal if not using sigmoid/something that explicitly ranges 0->1
-    return K.mean(K.round(K.clip((1 - y_pred) * y_true, 0, 1)))
+    @staticmethod
+    def _metric_maker(i, j):
+        def f(y_true, y_pred, i, j):
+            x = K.cast_to_floatx(K.equal(K.argmax(y_true), i))
+            y = K.cast_to_floatx(K.equal(K.argmax(y_pred), j))
+            return K.sum(K.prod(x, y))
 
+        ret = lambda y_true, y_pred: f(y_true, y_pred, i, j)
+        ret.__name__ = ConfusionMatrix.metric_string.format(i, j)
+        return ret
 
-def mean_true_negative(y_true, y_pred):
-    return K.mean(K.round(K.clip((1 - y_true) * (1 - y_pred), 0, 1)))
+    def __init__(self, num_classes, plot=False):
+        super().__init__()
+        self._num_classes = num_classes
+        self.cmat = np.zeros((num_classes, num_classes))
+        # self.reset()
+        if plot:
+            print('Have not completed plot implementation, falling back to text...')
+        # Create all the metrics functions now
+        self.metrics = [self._metric_maker(i, j) for i in range(num_classes) for j in range(num_classes)]
 
+    def reset(self):
+        self.cmat = np.zeros((self._num_classes, self._num_classes))
 
-def prf1(tp, fp, tn, fn):
-    precision = tp/(tp+fp)
-    recall = tp/(tp, fn)
-    return precision, recall, precision*recall/(precision * recall)
+    def get_metrics(self):
+        return self.metrics
 
-f1_stats = []
-# f1_stats = [mean_true_positive, mean_true_negative, mean_false_negative, mean_false_positive]
+    def print_matrix(self):
+        raise NotImplementedError()
+
+    def on_batch_end(self, batch, logs=None):
+        batch_cmat = np.zeros_like(self.cmat)
+        for i in range(self._num_classes):
+            for j in range(self._num_classes):
+                batch_cmat[i, j] = logs[self.metric_string.format(i, j)]
+        self.cmat += batch_cmat
+
+    def on_epoch_end(self, epoch, logs=None):
+        print(self.cmat)
+        self.reset()
 
 
 class ExpandLayer(keras.layers.Layer):
@@ -123,8 +156,11 @@ class LinearRegression(Sequential, Searchable):
         ], 'Linear Regression')
 
     def compile(self, **kwargs):
+        extra_metrics = []
+        if 'metrics' in kwargs.keys():
+            extra_metrics = kwargs['metrics']
         super().compile(optimizer=self.opt_param(), loss=keras.losses.mean_squared_error,
-                        metrics=[keras.metrics.mse, keras.metrics.mae], **kwargs)
+                        metrics=[keras.metrics.mse, keras.metrics.mae, *extra_metrics], **kwargs)
 
     def summary(self, line_length=None, positions=None):
         super().summary(line_length, positions)
@@ -163,8 +199,10 @@ class LogisticRegression(Sequential, Searchable):
         ], self.__class__.__name__)
 
     def compile(self, **kwargs):
+        extra_metrics = kwargs.pop('metrics', [])
         super().compile(optimizer=self.opt_param(), loss=keras.losses.categorical_crossentropy,
-                        metrics=[keras.metrics.categorical_crossentropy, keras.metrics.categorical_accuracy, *f1_stats],
+                        metrics=[keras.metrics.categorical_crossentropy, keras.metrics.categorical_accuracy,
+                                 *extra_metrics],
                         **kwargs)
 
     @staticmethod
@@ -184,7 +222,11 @@ class LinearSVM(LogisticRegression):
         super().__init__(inputlength, outputlength, params=params, activation='linear')
 
     def compile(self, **kwargs):
-        Sequential.compile(self, optimizer=self.opt_param(), loss=keras.losses.squared_hinge, metrics=['accuracy'])
+        extra_metrics = []
+        if 'metrics' in kwargs.keys():
+            extra_metrics = kwargs['metrics']
+        Sequential.compile(self, optimizer=self.opt_param(), loss=keras.losses.squared_hinge,
+                           metrics=['accuracy', *extra_metrics])
 
 
 class SimpleMLP(Sequential, Searchable):
@@ -230,8 +272,12 @@ class SimpleMLP(Sequential, Searchable):
         # self.add(keras.layers.Dense(outputlength, activation='softmax', kernel_regularizer=keras.regularizers.l2(0.01)))
 
     def compile(self, **kwargs):
+        extra_metrics = []
+        if 'metrics' in kwargs.keys():
+            extra_metrics = kwargs['metrics']
         super().compile(optimizer=self.opt_param(), loss='categorical_crossentropy',
-                        metrics=[keras.metrics.categorical_accuracy, *f1_stats], **kwargs)
+                        metrics=[keras.metrics.categorical_crossentropy, keras.metrics.categorical_accuracy,
+                                 *extra_metrics], **kwargs)
 
     @staticmethod
     def search_space():

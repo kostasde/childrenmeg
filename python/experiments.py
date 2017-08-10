@@ -1,7 +1,5 @@
-# PYTHON_ARGCOMPLETE_OK
 import re
 import argparse
-import argcomplete
 
 # from models import MODELS
 from MEGDataset import *
@@ -18,6 +16,7 @@ def train_and_test(model, dataset, args, callbacks=None):
         s = dataset.sanityset(flatten=model.NEEDS_FLAT)
         model.fit_generator(s, np.ceil(s.n / s.batch_size), #use_multiprocessing=True,
                             workers=args.workers, epochs=args.epochs)
+        keras.models.Sequential()
     else:
         s = dataset.trainingset(flatten=model.NEEDS_FLAT)
         e = dataset.evaluationset(flatten=model.NEEDS_FLAT)
@@ -92,6 +91,9 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', default=50, type=int)
     parser.add_argument('--batch-size', default=100, type=int)
     parser.add_argument('--test', '-t', action='store_true', help='Actually test the best trained model for each fold')
+    parser.add_argument('--confusion-matrix', '-f1', action='store_true', help='Produce the confusion matrix for the '
+                                                                               'classifier during evaluation and '
+                                                                               'testing')
     parser.add_argument('--patience', default=10,
                         help='How many epochs of no change from which we determine there is no'
                              'need to proceed and can stop early.', type=int)
@@ -108,7 +110,6 @@ if __name__ == '__main__':
                                                                         'parameters for each fold of an experiment in '
                                                                         'the provided directory.')
     parser.add_argument('--workers', '-w', default=WORKERS, type=int, help='The number of threads to use to load data.')
-    argcomplete.autocomplete(parser)
     args = parser.parse_args()
 
     # Load the appropriate dataset, considering whether it is regression or classification
@@ -119,8 +120,13 @@ if __name__ == '__main__':
                  keras.callbacks.EarlyStopping(min_delta=0.005, verbose=1, mode='min', patience=args.patience//5),
                  keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min', patience=args.patience),
                  keras.callbacks.TensorBoard(histogram_freq=1, write_grads=True, write_images=True,
-                                             write_batch_performance=True)
+                                             write_batch_performance=True),
                  ]
+    more_metrics = [dumb_metric]
+    if args.confusion_matrix:
+        cb = ConfusionMatrix(len(BaseDatasetAgeRanges.AGE_RANGES))
+        callbacks.append(cb)
+        more_metrics += cb.get_metrics()
     if args.save_model_params is not None:
         args.save_model_params = Path(args.save_model_params)
         callbacks.append(keras.callbacks.ModelCheckpoint(str(args.save_model_params / 'Fold-1-weights.hdf5'), verbose=1,
@@ -136,7 +142,7 @@ if __name__ == '__main__':
         print(args.hyper_params)
 
     model = MODELS[args.model](dataset.inputshape(), dataset.outputshape(), params=args.hyper_params)
-    model.compile()
+    model.compile(metrics=more_metrics)
     model.summary()
 
     # Test without training, use saved models. If available, quit when finished, otherwise train.
