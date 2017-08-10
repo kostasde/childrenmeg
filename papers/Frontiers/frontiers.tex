@@ -60,12 +60,14 @@ As a primary goal, the abstract should render the general significance and conce
 
 
 \tiny
- \keyFont{ \section{Keywords:} keyword, keyword, keyword, keyword, keyword, keyword, keyword, keyword} %All article types: you may provide up to 8 keywords; at least 5 are mandatory.
+ \keyFont{ \section{Keywords:} Deep Learning, Machine Learning, Convolutional Neural Networkds, MEG, Language Acquisition, Brain Computer Interface, Data Augmentation}
 \end{abstract}
 
 \section{Introduction}
 
-Modern machine learning (ML) is being used as a tool in the analysis of various types of biological data. It is being used for DNA stuff \cite{}, learning clusters... ML has also been applied with varying success to classify and interpret recordings of brain activity in the form of magnetoencephalography (MEG), electroencephalogrophy (EEG) and functional magnetic resonance imaging (fMRI).
+Machine learning (ML) and in particular deep learning have become an invaluable tool for the medical community in a broad sense. It is being used for DNA stuff \cite{}, learning clusters... ML has also been applied with varying success to classify and interpret brain activity recorded in the form of magnetoencephalography (MEG), electroencephalogrophy (EEG) and functional magnetic resonance imaging (fMRI).
+
+These works typically focus on a multi-stage approach to developing a ML classifier, first data is collected, then the data is preprocessed using a variety of techniques, \emph{eg.} cropping, trial averaging, normalization, band-pass filtering, linear transforms such as principle component analysis (PCA) and independent component analysis (ICA), and spatial filters such as common spatial patterns (CSP). The goal of the preprocessing stage is to overcome the low signal to noise ratio typical of theses types of recordings and terminally destructive to the efficacy of many ML models. Next \emph{features} are calculated from the data, finally a ML classifier is trained using these features and their associated labels (\emph{ie.} supervised ML).
 
 Herein we present work done using MEG recordings synchronized with audio recordings of children ages
 
