@@ -1,9 +1,9 @@
 import numpy as np
 import keras
 import keras.backend as K
-from threading import Lock
+import re
+from tensorflow import multiply as tensormult
 from keras.callbacks import Callback
-from tensorflow import confusion_matrix
 from keras.models import Sequential
 from hyperopt import hp
 
@@ -11,10 +11,6 @@ from MEGDataset import BaseDatasetAgeRanges as AgeRanges
 
 TYPE_REGRESSION = 0
 TYPE_CLASSIFICATION = 1
-
-
-def dumb_metric(y_true, y_pred):
-    return K.sum(K.round(y_pred), axis=0)[-1]
 
 
 class ConfusionMatrix(Callback):
@@ -29,9 +25,11 @@ class ConfusionMatrix(Callback):
     @staticmethod
     def _metric_maker(i, j):
         def f(y_true, y_pred, i, j):
-            x = K.cast_to_floatx(K.equal(K.argmax(y_true), i))
-            y = K.cast_to_floatx(K.equal(K.argmax(y_pred), j))
-            return K.sum(K.prod(x, y))
+            i = K.constant(i, dtype='int64')
+            j = K.constant(j, dtype='int64')
+            x = K.cast(K.equal(K.argmax(y_true), i), dtype=K.floatx())
+            y = K.cast(K.equal(K.argmax(y_pred), j), dtype=K.floatx())
+            return K.sum(tensormult(x, y))
 
         ret = lambda y_true, y_pred: f(y_true, y_pred, i, j)
         ret.__name__ = ConfusionMatrix.metric_string.format(i, j)
@@ -53,8 +51,28 @@ class ConfusionMatrix(Callback):
     def get_metrics(self):
         return self.metrics
 
-    def print_matrix(self):
-        raise NotImplementedError()
+    def print_matrix(self, newcmat=None):
+        if newcmat is None:
+            cmat = self.cmat
+        else:
+            cmat = newcmat
+        print('Total True:')
+        print(cmat.sum(axis=-1))
+        print('Total Predicted:')
+        print(cmat.sum(axis=0))
+        print('Confusion Matrix:')
+        print(cmat/cmat.sum(axis=-1)[:, np.newaxis], flush=True)
+
+    def is_metric(self, name):
+        """
+        Check if name is a metric string
+        :param name:
+        :return:
+        """
+        return re.match(self.metric_string.format('\\d', '\\d'), name) is not None
+
+    def on_epoch_begin(self, epoch, logs=None):
+        self.reset()
 
     def on_batch_end(self, batch, logs=None):
         batch_cmat = np.zeros_like(self.cmat)
@@ -64,8 +82,7 @@ class ConfusionMatrix(Callback):
         self.cmat += batch_cmat
 
     def on_epoch_end(self, epoch, logs=None):
-        print(self.cmat)
-        self.reset()
+        self.print_matrix()
 
 
 class ExpandLayer(keras.layers.Layer):
@@ -131,7 +148,7 @@ class Searchable:
     def __init__(self, params):
         if params is None:
             params = {
-                Searchable.PARAM_LR: 1e-3, Searchable.PARAM_BATCH: 100, Searchable.PARAM_REG: 0.01,
+                Searchable.PARAM_LR: 1e-3, Searchable.PARAM_BATCH: 100, Searchable.PARAM_REG: 0.1,
                 Searchable.PARAM_MOMENTUM: 0.1, Searchable.PARAM_OPT: keras.optimizers.adam
             }
 
@@ -194,8 +211,9 @@ class LogisticRegression(Sequential, Searchable):
         super().__init__([
             keras.layers.Dense(outputlength, activation=activation, input_dim=inputlength,
                                kernel_regularizer=keras.regularizers.l2(self.reg),
-                               kernel_initializer=keras.initializers.TruncatedNormal(stddev=0.01),
-                               bias_initializer=keras.initializers.Constant(value=0.0001))
+                               # kernel_initializer=keras.initializers.TruncatedNormal(stddev=0.01),
+                               bias_initializer=keras.initializers.Constant(value=0.0001)
+            )
         ], self.__class__.__name__)
 
     def compile(self, **kwargs):
@@ -222,11 +240,9 @@ class LinearSVM(LogisticRegression):
         super().__init__(inputlength, outputlength, params=params, activation='linear')
 
     def compile(self, **kwargs):
-        extra_metrics = []
-        if 'metrics' in kwargs.keys():
-            extra_metrics = kwargs['metrics']
-        Sequential.compile(self, optimizer=self.opt_param(), loss=keras.losses.squared_hinge,
-                           metrics=['accuracy', *extra_metrics])
+        extra_metrics = kwargs.pop('metrics', [])
+        Sequential.compile(self, optimizer=self.opt_param(), loss=keras.losses.categorical_hinge,
+                           metrics=[keras.metrics.categorical_crossentropy, 'accuracy', *extra_metrics], **kwargs)
 
 
 class SimpleMLP(Sequential, Searchable):
@@ -254,8 +270,8 @@ class SimpleMLP(Sequential, Searchable):
             self.lunits = self.parse_layers(params)
             self.do = params[Searchable.PARAM_DROPOUT]
         else:
-            self.lunits = [512, 128]
-            self.do = 0
+            self.lunits = [64, 32]
+            self.do = 0.4
 
         super().__init__(name=self.__class__.__name__)
 
@@ -269,13 +285,11 @@ class SimpleMLP(Sequential, Searchable):
             self.add(keras.layers.Dropout(self.do, name='L{0}'.format(i+2)))
         self.add(keras.layers.Dense(outputlength, activation='softmax', name='OUT'))
         # Consider using SVM output layer
-        # self.add(keras.layers.Dense(outputlength, activation='softmax', kernel_regularizer=keras.regularizers.l2(0.01)))
+        # self.add(keras.layers.Dense(outputlength, activation='linear', kernel_regularizer=keras.regularizers.l2(self.reg)))
 
     def compile(self, **kwargs):
-        extra_metrics = []
-        if 'metrics' in kwargs.keys():
-            extra_metrics = kwargs['metrics']
-        super().compile(optimizer=self.opt_param(), loss='categorical_crossentropy',
+        extra_metrics = kwargs.pop('metrics', [])
+        super().compile(optimizer=self.opt_param(), loss=keras.losses.categorical_hinge,
                         metrics=[keras.metrics.categorical_crossentropy, keras.metrics.categorical_accuracy,
                                  *extra_metrics], **kwargs)
 
@@ -286,7 +300,7 @@ class SimpleMLP(Sequential, Searchable):
             Searchable.PARAM_OPT: hp.choice(Searchable.PARAM_OPT, [keras.optimizers.sgd, keras.optimizers.adam]),
             Searchable.PARAM_MOMENTUM: hp.loguniform(Searchable.PARAM_MOMENTUM, -7, 0),
             Searchable.PARAM_BATCH: hp.quniform(Searchable.PARAM_BATCH, 1, 100, 5),
-            Searchable.PARAM_DROPOUT: hp.normal(Searchable.PARAM_DROPOUT, 0.6, 0.05),
+            Searchable.PARAM_DROPOUT: hp.normal(Searchable.PARAM_DROPOUT, 0.4, 0.05),
             Searchable.PARAM_REG: hp.loguniform(Searchable.PARAM_REG, -4, 0),
             Searchable.PARAM_LAYERS: hp.choice(Searchable.PARAM_LAYERS, [
                 [hp.quniform('1layer1', 50, 1000, 10)],

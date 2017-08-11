@@ -1,4 +1,4 @@
-import re
+import parse
 import argparse
 
 # from models import MODELS
@@ -48,13 +48,30 @@ def test(model, dataset, args):
     return model.evaluate_generator(ts, np.ceil(ts.n/ts.batch_size), workers=args.workers)
 
 
-def print_metrics(metrics):
+def print_metrics(metrics, confusion_matrix=None):
+    """
+    Pretty Formatted printing of metricts. Also deals with compiling and printing the mean and deviation confusion
+    matrix.
+    :param metrics: List of test/evaluation metrics.
+    :param confusion_matrix: A confusion matrix callback if being used.
+    :return:
+    """
     print('=' * 100)
     metrics = np.array(metrics)
     mean = np.mean(metrics, axis=0)
     stddev = np.std(metrics, axis=0)
+    calc_cm = confusion_matrix is not None and isinstance(confusion_matrix, ConfusionMatrix)
+    if calc_cm:
+        mean_cmat = np.zeros_like(confusion_matrix.cmat)
+        dev_cmat = np.zeros_like(confusion_matrix.cmat)
     for i, m in enumerate([model.loss, *model.metrics]):
         if hasattr(m, '__name__'):
+            if calc_cm:
+                if confusion_matrix.is_metric(m.__name__):
+                    j, k = parse.parse(confusion_matrix.metric_string, m.__name__)
+                    mean_cmat[int(j), int(k)] = mean[i]
+                    dev_cmat[int(j), int(k)] = stddev[i]
+                    continue
             print(m.__name__)
         else:
             print(m)
@@ -62,6 +79,10 @@ def print_metrics(metrics):
         print(metrics[:, i])
         print('Mean', mean[i], 'Stddev', stddev[i])
         print('-' * 100)
+    if calc_cm:
+        confusion_matrix.print_matrix(mean_cmat)
+        print('Deviation Across Confusion Matrix:')
+        print(dev_cmat/dev_cmat.sum(axis=-1)[:, np.newaxis])
     print('=' * 100)
 
 DATASETS = {
@@ -122,11 +143,14 @@ if __name__ == '__main__':
                  keras.callbacks.TensorBoard(histogram_freq=1, write_grads=True, write_images=True,
                                              write_batch_performance=True),
                  ]
-    more_metrics = [dumb_metric]
+    more_metrics = []
     if args.confusion_matrix:
-        cb = ConfusionMatrix(len(BaseDatasetAgeRanges.AGE_RANGES))
-        callbacks.append(cb)
-        more_metrics += cb.get_metrics()
+        print('WARNING: Confusion matrix values must be re-normalized as keras will average across batches')
+        args.confusion_matrix = ConfusionMatrix(len(BaseDatasetAgeRanges.AGE_RANGES))
+        callbacks.append(args.confusion_matrix)
+        more_metrics += args.confusion_matrix.get_metrics()
+    else:
+        args.confusion_matrix = None
     if args.save_model_params is not None:
         args.save_model_params = Path(args.save_model_params)
         callbacks.append(keras.callbacks.ModelCheckpoint(str(args.save_model_params / 'Fold-1-weights.hdf5'), verbose=1,
@@ -160,7 +184,7 @@ if __name__ == '__main__':
                 metrics.append(test(model, dataset, args))
                 if dataset.next_leaveout() is None:
                     break
-            print_metrics(metrics)
+            print_metrics(metrics, args.confusion_matrix)
             exit()
         else:
             print('Could not use existing files...')
@@ -189,7 +213,7 @@ if __name__ == '__main__':
 
     print('\n\nComplete.')
 
-    print_metrics(metrics)
+    print_metrics(metrics, args.confusion_matrix)
 
 
 
