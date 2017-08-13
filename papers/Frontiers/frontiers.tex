@@ -67,9 +67,11 @@ As a primary goal, the abstract should render the general significance and conce
 
 Machine learning (ML) and in particular deep learning have become an invaluable tool for the medical community in a broad sense. It is being used for DNA stuff \cite{}, learning clusters... ML has also been applied with varying success to classify and interpret brain activity recorded in the form of magnetoencephalography (MEG), electroencephalogrophy (EEG) and functional magnetic resonance imaging (fMRI).
 
-These works typically focus on a multi-stage approach to developing a ML classifier, first data is collected, then the data is preprocessed using a variety of techniques, \emph{eg.} cropping, trial averaging, normalization, band-pass filtering, linear transforms such as principle component analysis (PCA) and independent component analysis (ICA), and spatial filters such as common spatial patterns (CSP). The goal of the preprocessing stage is to overcome the low signal to noise ratio typical of theses types of recordings and terminally destructive to the efficacy of many ML models. Next \emph{features} are calculated from the data, finally a ML classifier is trained using these features and their associated labels (\emph{ie.} supervised ML).
+Herein we present work that tries to predict age using... Specifically talk about how we are using MEG and it is in a context of language aquisition. Previous work using MEG and various ML techniques include... Other similar work that examines speech generation specifically includes...
 
-Herein we present work done using MEG recordings synchronized with audio recordings of children ages
+These works all typically focus on a multi-stage approach to developing a ML classifier which we loosely term as a \emph{feature based approach}. First data is collected and preprocessed using a variety of techniques, \emph{eg.} cropping, trial averaging, normalization, band-pass filtering, linear transforms such as principle component analysis (PCA) and independent component analysis (ICA), and in some cases a spatial filters such as common spatial patterns (CSP) are used (CSP in particular has shown some success in the case of detecting motor activity \cite{}). The goal of the preprocessing stage is to overcome the low signal to noise ratio typical of these types of recordings which make training models very difficult and is generally a necessity across most neuroscientific data. Next \emph{features} are calculated from this data, taking a variety of forms, but  most commonly employ spectral characteristics in the canonical activity bands (alpha, beta, etc.), statistical features. Finally these features and their associated labels (when performing \emph{supervised} classification) are used to train a ML model which can range from... The advantage of this approach is that expert knowledge about the data can help circumvent the poor signal quality and encourage ML models to distinguish between classes using established signal correlates. The other face of this advantage is the \emph{requirement} of expert knowledge, and the underlying assumptions it may reinforce. Additionally this approach can obfuscate the valuable insights that the ML models may reveal, in the sense that... Here we present work done to classify MEG recordings using machine learning that juxtaposes a feature extraction approach with a wide array of features and works towards an end-to-end procedure for MEG recordings and other simialr modalities.
+
+We define an end-to-end approach as one that consists of ... This definition is similar context of classifying EEG with CNN. 
 
 Previous work using MEG and various ML techniques includes detecting hand movement \cite{Asano2009}, identifying schizophrenia \cite{Ince2008}, and on discriminating between sets of imagined words \cite{Guimaraes2007}. To classify between three different hand movements\footnote{Corresponding to the signs in the game of `rock, paper, scissors'.}, Asano {\em et al.} \cite{Asano2009} used an adaptive spatial filter, principal components analysis (PCA) and a support vector machine (SVM) to achieve 62.6\% on held-out test data. In Ince {\em et al.} \cite{Ince2008}, a subject performed a working memory functional task while MEG data were recorded; an SVM with recursive feature elimination (SVM-RFE) was then used to both select a concise feature set and to identify schizophrenia. SVM-RFE recursively discarded features that did not significantly contribute to the margin of the SVM classifier to prevent excessive overfitting on the training set, and achieved 83.8\% to 91.9\% on the test data.
 
@@ -100,7 +102,6 @@ Furthermore we attempt to increase the predictive power of models trained with r
 
 \begin{itemize}
 \item With enough training data state of the art architectures have been shown to discover features that are highly correlated with (how we do it)
-  \item The approach of determining features is a common approach to handling brain data
 \end{itemize}
 
 \section{Data}
@@ -128,6 +129,10 @@ We resampled MEG signals at 200 Hz, and band-pass filter between 0.5 Hz and 100 
 
 We then apply info-max independent component analysis (ICA) \cite{Bell1995} to determine statistically independent sub-components of the MEG recordings, across all subjects. This was done by appending MEG recordings for all subjects into a single 151-channel matrix for each of the 3 speech-elicitations: /{\em pah}/, /{\em pah tah kah}/ and the VG task performed using the EEGLAB toolbox \cite{Delorme04eeglab}. We then apply the resulting sphering and weight matrices, determined by ICA for each test condition, to each subject's respective recordings. These recordings (i.e., both MEG and audio separately) are then separated into windowed epochs corresponding to $-500$ ms to $+1500$ ms frames around the onset of the stimuli prompt.
 
+\subsubsection{Sensor Projection}
+
+In an attempt to help facilitate end-to-end learning and allow ML models to learn parameters that may have some neuroanatomical correlation, we preserve the spatial nature of the data recordings by projecting the 151 recorded MEG channels on to a two-dimensional plane, and interpolating the data into an image. Each experiment 
+
 \subsection{Feature extraction}
 
 We extract a total of 156 acoustic features and 4681 MEG features from each epoch using openSMILE \cite{Eyben13-RDI}. These are calculated using 50 ms rectangular windows, with a 25 ms overlap of the previous window for each successive window, resulting in a total of 79 windows per datapoint.
@@ -140,12 +145,12 @@ Features to represent spectral activity are calculated, for each window, using b
 
 We extract 31 features for each of the 151 independent components derived from the MEG data. These consist of an 8-point fast Fourier transform, statistical moments, and energy calculation identical to the audio signal, and the autocorrelation function (ACF) calculated using the fast Fourier transform (FFT) and its inverse (iFFT) for window $w$:
 
+% Probably could use some more discussion of the features here?
+
 \begin{equation}
   ACF(w) = iFFT(|FFT(w)|^2)
   \label{eq1}
 \end{equation}
-
-\subsection{Sensor Projection}
 
 \subsection{Data Augmentation}
 
@@ -237,6 +242,10 @@ Table \ref{tab:rmse} shows the means and variances of root mean squared error (R
 %%     \bottomrule
 %%   \end{tabular}
 %% \end{table}
+
+\subsection{Feature Based Classification}
+
+\subsection{End-to-End Classification}
 
 \section{Discussion}
 
