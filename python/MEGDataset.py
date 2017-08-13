@@ -686,7 +686,7 @@ class MEGRawRanges(MEGAgeRangesDataset):
             x = np.append(x, np.nan * np.zeros((x.shape[0], pad, self.slice_length)), axis=1)
             x = np.reshape(x, (x.shape[0], -1, self.DOWNSAMPLE_FACTOR, self.slice_length))
             x = np.nanmean(x, axis=-2)
-            if len(x.shape) == 2:
+            if len(x.shape) == 2 or self.flatten:
                 x = np.reshape(x, (x.shape[0], -1))
             return x, y
 
