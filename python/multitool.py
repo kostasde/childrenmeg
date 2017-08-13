@@ -6,6 +6,13 @@ from threading import Thread
 from tqdm import tqdm
 from pandas import read_csv
 
+W = '\033[0m'   # white (normal)
+R = '\033[31m'  # red
+G = '\033[32m'  # green
+O = '\033[33m'  # orange
+B = '\033[34m'  # blue
+P = '\033[35m'  # purple
+
 
 def apply_to_all(toplevel: Path, featuretypes: dict, f, *args, **kwargs):
     subjects = [x for x in toplevel.iterdir() if x.is_dir() and 'CC' in x.stem]
@@ -101,6 +108,10 @@ def handle_raw(args):
         # tqdm.write('\n')
 
 
+def handle_param_search_tool(args):
+    print('Analyzing Top Level...')
+    pass
+
 # Command line arguments
 parser = argparse.ArgumentParser(
     description='Manage the eeglab dataset directory structure. Extract features, organize and clean files'
@@ -160,6 +171,19 @@ raw_parser.add_argument('--preserve-channels', '-p', help='Preserve all channels
 raw_parser.add_argument('--overwrite', '-f', help='Overwrite any existing files, otherwise skip existing',
                         action='store_true')
 raw_parser.set_defaults(func=handle_raw)
+
+# ----------------------------------------------------------------------------------------------------------------------
+# This command deals with management of parameter searches
+# ----------------------------------------------------------------------------------------------------------------------
+
+param_search_parser = subparsers.add_parser('psmgmt', help='This utility displays and manages search space files.')
+param_search_parser.add_argument('toplevel', type=str, help='Top level of where the models and search files are found')
+param_search_parser.set_defaults(func=handle_param_search_tool)
+
+# ----------------------------------------------------------------------------------------------------------------------
+# This command helps manage the dataset files
+# ----------------------------------------------------------------------------------------------------------------------
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Main

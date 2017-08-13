@@ -1,4 +1,3 @@
-import parse
 import argparse
 
 # from models import MODELS
@@ -14,13 +13,17 @@ def train_and_test(model, dataset, args, callbacks=None):
     if args.sanity_set:
         print('Using small subset of data')
         s = dataset.sanityset(flatten=model.NEEDS_FLAT)
-        model.fit_generator(s, np.ceil(s.n / s.batch_size), #use_multiprocessing=True,
-                            workers=args.workers, epochs=args.epochs)
         keras.models.Sequential()
     else:
         s = dataset.trainingset(flatten=model.NEEDS_FLAT)
+
+    if args.no_eval:
+        print('Warning: Will not evaluate at end of epoch.')
+        model.fit_generator(s, np.ceil(s.n / s.batch_size),  # use_multiprocessing=True,
+                            workers=args.workers, epochs=args.epochs)
+    else:
         e = dataset.evaluationset(flatten=model.NEEDS_FLAT)
-        model.fit_generator(s, np.ceil(s.n / s.batch_size), #use_multiprocessing=True,
+        model.fit_generator(s, np.ceil(s.n / s.batch_size),  # use_multiprocessing=True,
                             validation_data=e, validation_steps=np.ceil(e.n / e.batch_size),
                             workers=args.workers, epochs=args.epochs, callbacks=callbacks)
 
@@ -60,18 +63,8 @@ def print_metrics(metrics, confusion_matrix=None):
     metrics = np.array(metrics)
     mean = np.mean(metrics, axis=0)
     stddev = np.std(metrics, axis=0)
-    calc_cm = confusion_matrix is not None and isinstance(confusion_matrix, ConfusionMatrix)
-    if calc_cm:
-        mean_cmat = np.zeros_like(confusion_matrix.cmat)
-        dev_cmat = np.zeros_like(confusion_matrix.cmat)
     for i, m in enumerate([model.loss, *model.metrics]):
         if hasattr(m, '__name__'):
-            if calc_cm:
-                if confusion_matrix.is_metric(m.__name__):
-                    j, k = parse.parse(confusion_matrix.metric_string, m.__name__)
-                    mean_cmat[int(j), int(k)] = mean[i]
-                    dev_cmat[int(j), int(k)] = stddev[i]
-                    continue
             print(m.__name__)
         else:
             print(m)
@@ -79,22 +72,18 @@ def print_metrics(metrics, confusion_matrix=None):
         print(metrics[:, i])
         print('Mean', mean[i], 'Stddev', stddev[i])
         print('-' * 100)
-    if calc_cm:
-        confusion_matrix.print_matrix(mean_cmat)
-        print('Deviation Across Confusion Matrix:')
-        print(dev_cmat/dev_cmat.sum(axis=-1)[:, np.newaxis])
     print('=' * 100)
 
 DATASETS = {
-        'MEG': [MEGDataset, MEGAgeRangesDataset],
-        'Audio': [AcousticDataset, AcousticAgeRangeDataset],
-        'Fusion': [FusionDataset, FusionAgeRangesDataset],
-        'MNIST': [MNISTRegression, MNISTClassification],
-        'MEGraw': [None, MEGRawRanges],
-        'MEGTAugRaw': [None, MEGRawRangesTA],
-        'MEGSAugRaw': [None, MEGRawRangesSA],
-        'FusionRaw': [None, FusionRawRanges]
-    }
+    'MEG': [MEGDataset, MEGAgeRangesDataset],
+    'Audio': [AcousticDataset, AcousticAgeRangeDataset],
+    'Fusion': [FusionDataset, FusionAgeRangesDataset],
+    'MNIST': [MNISTRegression, MNISTClassification],
+    'MEGraw': [None, MEGRawRanges],
+    'MEGTAugRaw': [None, MEGRawRangesTA],
+    'MEGSAugRaw': [None, MEGRawRangesSA],
+    'FusionRaw': [None, FusionRawRanges]
+}
 
 if __name__ == '__main__':
 
@@ -127,6 +116,7 @@ if __name__ == '__main__':
                         type=argparse.FileType('rb'))
     parser.add_argument('--sanity-set', '-s', action='store_true', help='Use the small dataset to ensure that training'
                                                                         'data is going down.')
+    parser.add_argument('--no-eval', action='store_true', help='Skip evaluation after each epoch.')
     parser.add_argument('--save-model-params', '-p', default=None, help='If provided, this saves the best model '
                                                                         'parameters for each fold of an experiment in '
                                                                         'the provided directory.')
@@ -145,7 +135,6 @@ if __name__ == '__main__':
                  ]
     more_metrics = []
     if args.confusion_matrix:
-        print('WARNING: Confusion matrix values must be re-normalized as keras will average across batches')
         args.confusion_matrix = ConfusionMatrix(len(BaseDatasetAgeRanges.AGE_RANGES))
         callbacks.append(args.confusion_matrix)
         more_metrics += args.confusion_matrix.get_metrics()
