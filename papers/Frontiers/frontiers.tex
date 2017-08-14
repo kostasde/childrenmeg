@@ -45,7 +45,7 @@ $^{2}$Laboratory X, Institute X, Department X, Organization X, City X , State XX
 \author[\firstAuthorLast ]{\Authors} %This field will be automatically populated
 \address{} %This field will be automatically populated
 \correspondance{} %This field will be automatically populated
-
+ 
 \extraAuth{}% If there are more than 1 corresponding author, comment this line and uncomment the next one.
 %\extraAuth{corresponding Author2 \\ Laboratory X2, Institute X2, Department X2, Organization X2, Street X2, City X2 , State XX2 (only USA, Canada and Australia), Zip Code2, X2 Country X2, email2@uni2.edu}
 
@@ -59,7 +59,14 @@ $^{2}$Laboratory X, Institute X, Department X, Organization X, City X , State XX
 \section{}
 For full guidelines regarding your manuscript please refer to \href{http://www.frontiersin.org/about/AuthorGuidelines}{Author Guidelines}.
 
-As a primary goal, the abstract should render the general significance and conceptual advance of the work clearly accessible to a broad readership. References should not be cited in the abstract. Leave the Abstract empty if your article does not require one, please see \href{http://www.frontiersin.org/about/AuthorGuidelines#SummaryTable}{Summary Table} for details according to article type. 
+As a primary goal, the abstract should render the general significance and conceptual advance of the work clearly accessible to a broad readership. References should not be cited in the abstract. Leave the Abstract empty if your article does not require one, please see \href{http://www.frontiersin.org/about/AuthorGuidelines#SummaryTable}{Summary Table} for details according to article type.
+
+\begin{itemize}
+\item Talk about dataset
+\item Regression on age with multi-modal dataset + main result
+\item Compare feature based classification + results and Augmented raw/real data +results
+\item Should also specifically mention added a novel augmentation system
+\end{itemize}
 
 
 \tiny
@@ -72,15 +79,18 @@ As a primary goal, the abstract should render the general significance and conce
 
 Machine learning (ML) and in particular deep learning have become an invaluable tool for the medical community in a broad sense. It is being used for DNA stuff \cite{}, learning clusters... ML has also been applied with varying success to classify and interpret brain activity recorded in the form of magnetoencephalography (MEG), electroencephalogrophy (EEG) and functional magnetic resonance imaging (fMRI).
 
-Herein we present work that tries to predict age using... Specifically talk about how we are using MEG and it is in a context of language aquisition. Previous work using MEG and various ML techniques include... Other similar work that examines speech generation specifically includes...
+Here we present work that tries to improve the efficacy of machine learning as a tool for classifying MEG (and utltimately other related brain recording) data. This effort is towards ML's use as a better anlysis tool and more accurate system for brain-computer interfaces (BCI). We focus on a dataset of MEG recordings of children performing speech elicitation tasks and synchronized Audio recording. We first compare the predictive ability of the MEG and Audio datasets performing a regression task, then work towards an end-to-end classification approach, including the use of data-augmentation and appropriate ML model to classify the age of subjects into 7 groups.
+
+Classification is done using various ML models including: logistic regression, linear-kernel support vector machines (SVM), shallow fully connected neual networks, and various configurations of convolutional neural networks. We contrast their efficacy at prediction and analyze the parameters the models develop for any revealing insights. Previous work using MEG and various ML techniques includes detecting hand movement \cite{Asano2009}, identifying schizophrenia \cite{Ince2008}, and on discriminating between sets of imagined words \cite{Guimaraes2007}. To classify between three different hand movements\footnote{Corresponding to the signs in the game of `rock, paper, scissors'.}, Asano {\em et al.} \cite{Asano2009} used an adaptive spatial filter, principal components analysis (PCA) and a support vector machine (SVM) to achieve 62.6\% on held-out test data. In Ince {\em et al.} \cite{Ince2008}, a subject performed a working memory functional task while MEG data were recorded; an SVM with recursive feature elimination (SVM-RFE) was then used to both select a concise feature set and to identify schizophrenia. SVM-RFE recursively discarded features that did not significantly contribute to the margin of the SVM classifier to prevent excessive overfitting on the training set, and achieved 83.8\% to 91.9\% on the test data.
+
+Similar use of some sort of brain recording for the classification of speech generation using ML include: Guimaraes {\em et al.} \cite{Guimaraes2007} who classified sets of 7-9 imagined words in two subtasks. In the first, the subject was simply required to attentively listen to a spoken word, while in the second the subject was shown each word visually and told to recite it silently. Those data were then examined using linear discriminant classification and SVM algorithms to classify each channel, and further analyzed in terms of the effects of spatial PCA, independent components analysis (ICA) and second-order blind identification decomposition. By combining channels, Guimaraes {\em et al.} achieved 60.1\% mean classification rate on nine auditory words and 97.5\% maximum mean classification rate on two-word problems.
 
 These works all typically focus on a multi-stage approach to developing a ML classifier which we loosely term as a \emph{feature based approach}. First data is collected and preprocessed using a variety of techniques, \emph{eg.} cropping, trial averaging, normalization, band-pass filtering, linear transforms such as principle component analysis (PCA) and independent component analysis (ICA), and in some cases a spatial filters such as common spatial patterns (CSP) are used (CSP in particular has shown some success in the case of detecting motor activity \cite{}). The goal of the preprocessing stage is to overcome the low signal to noise ratio typical of these types of recordings which make training models very difficult and is generally a necessity across most neuroscientific data. Next \emph{features} are calculated from this data, taking a variety of forms, but  most commonly employ spectral characteristics in the canonical activity bands (alpha, beta, etc.), statistical features. Finally these features and their associated labels (when performing \emph{supervised} classification) are used to train a ML model which can range from... The advantage of this approach is that expert knowledge about the data can help circumvent the poor signal quality and encourage ML models to distinguish between classes using established signal correlates. The other face of this advantage is the \emph{requirement} of expert knowledge, and the underlying assumptions it may reinforce. Additionally this approach can obfuscate the valuable insights that the ML models may reveal, in the sense that... Here we present work done to classify MEG recordings using machine learning that juxtaposes a feature extraction approach with a wide array of features and works towards an end-to-end procedure for MEG recordings and other simialr modalities.
 
-We define an end-to-end approach as one that consists of ... This definition is similar context of classifying EEG with CNN.
+We define an end-to-end approach as training a ML model with raw data that has had minimal to no preprocessing applied to it all. Ideally the model will consist of some architecture that can develop its own set of hierarchical features and preprocessing   This definition is similar context of classifying EEG with CNN.
 
 One of the main reasons an end-to-end training approach is a difficult problem in this domain is that it is difficult to obtain a sufficient number of datapoints to create a model that generalizes well.
 
-Previous work using MEG and various ML techniques includes detecting hand movement \cite{Asano2009}, identifying schizophrenia \cite{Ince2008}, and on discriminating between sets of imagined words \cite{Guimaraes2007}. To classify between three different hand movements\footnote{Corresponding to the signs in the game of `rock, paper, scissors'.}, Asano {\em et al.} \cite{Asano2009} used an adaptive spatial filter, principal components analysis (PCA) and a support vector machine (SVM) to achieve 62.6\% on held-out test data. In Ince {\em et al.} \cite{Ince2008}, a subject performed a working memory functional task while MEG data were recorded; an SVM with recursive feature elimination (SVM-RFE) was then used to both select a concise feature set and to identify schizophrenia. SVM-RFE recursively discarded features that did not significantly contribute to the margin of the SVM classifier to prevent excessive overfitting on the training set, and achieved 83.8\% to 91.9\% on the test data.
 
 
 % Need to transition to the age/speech context before using a version of this paragraph
@@ -91,11 +101,6 @@ For example, Doesburg {\em et al.} \cite{Doesburg2016} predict language ability 
 Previous work with electroencephalpgraphic (EEG) experiments use common spectral features such as the fast Fourier transform (FFT) magnitude and signal energy within consequetive time windows and various classifiers to accurately differentiating different persons \cite{Nguyen2012, Poulos2001}, and thus may represent synchronicity information.
 
 
-Closer to speech generation, Guimaraes {\em et al.} \cite{Guimaraes2007} classified sets of 7-9 imagined words in two subtasks. In the first, the subject was simply required to attentively listen to a spoken word, while in the second the subject was shown each word visually and told to recite it
-silently. Those data were then examined using linear discriminant classification and SVM algorithms to classify each
-channel, and further analyzed in terms of the effects of spatial PCA, independent components analysis (ICA) and second-order
-blind identification decomposition. By combining channels, Guimaraes {\em et al.} achieved 60.1\% mean classification
-rate on nine auditory words and 97.5\% maximum mean classification rate on two-word problems.
 
 We compare the performance of several different machine learning approaches in the context of predicting and classifying age. We do this to compare the predicitive power of the MEG dataset against synchronized audio recordings and examine the characteristics of these models for functional insights.
 We train some models with raw data, and others use discrete features. Most current work employs some sort of feature extraction, whether this be in form of 
@@ -284,6 +289,23 @@ Table \ref{tab:reg_results} shows the means and variances of root mean squared e
   
 
 \subsection{End-to-End Classification}
+
+\begin{table}[t]
+  \centering
+  \label{tab:end2end_results}
+  \begin{tabular}{l l | c | c}
+    \textbf{Feature set} & Model & \textbf{Mean \%} & \textbf{Variance \%} \\
+    \toprule
+    \multirow{3}{*}{No Augmentation}
+    & Logistic Regression & NaN & Nan  \\
+    & Linear SVM          & NaN & NaN  \\
+    & Shallow NN          & NaN & NaN  \\
+    \midrule
+
+    \bottomrule
+  \end{tabular}
+  \caption{Classification accuracy using real data input under different augmentation strategies and models.}
+\end{table}
 
 \section{Discussion}
 
