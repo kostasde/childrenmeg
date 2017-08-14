@@ -558,6 +558,30 @@ class TCNN(ShallowTSCNN):
         self.add(keras.layers.Dense(outputshape, activation='softmax'))
 
 
+class LinearSCNN(ShallowTSCNN):
+
+    def __init__(self, inputshape, outputshape, activation=keras.activations.elu, params=None):
+        params = self.setupcnnparams(params)
+
+        # Add dummy channel dimension
+        self.add(ExpandLayer(axis=-1, input_shape=inputshape))
+        # Temporal without using entire channels vector
+        self.add(keras.layers.Conv2D(
+            self.lunits[0], (1, self.spatial),
+            activation=activation, data_format='channels_last'
+        ))
+        self.add(keras.layers.SpatialDropout2D(0.2))
+        # self.add(keras.layers.MaxPool2D((1, 2)))
+
+        # Classify after temporal filtering
+        self.add(keras.layers.Flatten())
+        # self.add(keras.layers.Dense(self.lunits[1], activation=activation))
+        # self.add(keras.layers.Dropout(self.do))
+        self.add(keras.layers.Dense(outputshape, activation='linear',
+                                    kernel_regularizer=keras.regularizers.l2(self.reg)))
+        # self.add(keras.layers.Dense(outputshape, activation='softmax'))
+
+
 class TSCNN(ShallowTSCNN):
 
     def __init__(self, inputshape, outputshape, activation=keras.activations.elu, params=None):
@@ -642,7 +666,7 @@ MODELS = [
     # Basic Classification
     LogisticRegression, LinearSVM, SimpleMLP, StackedAutoEncoder,
     # CNN Based
-    ShallowTSCNN, TCNN, TSCNN, Shallow2DSTCNN,
+    ShallowTSCNN, TCNN, LinearSCNN, TSCNN, Shallow2DSTCNN,
     # RNN Based
     SimpleGRU
 ]
