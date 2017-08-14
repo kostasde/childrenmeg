@@ -319,7 +319,7 @@ class SimpleMLP(Sequential, Searchable):
             Searchable.PARAM_OPT: hp.choice(Searchable.PARAM_OPT, [keras.optimizers.sgd, keras.optimizers.adam]),
             Searchable.PARAM_MOMENTUM: hp.loguniform(Searchable.PARAM_MOMENTUM, -7, 0),
             Searchable.PARAM_BATCH: hp.quniform(Searchable.PARAM_BATCH, 1, 100, 5),
-            Searchable.PARAM_DROPOUT: hp.normal(Searchable.PARAM_DROPOUT, 0.5, 0.15),
+            Searchable.PARAM_DROPOUT: hp.normal(Searchable.PARAM_DROPOUT, 0.5, 0.2),
             Searchable.PARAM_REG: hp.loguniform(Searchable.PARAM_REG, -4, 0),
             Searchable.PARAM_LAYERS: hp.choice(Searchable.PARAM_LAYERS, [
                 [hp.quniform('1layer1', 50, 1000, 10)],
@@ -474,9 +474,9 @@ class ShallowTSCNN(SimpleMLP):
             self.spatial = [int(params[self.PARAM_FILTER_SPATIAL])]
         else:
             params = {}
-            self.temporal = 128
-            self.spatial = 16
-            self.lunits = [16, 16, 256]
+            self.temporal = 200
+            self.spatial = 151
+            self.lunits = [8, 16, 128]
             self.do = 0.4
         return params
 
@@ -553,8 +553,43 @@ class TCNN(ShallowTSCNN):
         self.add(keras.layers.Flatten())
         self.add(keras.layers.Dense(self.lunits[1], activation=activation))
         self.add(keras.layers.Dropout(self.do))
+        # self.add(keras.layers.Dense(outputshape, activation='linear',
+        #                             kernel_regularizer=keras.regularizers.l2(self.reg)))
+        self.add(keras.layers.Dense(outputshape, activation='softmax'))
+
+
+class TSCNN(ShallowTSCNN):
+
+    def __init__(self, inputshape, outputshape, activation=keras.activations.elu, params=None):
+        params = self.setupcnnparams(params)
+
+        # Add dummy channel dimension
+        self.add(ExpandLayer(axis=-1, input_shape=inputshape))
+        # Temporal without using entire channels vector
+        self.add(keras.layers.Conv2D(
+            self.lunits[0], (self.temporal, 1),
+            activation=activation, data_format='channels_last'
+        ))
+        self.add(keras.layers.SpatialDropout2D(0.2))
+        self.add(keras.layers.MaxPool2D((2, 1)))
+        # self.add(keras.layers.BatchNormalization())
+
+        # Temporal without using entire channels vector
+        self.add(keras.layers.Conv2D(
+            self.lunits[1], (1, self.spatial),
+            activation=activation, data_format='channels_last'
+        ))
+        self.add(keras.layers.SpatialDropout2D(0.2))
+        # self.add(keras.layers.MaxPool2D((1, 2)))
+        # self.add(keras.layers.BatchNormalization())
+
+        # Classify after temporal filtering
+        self.add(keras.layers.Flatten())
+        # self.add(keras.layers.Dense(self.lunits[2], activation=activation))
+        # self.add(keras.layers.Dropout(self.do))
         self.add(keras.layers.Dense(outputshape, activation='linear',
                                     kernel_regularizer=keras.regularizers.l2(self.reg)))
+        # self.add(keras.layers.Dense(outputshape, activation='softmax'))
 
 
 class Shallow2DSTCNN(ShallowTSCNN):
@@ -607,7 +642,7 @@ MODELS = [
     # Basic Classification
     LogisticRegression, LinearSVM, SimpleMLP, StackedAutoEncoder,
     # CNN Based
-    ShallowTSCNN, TCNN, Shallow2DSTCNN,
+    ShallowTSCNN, TCNN, TSCNN, Shallow2DSTCNN,
     # RNN Based
     SimpleGRU
 ]
