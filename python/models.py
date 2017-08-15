@@ -476,7 +476,7 @@ class ShallowTSCNN(SimpleMLP):
             params = {}
             self.temporal = 200
             self.spatial = 151
-            self.lunits = [8, 16, 128]
+            self.lunits = [16, 16, 128]
             self.do = 0.4
         return params
 
@@ -548,6 +548,7 @@ class TCNN(ShallowTSCNN):
         ))
         self.add(keras.layers.SpatialDropout2D(0.2))
         self.add(keras.layers.MaxPool2D((2, 1)))
+        self.add(keras.layers.BatchNormalization())
 
         # Classify after temporal filtering
         self.add(keras.layers.Flatten())
@@ -571,6 +572,7 @@ class LinearSCNN(ShallowTSCNN):
             activation=activation, data_format='channels_last'
         ))
         self.add(keras.layers.SpatialDropout2D(0.2))
+        self.add(keras.layers.BatchNormalization())
         # self.add(keras.layers.MaxPool2D((1, 2)))
 
         # Classify after temporal filtering
@@ -596,7 +598,7 @@ class TSCNN(ShallowTSCNN):
         ))
         self.add(keras.layers.SpatialDropout2D(0.2))
         self.add(keras.layers.MaxPool2D((2, 1)))
-        # self.add(keras.layers.BatchNormalization())
+        self.add(keras.layers.BatchNormalization())
 
         # Temporal without using entire channels vector
         self.add(keras.layers.Conv2D(
@@ -605,7 +607,7 @@ class TSCNN(ShallowTSCNN):
         ))
         self.add(keras.layers.SpatialDropout2D(0.2))
         # self.add(keras.layers.MaxPool2D((1, 2)))
-        # self.add(keras.layers.BatchNormalization())
+        self.add(keras.layers.BatchNormalization())
 
         # Classify after temporal filtering
         self.add(keras.layers.Flatten())
