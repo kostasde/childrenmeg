@@ -81,6 +81,8 @@ def hp_search(model_constructor, dataset_constructor, args):
                                 validation_data=e, validation_steps=np.ceil(e.n / e.batch_size),
                                 workers=4, epochs=args.epochs, callbacks=callbacks)
             metrics = model.evaluate_generator(e, np.ceil(e.n / e.batch_size), workers=4)
+            if np.any(np.isnan(metrics)):
+                raise ValueError()
         except Exception as _e:
             print('Training failed with:', _e)
             return {'status': STATUS_FAIL}

@@ -29,10 +29,10 @@ def train_and_test(model, dataset, args, callbacks=None):
 
     if args.test:
         print('Test performance')
-        s = dataset.testset()
+        s = dataset.testset(flatten=model.NEEDS_FLAT)
     else:
         print('Validation Performance')
-        s = dataset.evaluationset()
+        s = dataset.evaluationset(flatten=model.NEEDS_FLAT)
 
     metrics = model.evaluate_generator(s, np.ceil(s.n / s.batch_size), workers=args.workers)
     print(metrics)
@@ -47,7 +47,7 @@ def test(model, dataset, args):
     :param args: 
     :return: Array of metrics x folds, reporting test metric of each 
     """
-    ts = dataset.testset()
+    ts = dataset.testset(flatten=model.NEEDS_FLAT)
     return model.evaluate_generator(ts, np.ceil(ts.n/ts.batch_size), workers=args.workers)
 
 

@@ -474,8 +474,8 @@ class ShallowTSCNN(SimpleMLP):
             self.spatial = [int(params[self.PARAM_FILTER_SPATIAL])]
         else:
             params = {}
-            self.temporal = 200
-            self.spatial = 151
+            self.temporal = 50
+            self.spatial = 156
             self.lunits = [16, 16, 128]
             self.do = 0.4
         return params
@@ -505,8 +505,8 @@ class ShallowTSCNN(SimpleMLP):
         # self.add(keras.layers.MaxPool1D())
         self.add(keras.layers.Flatten())
         self.add(keras.layers.Dense(self.lunits[2], activation=activation))
-        self.add(keras.layers.normalization.BatchNormalization())
         self.add(keras.layers.Dropout(self.do))
+        self.add(keras.layers.normalization.BatchNormalization())
         # self.add(keras.layers.Dense(
         #     self.lunits[2], activation=activation, activity_regularizer=keras.regularizers.l2(self.reg))
         # )
@@ -523,7 +523,7 @@ class ShallowTSCNN(SimpleMLP):
     @staticmethod
     def search_space():
         cnn_space = SimpleMLP.search_space()
-        cnn_space[Searchable.PARAM_BATCH] = hp.quniform(Searchable.PARAM_BATCH, 1, 50, 5)
+        cnn_space[Searchable.PARAM_BATCH] = hp.quniform(Searchable.PARAM_BATCH, 1, 1024, 2)
         cnn_space[Searchable.PARAM_LAYERS] = [
             hp.quniform('3layer1', 16, 128, 2),
             hp.quniform('3layer2', 2, 64, 2),
@@ -543,7 +543,7 @@ class TCNN(ShallowTSCNN):
         self.add(ExpandLayer(axis=-1, input_shape=inputshape))
         # Temporal without using entire channels vector
         self.add(keras.layers.Conv2D(
-            self.lunits[0], (self.temporal[0], 1),
+            self.lunits[0], (self.temporal, 1),
             activation=activation, data_format='channels_last'
         ))
         self.add(keras.layers.SpatialDropout2D(0.2))
@@ -593,7 +593,7 @@ class TSCNN(ShallowTSCNN):
         self.add(ExpandLayer(axis=-1, input_shape=inputshape))
         # Temporal without using entire channels vector
         self.add(keras.layers.Conv2D(
-            self.lunits[0], (self.temporal, 1),
+            self.lunits[0], (self.temporal[0], 1),
             activation=activation, data_format='channels_last'
         ))
         self.add(keras.layers.SpatialDropout2D(0.2))
@@ -602,7 +602,7 @@ class TSCNN(ShallowTSCNN):
 
         # Temporal without using entire channels vector
         self.add(keras.layers.Conv2D(
-            self.lunits[1], (1, self.spatial),
+            self.lunits[1], (1, self.spatial[0]),
             activation=activation, data_format='channels_last'
         ))
         self.add(keras.layers.SpatialDropout2D(0.2))
@@ -628,22 +628,24 @@ class Shallow2DSTCNN(ShallowTSCNN):
             64, (16, 16),
             activation=activation, data_format='channels_first', input_shape=inputshape
         ))
+        self.add(keras.layers.SpatialDropout2D(self.do/2))
         self.add(keras.layers.normalization.BatchNormalization())
         self.add(keras.layers.MaxPool2D(pool_size=(4, 4), data_format='channels_first'))
-        self.add(keras.layers.Dropout(self.do))
 
         # Another Level
         self.add(keras.layers.Conv2D(
             32, (4, 4), activation=activation,
             data_format='channels_first'
         ))
+        self.add(keras.layers.SpatialDropout2D(self.do / 2))
+        self.add(keras.layers.normalization.BatchNormalization())
+        self.add(keras.layers.MaxPool2D(pool_size=(4, 4), data_format='channels_first'))
 
         # Classifier
         self.add(keras.layers.MaxPooling2D(data_format='channels_first'))
         # self.add(keras.layers.MaxPool1D())
         self.add(keras.layers.Flatten())
-        self.add(keras.layers.normalization.BatchNormalization())
-        self.add(keras.layers.Dropout(self.do))
+
         self.add(keras.layers.Dense(outputshape, activation='softmax', name='OUT'))
 
 
@@ -655,11 +657,36 @@ class SimpleGRU(SimpleMLP):
         Searchable.__init__(self, params=params)
         Sequential.__init__(self, name=self.__class__.__name__)
 
-        self.add(keras.layers.GRU(16, activation=activation, dropout=0.4,
-                                  recurrent_dropout=0.4, return_sequences=True, input_shape=inputshape))
+        if params is not None:
+            self.lunits = self.parse_layers(params)
+            self.do = params[Searchable.PARAM_DROPOUT]
+        else:
+            self.lunits = [16, 100]
+            self.do = 0.4
+
+        self.add(keras.layers.GRU(self.lunits[0], activation=activation, dropout=self.do/2,
+                                  recurrent_dropout=self.do, return_sequences=True, input_shape=inputshape))
         self.add(keras.layers.BatchNormalization())
+
+        for i, layer in enumerate(self.lunits[1:]):
+            self.add(keras.layers.Dense(layer, activation=activation))
+            self.add(keras.layers.Dropout(self.do))
+            self.add(keras.layers.BatchNormalization())
+
         self.add(keras.layers.Flatten())
-        self.add(keras.layers.Dense(outputshape, activation='softmax', name='OUT'))
+        # self.add(keras.layers.Dense(outputshape, activation='softmax', name='OUT'))
+        self.add(keras.layers.Dense(outputshape, activation='linear',
+                                    kernel_regularizer=keras.regularizers.l2(self.reg)))
+
+    @staticmethod
+    def search_space():
+        rnn_space = SimpleMLP.search_space()
+        rnn_space[Searchable.PARAM_BATCH] = hp.quniform(Searchable.PARAM_BATCH, 1, 512, 2)
+        rnn_space[Searchable.PARAM_LAYERS] = hp.choice(Searchable.PARAM_LAYERS, [
+            [hp.quniform('1layer1', 1, 128, 2)],
+            [hp.quniform('2layer1', 1, 128, 2), hp.quniform('2layer2', 20, 100, 10)]
+        ])
+        return rnn_space
 
 
 MODELS = [
