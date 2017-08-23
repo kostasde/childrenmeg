@@ -4,7 +4,7 @@ import keras.backend as K
 import re
 from tensorflow import multiply as tensormult
 from keras.callbacks import Callback
-from keras.models import Sequential
+from keras.models import Sequential, Model
 from hyperopt import hp
 
 from MEGDataset import BaseDatasetAgeRanges as AgeRanges
@@ -165,7 +165,7 @@ class Searchable:
     def __init__(self, params):
         if params is None:
             params = {
-                Searchable.PARAM_LR: 1e-3, Searchable.PARAM_BATCH: 100, Searchable.PARAM_REG: 0.1,
+                Searchable.PARAM_LR: 1e-3, Searchable.PARAM_BATCH: 128, Searchable.PARAM_REG: 0.1,
                 Searchable.PARAM_MOMENTUM: 0.1, Searchable.PARAM_OPT: keras.optimizers.adam
             }
 
@@ -308,7 +308,7 @@ class SimpleMLP(Sequential, Searchable):
 
     def compile(self, **kwargs):
         extra_metrics = kwargs.pop('metrics', [])
-        super().compile(optimizer=self.opt_param(), loss=keras.losses.categorical_hinge,
+        super().compile(optimizer=self.opt_param(), loss=keras.losses.categorical_crossentropy,
                         metrics=[keras.metrics.categorical_crossentropy, keras.metrics.categorical_accuracy,
                                  *extra_metrics], **kwargs)
 
@@ -649,11 +649,11 @@ class Shallow2DSTCNN(ShallowTSCNN):
         self.add(keras.layers.Dense(outputshape, activation='softmax', name='OUT'))
 
 
-class SimpleGRU(SimpleMLP):
+class SimpleLSTM(SimpleMLP):
 
     NEEDS_FLAT = False
 
-    def __init__(self, inputshape, outputshape, activation=keras.activations.elu, params=None):
+    def __init__(self, inputshape, outputshape, activation=keras.activations.relu, params=None):
         Searchable.__init__(self, params=params)
         Sequential.__init__(self, name=self.__class__.__name__)
 
@@ -661,22 +661,25 @@ class SimpleGRU(SimpleMLP):
             self.lunits = self.parse_layers(params)
             self.do = params[Searchable.PARAM_DROPOUT]
         else:
-            self.lunits = [16, 100]
+            self.lunits = [256, 512]
             self.do = 0.4
 
-        self.add(keras.layers.GRU(self.lunits[0], activation=activation, dropout=self.do/2,
-                                  recurrent_dropout=self.do, return_sequences=True, input_shape=inputshape))
+        self.add(keras.layers.wrappers.Bidirectional(
+            keras.layers.LSTM(self.lunits[0], dropout=self.do/2,
+                              recurrent_dropout=self.do,), input_shape=inputshape))
         self.add(keras.layers.BatchNormalization())
+
+        # self.add(keras.layers.Flatten())
 
         for i, layer in enumerate(self.lunits[1:]):
             self.add(keras.layers.Dense(layer, activation=activation))
             self.add(keras.layers.Dropout(self.do))
             self.add(keras.layers.BatchNormalization())
 
-        self.add(keras.layers.Flatten())
-        # self.add(keras.layers.Dense(outputshape, activation='softmax', name='OUT'))
-        self.add(keras.layers.Dense(outputshape, activation='linear',
-                                    kernel_regularizer=keras.regularizers.l2(self.reg)))
+        # self.add(keras.layers.Flatten())
+        self.add(keras.layers.Dense(outputshape, activation='softmax', name='OUT'))
+        # self.add(keras.layers.Dense(outputshape, activation='linear',
+        #                             kernel_regularizer=keras.regularizers.l2(self.reg)))
 
     @staticmethod
     def search_space():
@@ -689,6 +692,69 @@ class SimpleGRU(SimpleMLP):
         return rnn_space
 
 
+class AttentionLSTM(Model, Searchable):
+
+    TYPE = TYPE_CLASSIFICATION
+    NEEDS_FLAT = False
+
+    def __init__(self, inputshape, outputshape, activation=keras.activations.relu, params=None):
+        Searchable.__init__(self, params=params)
+
+        if params is not None:
+            if isinstance(params[SimpleMLP.PARAM_LAYERS], int):
+                params[SimpleMLP.PARAM_LAYERS] += 1
+            self.lunits = SimpleMLP.parse_layers(params)
+            self.do = params[Searchable.PARAM_DROPOUT]
+        else:
+            self.lunits = [128, 128, 128]
+            self.do = 0.4
+
+        _input = keras.layers.Input(inputshape)
+
+        rnn = keras.layers.Bidirectional(
+            keras.layers.LSTM(self.lunits[0], return_sequences=True, dropout=self.do)
+        )(_input)
+        rnn = keras.layers.BatchNormalization()(rnn)
+
+        attn = keras.layers.TimeDistributed(keras.layers.Dense(self.lunits[1], activation=activation))(rnn)
+        attn = keras.layers.TimeDistributed(keras.layers.Dropout(self.do))(rnn)
+        attn = keras.layers.Flatten()(attn)
+        attn = keras.layers.Dense(2*self.lunits[0], activation='softmax')(attn)
+        attn = keras.layers.Dropout(self.do)(attn)
+
+        fcnn = keras.layers.Dot(axes=-1)([rnn, attn])
+        fcnn = keras.layers.BatchNormalization()(fcnn)
+
+        # self.add(keras.layers.Flatten())
+
+        for i, layer in enumerate(self.lunits[2:]):
+            fcnn = keras.layers.Dense(layer, activation=activation)(fcnn)
+            fcnn = keras.layers.Dropout(self.do)(fcnn)
+            fcnn = keras.layers.BatchNormalization()(fcnn)
+
+        # self.add(keras.layers.Flatten())
+        _output = keras.layers.Dense(outputshape, activation='softmax', name='OUT')(fcnn)
+        # self.add(keras.layers.Dense(outputshape, activation='linear',
+        #                             kernel_regularizer=keras.regularizers.l2(self.reg)))
+
+        super(Model, self).__init__(_input, _output, name=self.__class__.__name__)
+
+    def compile(self, **kwargs):
+        extra_metrics = kwargs.pop('metrics', [])
+        super().compile(optimizer=self.opt_param(), loss=keras.losses.categorical_crossentropy,
+                        metrics=[keras.metrics.categorical_crossentropy, keras.metrics.categorical_accuracy,
+                                 *extra_metrics], **kwargs)
+
+    @staticmethod
+    def search_space():
+        space = SimpleLSTM.search_space()
+        space[Searchable.PARAM_LAYERS] = hp.choice(Searchable.PARAM_LAYERS, [
+            [hp.quniform('2layer1', 1, 256, 2), hp.quniform('2layer2', 16, 512, 2)],
+            [hp.quniform('3layer1', 1, 256, 2), hp.quniform('3layer2', 16, 256, 2), hp.quniform('3layer3', 16, 512, 2)]
+        ])
+        return space
+
+
 MODELS = [
     # Basic Regression
     LinearRegression,
@@ -697,5 +763,5 @@ MODELS = [
     # CNN Based
     ShallowTSCNN, TCNN, LinearSCNN, TSCNN, Shallow2DSTCNN,
     # RNN Based
-    SimpleGRU
+    SimpleLSTM, AttentionLSTM
 ]
