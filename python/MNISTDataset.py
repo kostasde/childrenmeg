@@ -139,3 +139,29 @@ class MNISTClassification(MNISTRegression):
 
     def outputshape(self):
         return self.y_train.shape[-1]
+
+
+class MNISTNoisyRegression(MNISTRegression):
+
+    def __init__(self, toplevel, batchsize=-1, shuffle=True, seed=None, mean=0.0, dev=0.2):
+        super().__init__(toplevel, batchsize, shuffle, seed)
+
+        self.x_train += np.random.normal(mean, dev, size=self.x_train.shape)
+        self.x_eval += np.random.normal(mean, dev, size=self.x_eval.shape)
+        self.x_test += np.random.normal(mean, dev, size=self.x_test.shape)
+        self.x = [d + np.random.normal(mean, dev, size=d.shape) for d in self.x]
+
+
+class MNISTNoisyClassification(MNISTClassification):
+
+    TYPE = TYPE_CLASSIFICATION
+
+    def __init__(self, toplevel, batchsize=-1, shuffle=True, seed=None, mean=0.0, dev=0.5):
+        super().__init__(toplevel, batchsize, shuffle, seed)
+
+        self.x_train += np.random.normal(mean, dev, size=self.x_train.shape)
+        self.x_eval += np.random.normal(mean, dev, size=self.x_eval.shape)
+        self.x_test += np.random.normal(mean, dev, size=self.x_test.shape)
+        # self.x = [d + np.random.normal(mean, dev, size=d.shape) for d in self.x]
+
+

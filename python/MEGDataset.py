@@ -129,6 +129,8 @@ class SubjectFileLoader(KerasDataloader):
             ep = tuple(str(f) for f in self.x[row, 1:])
             try:
                 temp = self.f_loader(ep)
+                if 0 in temp.shape:
+                    raise ValueError('Empty data.')
             # if temp is None:
             except ValueError as e:
                 print('Error occurred in: {0}.\n{1}'.format(ep, e))
@@ -139,6 +141,7 @@ class SubjectFileLoader(KerasDataloader):
                 x[i, :len(temp)] = temp
             else:
                 x[i, :, :temp.shape[-1]] = temp
+
             y[i, :] = np.array([self.subject_hash[self.x[row, 0]][column] for column in self.targets])
 
         dims = tuple(i for i in range(1, len(x.shape)))
@@ -225,7 +228,7 @@ class TemporalAugmentation(SubjectFileLoader):
         # If we are inflating the size of an epoch, modify the loader's size
         if inflate:
             # crops, time should always be first dimension, ensure croplen is less than time slices
-            f = loader.f_loader([loader.x[0][1]])
+            f = loader.f_loader((loader.x[0][1],))
             self.crops = (f.shape[0] - croplen*self.DATASET_SAMPLE_RATE) / self.step
             self.starts = np.arange(self.crops * self.step, step=self.step, dtype=np.int)
 
@@ -281,7 +284,7 @@ class BaseDataset:
     # Not sure I like this...
     GENERATOR = SubjectFileLoader
 
-    cache = RRCache(16384)
+    cache = RRCache(2*16384)
 
     @staticmethod
     # @lru_cache(maxsize=8192)
@@ -668,6 +671,8 @@ class FusionAgeRangesDataset(FusionDataset, BaseDatasetAgeRanges):
 class MEGRawRanges(MEGAgeRangesDataset):
     LOAD_SUFFIX = '.npy'
 
+    cache = RRCache(4096)
+
     class DownSamplingLoader(BaseDatasetAgeRanges.AgeSubjectLoader):
         DOWNSAMPLE_FACTOR = 20
 
@@ -694,6 +699,7 @@ class MEGRawRanges(MEGAgeRangesDataset):
 
     # Do not cache the raw data
     @staticmethod
+    @cached(cache)
     def get_features(path_to_file):
         return np.load(path_to_file[0])
 
