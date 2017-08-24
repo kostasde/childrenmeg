@@ -671,7 +671,7 @@ class FusionAgeRangesDataset(FusionDataset, BaseDatasetAgeRanges):
 class MEGRawRanges(MEGAgeRangesDataset):
     LOAD_SUFFIX = '.npy'
 
-    cache = RRCache(4096)
+    cache = RRCache(10000)
 
     class DownSamplingLoader(BaseDatasetAgeRanges.AgeSubjectLoader):
         DOWNSAMPLE_FACTOR = 20

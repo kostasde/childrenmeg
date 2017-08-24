@@ -706,18 +706,19 @@ class AttentionLSTM(Model, Searchable):
             self.lunits = SimpleMLP.parse_layers(params)
             self.do = params[Searchable.PARAM_DROPOUT]
         else:
-            self.lunits = [128, 128, 128]
+            self.lunits = [256, 512, 512]
             self.do = 0.4
 
         _input = keras.layers.Input(inputshape)
 
         rnn = keras.layers.Bidirectional(
-            keras.layers.LSTM(self.lunits[0], return_sequences=True, dropout=self.do)
+            keras.layers.LSTM(self.lunits[0], return_sequences=True, dropout=self.do//2, recurrent_dropout=self.do//2)
         )(_input)
-        rnn = keras.layers.BatchNormalization()(rnn)
-
+        # rnn = keras.layers.BatchNormalization()(rnn)
+        #
+        # attn = keras.layers.SpatialDropout1D(self.do)(rnn)
         attn = keras.layers.TimeDistributed(keras.layers.Dense(self.lunits[1], activation=activation))(rnn)
-        attn = keras.layers.TimeDistributed(keras.layers.Dropout(self.do))(rnn)
+        attn = keras.layers.TimeDistributed(keras.layers.Dropout(self.do))(attn)
         attn = keras.layers.Flatten()(attn)
         attn = keras.layers.Dense(2*self.lunits[0], activation='softmax')(attn)
         attn = keras.layers.Dropout(self.do)(attn)
@@ -733,15 +734,15 @@ class AttentionLSTM(Model, Searchable):
             fcnn = keras.layers.BatchNormalization()(fcnn)
 
         # self.add(keras.layers.Flatten())
-        _output = keras.layers.Dense(outputshape, activation='softmax', name='OUT')(fcnn)
-        # self.add(keras.layers.Dense(outputshape, activation='linear',
-        #                             kernel_regularizer=keras.regularizers.l2(self.reg)))
+        # _output = keras.layers.Dense(outputshape, activation='softmax', name='OUT')(fcnn)
+        _output = keras.layers.Dense(outputshape, activation='linear',
+                                    activity_regularizer=keras.regularizers.l2(self.reg))(fcnn)
 
         super(Model, self).__init__(_input, _output, name=self.__class__.__name__)
 
     def compile(self, **kwargs):
         extra_metrics = kwargs.pop('metrics', [])
-        super().compile(optimizer=self.opt_param(), loss=keras.losses.categorical_crossentropy,
+        super().compile(optimizer=self.opt_param(), loss=keras.losses.categorical_hinge,
                         metrics=[keras.metrics.categorical_crossentropy, keras.metrics.categorical_accuracy,
                                  *extra_metrics], **kwargs)
 

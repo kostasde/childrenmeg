@@ -122,6 +122,8 @@ if __name__ == '__main__':
                                                                         'parameters for each fold of an experiment in '
                                                                         'the provided directory.')
     parser.add_argument('--workers', '-w', default=WORKERS, type=int, help='The number of threads to use to load data.')
+    parser.add_argument('--fold', default=0, type=int, help='When not performing cross validation, selects which fold '
+                                                            'to be used as evaluation set.')
     args = parser.parse_args()
 
     # Load the appropriate dataset, considering whether it is regression or classification
@@ -165,7 +167,7 @@ if __name__ == '__main__':
         d = [x for x in Path(args.save_model_params).glob('Fold-*-weights.hdf5')]
         metrics = []
         if len(d) > 0:
-            dataset.next_leaveout(force=0)
+            dataset.next_leaveout(force=args.fold)
             d.sort(key=lambda x: int(re.findall(r'\d+', str(x))[0]))
             for f in d:
                 print('Loading model from', str(f))
