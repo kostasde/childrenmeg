@@ -679,7 +679,8 @@ class SimpleLSTM(SimpleMLP):
         # self.add(keras.layers.Flatten())
         self.add(keras.layers.Dense(outputshape, activation='softmax', name='OUT'))
         # self.add(keras.layers.Dense(outputshape, activation='linear',
-        #                             kernel_regularizer=keras.regularizers.l2(self.reg)))
+        #                             kernel_regularizer=keras.regularizers.l2(self.reg),
+        #                             bias_regularizer=keras.regularizers.l2(self.reg)))
 
     @staticmethod
     def search_space():
@@ -706,27 +707,27 @@ class AttentionLSTM(Model, Searchable):
             self.lunits = SimpleMLP.parse_layers(params)
             self.do = params[Searchable.PARAM_DROPOUT]
         else:
-            self.lunits = [256, 512, 512]
+            self.lunits = [32, 64]
             self.do = 0.4
 
         _input = keras.layers.Input(inputshape)
 
         rnn = keras.layers.Bidirectional(
-            keras.layers.LSTM(self.lunits[0], return_sequences=True, dropout=self.do//2, recurrent_dropout=self.do//2)
+            keras.layers.LSTM(self.lunits[0], return_sequences=True, dropout=self.do//2, recurrent_dropout=self.do//2,
+                              implementation=2)
         )(_input)
-        # rnn = keras.layers.BatchNormalization()(rnn)
-        #
-        # attn = keras.layers.SpatialDropout1D(self.do)(rnn)
-        attn = keras.layers.TimeDistributed(keras.layers.Dense(self.lunits[1], activation=activation))(rnn)
-        attn = keras.layers.TimeDistributed(keras.layers.Dropout(self.do))(attn)
-        attn = keras.layers.Flatten()(attn)
-        attn = keras.layers.Dense(2*self.lunits[0], activation='softmax')(attn)
-        attn = keras.layers.Dropout(self.do)(attn)
+        rnn = keras.layers.BatchNormalization()(rnn)
 
-        fcnn = keras.layers.Dot(axes=-1)([rnn, attn])
-        fcnn = keras.layers.BatchNormalization()(fcnn)
+        # Apply single layer MLP and softmax to weight input features
+        if len(self.lunits) >= 2:
+            attn = keras.layers.TimeDistributed(keras.layers.Dense(self.lunits[1], activation=activation))(rnn)
+            attn = keras.layers.TimeDistributed(keras.layers.Dropout(self.do))(attn)
+        else:
+            attn = rnn
+        attn = keras.layers.TimeDistributed(keras.layers.Dense(inputshape[-1], activation='softmax'))(attn)
 
-        # self.add(keras.layers.Flatten())
+        new_in = keras.layers.Multiply()([_input, attn])
+        fcnn = keras.layers.Flatten()(new_in)
 
         for i, layer in enumerate(self.lunits[2:]):
             fcnn = keras.layers.Dense(layer, activation=activation)(fcnn)
@@ -736,7 +737,7 @@ class AttentionLSTM(Model, Searchable):
         # self.add(keras.layers.Flatten())
         # _output = keras.layers.Dense(outputshape, activation='softmax', name='OUT')(fcnn)
         _output = keras.layers.Dense(outputshape, activation='linear',
-                                    activity_regularizer=keras.regularizers.l2(self.reg))(fcnn)
+                                     kernel_regularizer=keras.regularizers.l2(self.reg))(fcnn)
 
         super(Model, self).__init__(_input, _output, name=self.__class__.__name__)
 
@@ -750,6 +751,76 @@ class AttentionLSTM(Model, Searchable):
     def search_space():
         space = SimpleLSTM.search_space()
         space[Searchable.PARAM_LAYERS] = hp.choice(Searchable.PARAM_LAYERS, [
+            [hp.quniform('1layer1', 1, 128, 2)],
+            [hp.quniform('2layer1', 1, 256, 2), hp.quniform('2layer2', 16, 512, 2)],
+            [hp.quniform('3layer1', 1, 256, 2), hp.quniform('3layer2', 16, 256, 2), hp.quniform('3layer3', 16, 512, 2)]
+        ])
+        return space
+
+
+class FACNN(AttentionLSTM):
+
+    def __init__(self, inputshape, outputshape, activation=keras.activations.relu, params=None):
+        Searchable.__init__(self, params=params)
+
+        if params is not None:
+            if isinstance(params[SimpleMLP.PARAM_LAYERS], int):
+                params[SimpleMLP.PARAM_LAYERS] += 1
+            self.lunits = SimpleMLP.parse_layers(params)
+            self.do = params[Searchable.PARAM_DROPOUT]
+        else:
+            self.lunits = [16, 64]
+            self.do = 0.4
+
+        _input = keras.layers.Input(inputshape)
+
+        # Develop CNN Features
+        # Add dummy channel dimension
+        features = ExpandLayer(axis=-1)(_input)
+        features = keras.layers.Conv2D(
+            32, (1, 16),
+            activation=activation, data_format='channels_last'
+        )(features)
+        features = keras.layers.SpatialDropout2D(self.do)(features)
+        features = keras.layers.BatchNormalization()(features)
+        features = keras.layers.MaxPool2D((1, 8))(features)
+
+        rnn = keras.layers.Bidirectional(
+            keras.layers.LSTM(self.lunits[0], return_sequences=True, dropout=self.do//2, recurrent_dropout=self.do//2,
+                              implementation=2)
+        )(_input)
+        rnn = keras.layers.BatchNormalization()(rnn)
+
+        # Apply single layer MLP and softmax to weight input features
+        attn = keras.layers.TimeDistributed(keras.layers.Dense(32, activation='softmax'))(rnn)
+        attn = ExpandLayer(-2)(attn)
+
+        new_in = keras.layers.Multiply()([features, attn])
+        fcnn = keras.layers.Flatten()(new_in)
+
+        for i, layer in enumerate(self.lunits[2:]):
+            fcnn = keras.layers.Dense(layer, activation=activation)(fcnn)
+            fcnn = keras.layers.Dropout(self.do)(fcnn)
+            fcnn = keras.layers.BatchNormalization()(fcnn)
+
+        # self.add(keras.layers.Flatten())
+        _output = keras.layers.Dense(outputshape, activation='softmax', name='OUT')(fcnn)
+        # _output = keras.layers.Dense(outputshape, activation='linear',
+        #                              kernel_regularizer=keras.regularizers.l2(self.reg))(fcnn)
+
+        super(Model, self).__init__(_input, _output, name=self.__class__.__name__)
+
+    def compile(self, **kwargs):
+        extra_metrics = kwargs.pop('metrics', [])
+        Model.compile(self, optimizer=self.opt_param(), loss=keras.losses.categorical_crossentropy,
+                      metrics=[keras.metrics.categorical_crossentropy, keras.metrics.categorical_accuracy,
+                               *extra_metrics], **kwargs)
+
+    @staticmethod
+    def search_space():
+        space = SimpleLSTM.search_space()
+        space[Searchable.PARAM_LAYERS] = hp.choice(Searchable.PARAM_LAYERS, [
+            [hp.quniform('1layer1', 1, 128, 2)],
             [hp.quniform('2layer1', 1, 256, 2), hp.quniform('2layer2', 16, 512, 2)],
             [hp.quniform('3layer1', 1, 256, 2), hp.quniform('3layer2', 16, 256, 2), hp.quniform('3layer3', 16, 512, 2)]
         ])
@@ -764,5 +835,7 @@ MODELS = [
     # CNN Based
     ShallowTSCNN, TCNN, LinearSCNN, TSCNN, Shallow2DSTCNN,
     # RNN Based
-    SimpleLSTM, AttentionLSTM
+    SimpleLSTM,
+    # Attention
+    AttentionLSTM, FACNN
 ]

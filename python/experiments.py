@@ -8,12 +8,12 @@ from models import *
 # np.random.seed(10)
 
 
-def train_and_test(model, dataset, args, callbacks=None):
+def train_and_test(model_maker, dataset, args, callbacks=None):
     print('Train Model')
+    model = model_maker()
     if args.sanity_set:
         print('Using small subset of data')
         s = dataset.sanityset(flatten=model.NEEDS_FLAT)
-        keras.models.Sequential()
     else:
         s = dataset.trainingset(flatten=model.NEEDS_FLAT)
 
@@ -100,7 +100,7 @@ if __name__ == '__main__':
     parser.add_argument('dataset', choices=DATASETS.keys())
 
     parser.add_argument('--epochs', default=50, type=int)
-    parser.add_argument('--batch-size', default=100, type=int)
+    parser.add_argument('--batch-size', default=128, type=int)
     parser.add_argument('--test', '-t', action='store_true', help='Actually test the best trained model for each fold')
     parser.add_argument('--confusion-matrix', '-f1', action='store_true', help='Produce the confusion matrix for the '
                                                                                'classifier during evaluation and '
@@ -133,8 +133,7 @@ if __name__ == '__main__':
     callbacks = [keras.callbacks.ReduceLROnPlateau(verbose=1, patience=args.patience//5, factor=0.5, mode='min'),
                  keras.callbacks.EarlyStopping(min_delta=0.005, verbose=1, mode='min', patience=args.patience//2),
                  keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min', patience=args.patience),
-                 keras.callbacks.TensorBoard(histogram_freq=1, write_grads=True, write_images=True,
-                                             write_batch_performance=True),
+                 # keras.callbacks.TensorBoard(histogram_freq=1, write_grads=True, write_images=True,),
                  ]
     more_metrics = []
     if args.confusion_matrix:
@@ -157,9 +156,11 @@ if __name__ == '__main__':
         print('Loaded provided Hyper-parameters')
         print(args.hyper_params)
 
-    model = MODELS[args.model](dataset.inputshape(), dataset.outputshape(), params=args.hyper_params)
-    model.compile(metrics=more_metrics)
-    model.summary()
+    def model_maker():
+        model = MODELS[args.model](dataset.inputshape(), dataset.outputshape(), params=args.hyper_params)
+        model.compile(metrics=more_metrics)
+        model.summary()
+        return model
 
     # Test without training, use saved models. If available, quit when finished, otherwise train.
     if args.test and args.save_model_params is not None:
@@ -170,6 +171,7 @@ if __name__ == '__main__':
             dataset.next_leaveout(force=args.fold)
             d.sort(key=lambda x: int(re.findall(r'\d+', str(x))[0]))
             for f in d:
+                model = model_maker()
                 print('Loading model from', str(f))
                 model.load_weights(f)
                 print('Loaded previous weights!')
@@ -185,7 +187,7 @@ if __name__ == '__main__':
             print()
 
     # First fold
-    metrics = [(train_and_test(model, dataset, args, callbacks=callbacks))]
+    metrics = [(train_and_test(model_maker, dataset, args, callbacks=callbacks))]
 
     # Loop through remaining folds
     while args.cross_validation:
@@ -201,7 +203,7 @@ if __name__ == '__main__':
             callbacks[-1] = keras.callbacks.ModelCheckpoint(str(args.save_model_params /
                                                                 'Fold-{0}-weights.hdf5'.format(fold)),
                                                             verbose=1, save_best_only=True)
-        metrics.append(train_and_test(model, dataset, args, callbacks=callbacks))
+        metrics.append(train_and_test(model_maker, dataset, args, callbacks=callbacks))
 
     print('\n\nComplete.')
 

@@ -264,8 +264,8 @@ class TemporalAugmentation(SubjectFileLoader):
                     x[i, np.arange(s+offset, s+offset+int(self.croplen*self.DATASET_SAMPLE_RATE),
                                    self.step, dtype=np.int), :]
         else:
-            # Just do the first croplen length for evaulation
-            x_new = x[:, 0:x_new.shape[1], :]
+            # Just do the first croplen length for evaulation, should consider interpolated version
+            x_new = x[:, np.arange(0, int(self.croplen*self.DATASET_SAMPLE_RATE), self.step), :]
 
         if self.loader.flatten:
             x = x_new.reshape((x.shape[0], -1))
