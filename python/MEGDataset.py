@@ -115,7 +115,7 @@ class SubjectFileLoader(KerasDataloader):
 
         super().__init__(x.shape[0], batchsize, shuffle=shuffle, seed=seed)
 
-    def _load(self, index_array, batch_size):
+    def _load(self, index_array, batch_size, nancheck=False):
         if self.flatten:
             # batches x time x features
             x = np.zeros([batch_size, self.longest_vector])
@@ -145,7 +145,10 @@ class SubjectFileLoader(KerasDataloader):
             y[i, :] = np.array([self.subject_hash[self.x[row, 0]][column] for column in self.targets])
 
         dims = tuple(i for i in range(1, len(x.shape)))
-        return x[~np.isnan(x).any(axis=dims)], y[~np.isnan(x).any(axis=dims)]
+        if nancheck:
+            return x[~np.isnan(x).any(axis=dims)], y[~np.isnan(x).any(axis=dims)]
+        else:
+            return x, y
 
     def __next__(self):
         with self.lock:
@@ -211,9 +214,9 @@ class SpatialChannelAugmentation(SubjectFileLoader):
 
 class TemporalAugmentation(SubjectFileLoader):
 
-    DATASET_SAMPLE_RATE = 4000
+    DATASET_SAMPLE_RATE = 200
 
-    def __init__(self, loader: SubjectFileLoader, croplen=2.0, limits=(-0.5, 3.0), skipsrate=200,
+    def __init__(self, loader: SubjectFileLoader, croplen=2.0, limits=(-0.5, 3.0),
                  inflate=True, cropstyle='uniform',):
         self.__class__ = type(loader.__class__.__name__, (self.__class__, loader.__class__), {})
         self.__dict__ = loader.__dict__
@@ -221,23 +224,16 @@ class TemporalAugmentation(SubjectFileLoader):
         self.loader = loader
         self.croplen = croplen
         self.cropstyle = cropstyle
-        self.skipsrate = skipsrate
         self.inflate = 1
-        self.step = int(self.DATASET_SAMPLE_RATE // skipsrate)
 
         # If we are inflating the size of an epoch, modify the loader's size
         if inflate:
             # crops, time should always be first dimension, ensure croplen is less than time slices
             f = loader.f_loader((loader.x[0][1],))
-            self.crops = (f.shape[0] - croplen*self.DATASET_SAMPLE_RATE) / self.step
-            self.starts = np.arange(self.crops * self.step, step=self.step, dtype=np.int)
+            self.crops = (f.shape[0] - croplen*self.DATASET_SAMPLE_RATE)
 
             if self.crops > 0:
                 self.inflate *= self.crops
-                # loader.n *= self.inflate
-            # resampling
-            # loader.n *= self.step
-            self.inflate *= self.step
 
     def _load(self, index_array, batch_size):
         x, y = self.loader._load(index_array, batch_size)
@@ -249,20 +245,17 @@ class TemporalAugmentation(SubjectFileLoader):
             # TODO see if this redundant operation can be removed
             x = x.reshape((x.shape[0], -1, self.slice_length))
 
-        x_new = np.zeros((x.shape[0], int(self.croplen * self.skipsrate), *x.shape[2:]))
+        x_new = np.zeros((x.shape[0], int(self.croplen*self.DATASET_SAMPLE_RATE), *x.shape[2:]))
 
         # select resampling offset and starting point
         if not self.evaluate:
             if self.cropstyle == 'uniform':
-                offset = int(self.step*np.random.uniform())
-                starts = np.random.choice(self.starts, size=x.shape[0])
+                starts = np.random.choice(np.arange(self.crops), size=x.shape[0]).astype(int)
             else:
-                offset = 0
                 starts = np.zeros(x.shape[0])
             for i, s in enumerate(starts):
                 x_new[i, :] = \
-                    x[i, np.arange(s+offset, s+offset+int(self.croplen*self.DATASET_SAMPLE_RATE),
-                                   self.step, dtype=np.int), :]
+                    x[i, s:s+int(self.croplen*self.DATASET_SAMPLE_RATE), :]
         else:
             # Just do the first croplen length for evaulation, should consider interpolated version
             x_new = x[:, np.arange(0, int(self.croplen*self.DATASET_SAMPLE_RATE), self.step), :]

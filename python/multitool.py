@@ -108,6 +108,18 @@ def handle_raw(args):
         # tqdm.write('\n')
 
 
+def handle_decimate(args):
+    print('Decimating all samples')
+    for f in tqdm(args.toplevel.glob('**/raw/**/epoch*.npy'), unit='files', unit_scale=True,
+                  total=len([x for x in args.toplevel.glob('**/raw/**/epoch*.csv')])):
+        x = np.load(str(f))
+        x = x[np.arange(0, x.shape[0], 20), :]
+
+        f.rename(f.with_suffix('.bak'))
+
+        np.save(str(f), x)
+
+
 def handle_param_search_tool(args):
     print('Analyzing Top Level...')
     pass
@@ -171,6 +183,16 @@ raw_parser.add_argument('--preserve-channels', '-p', help='Preserve all channels
 raw_parser.add_argument('--overwrite', '-f', help='Overwrite any existing files, otherwise skip existing',
                         action='store_true')
 raw_parser.set_defaults(func=handle_raw)
+
+# ----------------------------------------------------------------------------------------------------------------------
+# This command decimates the raw data
+# ----------------------------------------------------------------------------------------------------------------------
+
+dec_parser = subparsers.add_parser('decimate')
+dec_parser.add_argument('toplevel', type=str, help='Top level of where the study and datasets are located')
+dec_parser.add_argument('--keep', '-k', help='Retain original files after performing operations', action='store_true')
+
+dec_parser.set_defaults(func=handle_decimate)
 
 # ----------------------------------------------------------------------------------------------------------------------
 # This command deals with management of parameter searches
