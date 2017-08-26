@@ -183,6 +183,8 @@ Since the number of features multiplied by the number of time windows exceeds th
 
 \subsubsection{Convolutional Neural Network}
 
+\subsubsection{Recurrent Neural Network}
+
 \section{Results}
 
 \subsection{Correlations}
@@ -201,13 +203,13 @@ Under this test condition, $0.0116$\% of correlations between features are signi
 
 When considering this test set, $0.132$\% of correlations between features are significant, which is a somewhat substantial increase relative to the previous two correlation comparisons. Similar to the above correlations, autocorrelations and spectral activity appear prominantly, in addition to mean and energy features. 
 
-%% \begin{figure}[t]
-%%   \centering
-%%   \includegraphics[width=\linewidth]{AllComponents.png}
-%%   \caption{Graphical illustrations (using \cite{Delorme04eeglab}) of the independent components with features most correlated with audio features, from left to right, /{\em pah}/, /{\em pah tah kah}/ and verb generation experiments. These are generated using the ICA weight matrix interpolated over MEG sensor locations. }
-%%   \label{fig:components}
-%% \end{figure}
-
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{AllComponents.png}
+  \caption{Graphical illustrations (using \cite{Delorme04eeglab}) of the independent components with features most correlated with audio features, from left to right, /{\em pah}/, /{\em pah tah kah}/ and verb generation experiments. These are generated using the ICA weight matrix interpolated over MEG sensor locations. }
+  \label{fig:components}
+\end{figure}
+ 
 \subsubsection{All features vs. age}
 
 When correlating with age, 172 features were found to have significant values, all of which were MEG features. This includes the autocorrelation features of eight (ICA) components -- including the first (highest entropy) component -- in addition to the entire available frequency spectrum of four of these components and one other. The fact that spectral features are relatively strongly correlated with age might provide evidence that synchronization may be a distinguishing factor across age, but additional feature analysis will be necessary to confirm this.
@@ -229,12 +231,12 @@ The correlation of a single computed component has correlation coefficients $\te
 
         \midrule
        
-        MEG (red.)~~~                        & ~~~$5.081$         &     $0.142$       \\
-        Audio+MEG (red.)~~~                  & ~~~$3.370$         &     $0.248$       \\
+        MEG (red.)~~~                        & ~~~$5.081$         &     \textbf{0.142}       \\
+        Audio+MEG (red.)~~~                  & ~~~\textbf{3.370}         &     $0.248$       \\
 
         \bottomrule
   \end{tabular}
-  \caption{Root mean squared error (RMSE), in years, of 10-fold cross validation for each of the feature sets. Audio features combined with reduced MEG features show the best prediction capability.}
+  \caption{Root mean squared error (RMSE), in years, of 10-fold cross validation for each of the feature sets. Audio features combined with reduced MEG features show the best prediction capability. Bold indicates best performance.}
 \end{table}
 
 The regression performance across the 10 folds seems to suggest that a multilinear regression model trained using both audio and the reduced (i.e., highly correlated) MEG feature sets performs better than either Audio or MEG feature sets alone. Without  reducing the MEG feature set, regression performance is no better than that for Audio alone. Models trained using some MEG features also  perform more consistently (i.e., with lower variance) than with Audio features exclusively.
@@ -269,6 +271,8 @@ Table \ref{tab:reg_results} shows the means and variances of root mean squared e
   \end{tabular}
   \caption{Classification accuracy using one of three datasets, and three different basic classifier models.}
 \end{table}
+
+We found very little success in training the recurrent neural networks using the feature based datasets, furthermore the addition of attention made no sugnificant improvement 
   
 
 \subsection{End-to-End Classification}
