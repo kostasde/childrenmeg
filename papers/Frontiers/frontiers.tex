@@ -158,6 +158,8 @@ Here fixed length crops of the entire recording are taken such that the event of
 
 \subsubsection{Subsampling}
 
+We take advantage of the high sampling rate of the recordings ($4kHz$) being used with respect to the frequency ranges that that we keep  for analysis and examine whether different sub-sampling of the data is a viable augmentation strategy. Filtering is still applied as before to minimize aliasing artifacts, and then we augment the number of samples by re-sampling at a frequency of $200 Hz$
+
 \subsubsection{Noisy Sensors}
 
 To the authors' knowledge, the only other attempt at performing some sort of spatial augmentation for this type of data is presented in \cite{}. Here they...
@@ -167,9 +169,13 @@ To the authors' knowledge, the only other attempt at performing some sort of spa
 
 First, we identify correlations among extracted features, in order to demonstrate evidence for predictive potential. We then train regularized multilinear regression models to predict a subject's age.
 
+All regression and classification models are evaluated using the same held out test subjects, using ten-fold cross-validation. The test set has a nearly identical distribution of age
+
 \subsubsection{Correlation}
 
 We used standard Pearson correlation between the extracted MEG and audio features, for each experiment set separately. We set significance for $p$-values at $\alpha = 10^{-4}$ and the coefficient $r$'s absolute value $\text{abs}(r) > 0.2$. For each experiment, we then examined the independent component that had the highest correlations of its features with respect to audio features, to determine if there were any noticeably consistent brain locations that were being emphasized. These are plotted in figure \ref{fig:components}. Furthermore, we compute correlation of MEG and audio features, with respect to age, over the entire data set, to identify features with a potentially stronger predictive capability for regression.
+
+\subsection{Trained Models}
 
 \subsubsection{Multilinear regression}
 
@@ -179,7 +185,11 @@ Since the number of features multiplied by the number of time windows exceeds th
 
 \subsubsection{Logistic Regression and Linear SVM}
 
+These are commonly used classifiers that learn linear (although they can be modified to create non-linear ones) planes that separate each output class. The main difference between the two is the  
+
 \subsubsection{Multi-Layer Perceptron}
+
+This is the most straight-forward implementation of a neural-network classifier. It is also known as a feed-forward neual network. It consists of a number of layers (
 
 \subsubsection{Convolutional Neural Network}
 
