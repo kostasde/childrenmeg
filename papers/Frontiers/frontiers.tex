@@ -183,15 +183,17 @@ We train multilinear regression models to predict age using each of the \textit{
 
 Since the number of features multiplied by the number of time windows exceeds the total number of data points available to train, we reduce the dimensionality of the MEG data (i.e., {\em MEG (red.)}) by selecting only those features from that set that have significant correlations, as defined above.
 
-\subsubsection{Logistic Regression and Linear SVM}
+\subsubsection{Logistic Regression and Linear Support Vector Machine}
 
-These are commonly used classifiers that learn linear (although they can be modified to create non-linear ones) planes that separate each output class. The main difference between the two is the  
+These are commonly used classifiers that learn linear (although they can be modified to create non-linear) separatations between the points of output classes. The main difference between the two is that logistic regression (or softmax classifier) maximizes the confidence of the prediction by..., whereas as a linear support vector machine, or SVM . Here in particular we use an L2 regularized SVM or L2-SVM
 
 \subsubsection{Multi-Layer Perceptron}
 
-This is the most straight-forward implementation of a neural-network classifier. It is also known as a feed-forward neual network. It consists of a number of layers (
+This is the most straight-forward implementation of a neural-network classifier. It is also known as a feed-forward neual network. It consists of a number of layers of neurons, where typically less than three layers are considered shallow, but with three or more the literature starts to call them \textit{deep}. Each neuron recieves input from each of the neurons of the previous layers, with the first layer recieving the entire input. These incoming ``connections'' are weighted, and these weights are trained to fit the dataset using gradient descent (in addition to other optimization techniques like \cite{adam, rmsprop, etc}). Crucially the output of each neuron has a non-linear operation applied to the weighted sum of all incoming connections. This applies for the most part all neural network implementations, and allows them to learn arbitrary functions that seperate output labels.
 
 \subsubsection{Convolutional Neural Network}
+
+A convolutional neural network is a variation on the feed-forward neural network that employs the sharing of incoming weights for the purpose of both reducing the number of parameters, and learning convolution-like operations, rather than the feed-forward networks masking based operations.
 
 \subsubsection{Recurrent Neural Network}
 
