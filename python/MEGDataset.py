@@ -258,7 +258,7 @@ class TemporalAugmentation(SubjectFileLoader):
                     x[i, s:s+int(self.croplen*self.DATASET_SAMPLE_RATE), :]
         else:
             # Just do the first croplen length for evaulation, should consider interpolated version
-            x_new = x[:, np.arange(0, int(self.croplen*self.DATASET_SAMPLE_RATE), self.step), :]
+            x_new = x[:, :x_new.shape[1], :]
 
         if self.loader.flatten:
             x = x_new.reshape((x.shape[0], -1))
@@ -669,24 +669,24 @@ class MEGRawRanges(MEGAgeRangesDataset):
     class DownSamplingLoader(BaseDatasetAgeRanges.AgeSubjectLoader):
         DOWNSAMPLE_FACTOR = 20
 
-        def _load(self, batch: np.ndarray, cols: list):
-            x, y = super(MEGRawRanges.DownSamplingLoader, self)._load(batch, cols)
-            if self.DOWNSAMPLE_FACTOR <= 1:
-                return x, y
-            # Simple mean interpolation downsampling
-            if len(x.shape) > 3:
-                raise TypeError('Cannot handle data with shape {0}, must be 2 or 3'.format(len(x.shape)))
-            if len(x.shape) == 2:
-                # Basically undoing operation that was done
-                # TODO see if this redundant operation can be removed
-                x = x.reshape((x.shape[0], -1, self.slice_length))
-            pad = self.DOWNSAMPLE_FACTOR - x.shape[1] % self.DOWNSAMPLE_FACTOR
-            x = np.append(x, np.nan * np.zeros((x.shape[0], pad, self.slice_length)), axis=1)
-            x = np.reshape(x, (x.shape[0], -1, self.DOWNSAMPLE_FACTOR, self.slice_length))
-            x = np.nanmean(x, axis=-2)
-            if len(x.shape) == 2 or self.flatten:
-                x = np.reshape(x, (x.shape[0], -1))
-            return x, y
+        # def _load(self, batch: np.ndarray, cols: list):
+        #     x, y = super(MEGRawRanges.DownSamplingLoader, self)._load(batch, cols)
+        #     if self.DOWNSAMPLE_FACTOR <= 1:
+        #         return x, y
+        #     # Simple mean interpolation downsampling
+        #     if len(x.shape) > 3:
+        #         raise TypeError('Cannot handle data with shape {0}, must be 2 or 3'.format(len(x.shape)))
+        #     if len(x.shape) == 2:
+        #         # Basically undoing operation that was done
+        #         # TODO see if this redundant operation can be removed
+        #         x = x.reshape((x.shape[0], -1, self.slice_length))
+        #     pad = self.DOWNSAMPLE_FACTOR - x.shape[1] % self.DOWNSAMPLE_FACTOR
+        #     x = np.append(x, np.nan * np.zeros((x.shape[0], pad, self.slice_length)), axis=1)
+        #     x = np.reshape(x, (x.shape[0], -1, self.DOWNSAMPLE_FACTOR, self.slice_length))
+        #     x = np.nanmean(x, axis=-2)
+        #     if len(x.shape) == 2 or self.flatten:
+        #         x = np.reshape(x, (x.shape[0], -1))
+        #     return x, y
 
     GENERATOR = DownSamplingLoader
 
