@@ -2,7 +2,9 @@ import numpy as np
 import keras
 import keras.backend as K
 import re
+
 from tensorflow import multiply as tensormult
+from tensorflow import matmul
 from keras.callbacks import Callback
 from keras.models import Sequential, Model
 from hyperopt import hp
@@ -118,6 +120,36 @@ class SqueezeLayer(ExpandLayer):
 
     def call(self, inputs, **kwargs):
         return K.squeeze(inputs, axis=self.axis)
+
+
+class ProjectionLayer(keras.layers.Layer):
+
+    def __init__(self, gridsize=100, **kwargs):
+        super().__init__(**kwargs)
+        self.gridsize = gridsize
+
+    def build(self, input_shape):
+        # Placeholder and constant tensors
+        mgx, mgy = np.mgrid[0:self.gridsize, 0:self.gridsize]
+        self.gridpoints = K.constant(np.reshape(np.array([mgx, mgy]), (2, -1)).T.astype(np.float32),
+                                     dtype=keras.backend.floatx())
+        self.input_spec = [keras.engine.InputSpec(ndim=3), keras.engine.InputSpec(shape=[None, None, 2])]
+        super(ProjectionLayer, self).build(input_shape)
+
+    def compute_output_shape(self, input_shape):
+        input_shape = input_shape[0]
+        return tuple([*input_shape[:-1], self.gridsize, self.gridsize])
+
+    def call(self, inputs, **kwargs):
+        assert len(inputs) == 2
+        data = inputs[0]
+        locs = inputs[1]
+
+        distance = K.sqrt(K.sum(K.pow(K.expand_dims(locs, 1) - K.expand_dims(self.gridpoints, 1), 2), axis=-1))
+        loc_mask = K.one_hot(K.argmin(distance), locs.get_shape()[1].value)
+        mmul = matmul(data, K.permute_dimensions(loc_mask, [0, 2, 1]))
+
+        return K.reshape(mmul, [-1, data.get_shape()[1].value, self.gridsize, self.gridsize])
 
 
 class Searchable:
@@ -623,30 +655,34 @@ class Shallow2DSTCNN(ShallowTSCNN):
     def __init__(self, inputshape, outputshape, activation=keras.activations.relu, params=None):
         params = self.setupcnnparams(params)
 
-        # Start with 2D Spatial filtering
-        self.add(keras.layers.Conv2D(
-            64, (16, 16),
-            activation=activation, data_format='channels_first', input_shape=inputshape
-        ))
-        self.add(keras.layers.SpatialDropout2D(self.do/2))
-        self.add(keras.layers.normalization.BatchNormalization())
-        self.add(keras.layers.MaxPool2D(pool_size=(4, 4), data_format='channels_first'))
+        self.lunits = [32, 16]
 
-        # Another Level
-        self.add(keras.layers.Conv2D(
-            32, (4, 4), activation=activation,
-            data_format='channels_first'
-        ))
-        self.add(keras.layers.SpatialDropout2D(self.do / 2))
-        self.add(keras.layers.normalization.BatchNormalization())
-        self.add(keras.layers.MaxPool2D(pool_size=(4, 4), data_format='channels_first'))
+        # Make the interpolated image
+        signal_in = keras.layers.Input(shape=inputshape)
+        # 2 comes from 2D locations
+        locs_in = keras.layers.Input(shape=(inputshape[-1], 2))
+        conv = ProjectionLayer(gridsize=32)([signal_in, locs_in])
+        conv = ExpandLayer()(conv)
+
+        # Start with 2D Spatial filtering
+        for units in self.lunits:
+            conv = keras.layers.Conv3D(units, (1, 4, 4), activation=activation, data_format='channels_last',)(conv)
+            conv = keras.layers.SpatialDropout3D(self.do, data_format='channels_last')(conv)
+            conv = keras.layers.MaxPool3D(pool_size=(1, 4, 4), data_format='channels_last')(conv)
+            conv = keras.layers.normalization.BatchNormalization()(conv)
+
+        conv = keras.layers.Conv3D(32, (32, 1, 1), activation=activation, data_format='channels_last', )(conv)
+        conv = keras.layers.SpatialDropout3D(self.do, data_format='channels_last')(conv)
+        conv = keras.layers.MaxPool3D(pool_size=(8, 1, 1), data_format='channels_last')(conv)
+        conv = keras.layers.normalization.BatchNormalization()(conv)
 
         # Classifier
-        self.add(keras.layers.MaxPooling2D(data_format='channels_first'))
+        # self.add(keras.layers.MaxPooling2D(data_format='channels_first'))
         # self.add(keras.layers.MaxPool1D())
-        self.add(keras.layers.Flatten())
+        output = keras.layers.Flatten()(conv)
+        output = keras.layers.Dense(outputshape, activation='softmax', name='OUT')(output)
 
-        self.add(keras.layers.Dense(outputshape, activation='softmax', name='OUT'))
+        super(Model, self).__init__([signal_in, locs_in], [output])
 
 
 class SimpleLSTM(SimpleMLP):
@@ -713,7 +749,7 @@ class AttentionLSTM(Model, Searchable):
         _input = keras.layers.Input(inputshape)
 
         rnn = keras.layers.Bidirectional(
-            keras.layers.LSTM(self.lunits[0], return_sequences=True, dropout=self.do//2, recurrent_dropout=self.do//2,
+            keras.layers.LSTM(self.lunits[0], return_sequences=True, dropout=self.do/2, recurrent_dropout=self.do/2,
                               implementation=2)
         )(_input)
         rnn = keras.layers.BatchNormalization()(rnn)
@@ -772,12 +808,74 @@ class FACNN(ShallowTSCNN):
             self.lunits[0], (1, self.spatial),
             activation=activation, data_format='channels_last'
         )(features)
-        features = keras.layers.SpatialDropout2D(self.do)(features)
+        features = keras.layers.SpatialDropout2D(self.do/2)(features)
         features = keras.layers.MaxPool2D((1, 4))(features)
         features = keras.layers.BatchNormalization()(features)
 
         rnn = keras.layers.Bidirectional(
-            keras.layers.LSTM(self.temporal, return_sequences=True, dropout=self.do//2, recurrent_dropout=self.do//2,
+            keras.layers.LSTM(self.temporal, return_sequences=True, dropout=self.do/2, recurrent_dropout=self.do/2,
+                              implementation=2)
+        )(_input)
+        rnn = keras.layers.BatchNormalization()(rnn)
+
+        # Apply single layer softmax to weight input features
+        attn = keras.layers.TimeDistributed(keras.layers.Dense(self.lunits[0], activation='softmax'))(rnn)
+        attn = ExpandLayer(-2)(attn)
+
+        new_in = keras.layers.Multiply()([features, attn])
+        fcnn = keras.layers.Flatten()(new_in)
+
+        for i, layer in enumerate(self.lunits[1:]):
+            fcnn = keras.layers.Dense(layer, activation=activation)(fcnn)
+            fcnn = keras.layers.Dropout(self.do)(fcnn)
+            fcnn = keras.layers.BatchNormalization()(fcnn)
+
+        # self.add(keras.layers.Flatten())
+        _output = keras.layers.Dense(outputshape, activation='softmax', name='OUT')(fcnn)
+        # _output = keras.layers.Dense(outputshape, activation='linear',
+        #                              kernel_regularizer=keras.regularizers.l2(0.1))(fcnn)
+
+        super(Model, self).__init__(_input, _output, name=self.__class__.__name__)
+
+    def compile(self, **kwargs):
+        extra_metrics = kwargs.pop('metrics', [])
+        super(SimpleMLP, self).compile(optimizer=self.opt_param(), loss=keras.losses.categorical_crossentropy,
+                                          metrics=[keras.metrics.categorical_crossentropy,
+                                                 keras.metrics.categorical_accuracy, *extra_metrics], **kwargs)
+
+    @staticmethod
+    def search_space():
+        space = TSCNN.search_space()
+        space[Searchable.PARAM_BATCH] = hp.quniform(Searchable.PARAM_BATCH, 2, 256, 2)
+        space[Searchable.PARAM_LAYERS] = hp.choice(Searchable.PARAM_LAYERS, [
+            [hp.quniform('1layer1', 1, 64, 2)],
+            [hp.quniform('2layer1', 1, 64, 2), hp.quniform('2layer2', 16, 512, 2)],
+            [hp.quniform('3layer1', 1, 32, 2), hp.quniform('3layer2', 16, 512, 2), hp.quniform('3layer3', 16, 128, 2)]
+        ])
+        return space
+
+
+class FACNN2(FACNN):
+
+    def __init__(self, inputshape, outputshape, activation=keras.activations.relu, params=None):
+        params = self.setupcnnparams(params)
+
+        _input = keras.layers.Input(inputshape)
+
+        # Develop CNN Features
+        # Add dummy channel dimension
+        features = ExpandLayer(axis=-1)(_input)
+        for i in range(2):
+            features = keras.layers.Conv2D(
+                self.lunits[0], (1, int(self.spatial//2)),
+                activation=activation, data_format='channels_last'
+            )(features)
+            features = keras.layers.SpatialDropout2D(self.do)(features)
+            features = keras.layers.MaxPool2D((1, 2))(features)
+            features = keras.layers.BatchNormalization()(features)
+
+        rnn = keras.layers.Bidirectional(
+            keras.layers.LSTM(self.temporal, return_sequences=True, dropout=self.do/2, recurrent_dropout=self.do/2,
                               implementation=2)
         )(_input)
         rnn = keras.layers.BatchNormalization()(rnn)
@@ -801,23 +899,6 @@ class FACNN(ShallowTSCNN):
 
         super(Model, self).__init__(_input, _output, name=self.__class__.__name__)
 
-    def compile(self, **kwargs):
-        extra_metrics = kwargs.pop('metrics', [])
-        super(SimpleMLP, self).compile(optimizer=self.opt_param(), loss=keras.losses.categorical_crossentropy,
-                                          metrics=[keras.metrics.categorical_crossentropy,
-                                                 keras.metrics.categorical_accuracy, *extra_metrics], **kwargs)
-
-    @staticmethod
-    def search_space():
-        space = TSCNN.search_space()
-        space[Searchable.PARAM_BATCH] = hp.quniform(Searchable.PARAM_BATCH, 2, 256, 2)
-        space[Searchable.PARAM_LAYERS] = hp.choice(Searchable.PARAM_LAYERS, [
-            [hp.quniform('1layer1', 1, 64, 2)],
-            [hp.quniform('2layer1', 1, 64, 2), hp.quniform('2layer2', 16, 512, 2)],
-            [hp.quniform('3layer1', 1, 32, 2), hp.quniform('3layer2', 16, 512, 2), hp.quniform('3layer3', 16, 128, 2)]
-        ])
-        return space
-
 
 MODELS = [
     # Basic Regression
@@ -829,5 +910,5 @@ MODELS = [
     # RNN Based
     SimpleLSTM,
     # Attention
-    AttentionLSTM, FACNN
+    AttentionLSTM, FACNN, FACNN2
 ]

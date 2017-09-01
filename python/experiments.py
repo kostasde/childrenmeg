@@ -11,18 +11,21 @@ from models import *
 def train_and_test(model_maker, dataset, args, callbacks=None):
     print('Train Model')
     model = model_maker()
+
+    batchsize = args.batch_size if args.batch_size > 0 else int(model.batchsize)
+
     if args.sanity_set:
         print('Using small subset of data')
-        s = dataset.sanityset(flatten=model.NEEDS_FLAT)
+        s = dataset.sanityset(flatten=model.NEEDS_FLAT, batchsize=batchsize)
     else:
-        s = dataset.trainingset(flatten=model.NEEDS_FLAT)
+        s = dataset.trainingset(flatten=model.NEEDS_FLAT, batchsize=batchsize)
 
     if args.no_eval:
         print('Warning: Will not evaluate at end of epoch.')
         model.fit_generator(s, np.ceil(s.n / s.batch_size),  # use_multiprocessing=True,
                             workers=args.workers, epochs=args.epochs)
     else:
-        e = dataset.evaluationset(flatten=model.NEEDS_FLAT)
+        e = dataset.evaluationset(flatten=model.NEEDS_FLAT, batchsize=batchsize)
         model.fit_generator(s, np.ceil(s.n / s.batch_size),  # use_multiprocessing=True,
                             validation_data=e, validation_steps=np.ceil(e.n / e.batch_size),
                             workers=args.workers, epochs=args.epochs, callbacks=callbacks)
@@ -100,7 +103,7 @@ if __name__ == '__main__':
     parser.add_argument('dataset', choices=DATASETS.keys())
 
     parser.add_argument('--epochs', default=50, type=int)
-    parser.add_argument('--batch-size', default=128, type=int)
+    parser.add_argument('--batch-size', default=-1, type=int)
     parser.add_argument('--test', '-t', action='store_true', help='Actually test the best trained model for each fold')
     parser.add_argument('--confusion-matrix', '-f1', action='store_true', help='Produce the confusion matrix for the '
                                                                                'classifier during evaluation and '
@@ -130,7 +133,7 @@ if __name__ == '__main__':
     dataset = DATASETS[args.dataset][MODELS[args.model].TYPE](args.toplevel, batchsize=args.batch_size)
 
     # Callbacks
-    callbacks = [keras.callbacks.ReduceLROnPlateau(verbose=1, patience=args.patience//5, factor=0.5, mode='min'),
+    callbacks = [keras.callbacks.ReduceLROnPlateau(verbose=1, patience=args.patience//10, factor=0.5, epsilon=0.05),
                  keras.callbacks.EarlyStopping(min_delta=0.005, verbose=1, mode='min', patience=args.patience//2),
                  keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min', patience=args.patience),
                  # keras.callbacks.TensorBoard(histogram_freq=1, write_grads=True, write_images=True,),

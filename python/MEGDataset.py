@@ -163,7 +163,7 @@ class SpatialChannelAugmentation(SubjectFileLoader):
     CHAN_LOCS_FILE = 'chanlocs.csv'
 
     @staticmethod
-    def chan_locations(toplevel, subject):
+    def chan_locations(toplevel, subject, grid):
         cls = SpatialChannelAugmentation
         if subject in cls.LOCATION_LOOKUP.keys():
             return cls.LOCATION_LOOKUP[subject]
@@ -178,7 +178,7 @@ class SpatialChannelAugmentation(SubjectFileLoader):
                     print(5*' ', i)
                 print('Using, ', l[0])
 
-            cls.LOCATION_LOOKUP[subject] = utils.chan2spatial((l[0] / cls.CHAN_LOCS_FILE))
+            cls.LOCATION_LOOKUP[subject] = utils.chan2spatial((l[0] / cls.CHAN_LOCS_FILE), grid=grid)
             return cls.LOCATION_LOOKUP[subject]
 
     def __init__(self, loader: SubjectFileLoader, cov=1e-2*np.eye(2), gridsize=100):
@@ -189,30 +189,27 @@ class SpatialChannelAugmentation(SubjectFileLoader):
         self.cov = cov
         self.gridsize = gridsize
 
-    def _load(self, index_array, batch_size):
+    def _load(self, index_array, batch_size, **kwargs):
         x, y = self.loader._load(index_array, batch_size)
         # Determine which subjects are involved
         subject_labels = self.x[index_array, 0]
 
-        x_new = np.zeros((*x.shape[:-1], self.gridsize, self.gridsize))
-        grid_x, grid_y = np.mgrid[0:self.gridsize, 0:self.gridsize]
+        locs = np.zeros((batch_size, x.shape[-1], 2))
 
-        # For loop ugliness...
         for i, subject in enumerate(subject_labels):
-            locs = SpatialChannelAugmentation.chan_locations(self.loader.toplevel, subject)
+            l = SpatialChannelAugmentation.chan_locations(self.loader.toplevel, subject, grid=self.gridsize)
 
             # apply the noise to it if not evaluation
             if not self.evaluate:
-                locs += np.random.multivariate_normal([0, 0], self.cov, locs.shape[0])
+                l += np.random.multivariate_normal([0, 0], self.cov, l.shape[0])
 
-            # Transform all timeslices (assumed to be the second dimension)
-            for j in range(x.shape[1]):
-                x_new[i, j, :] = interpolate.griddata(locs, x[i, j, :], (grid_x, grid_y),
-                                                      method='nearest', rescale=True)
-        return x_new, y
+            locs[i] = l
+
+        return [x, locs], y
 
 
 class TemporalAugmentation(SubjectFileLoader):
+    # TODO Replace this with a keras layer so that this is implemented in GPU
 
     DATASET_SAMPLE_RATE = 200
 
@@ -235,7 +232,7 @@ class TemporalAugmentation(SubjectFileLoader):
             if self.crops > 0:
                 self.inflate *= self.crops
 
-    def _load(self, index_array, batch_size):
+    def _load(self, index_array, batch_size, **kwargs):
         x, y = self.loader._load(index_array, batch_size)
 
         if len(x.shape) > 3:
@@ -728,16 +725,16 @@ class MEGRawRangesTA(MEGRawRanges):
 
 class MEGRawRangesSA(MEGRawRanges):
 
-    GRID_SIZE = 100
+    GRID_SIZE = 32
 
     @staticmethod
     def GENERATOR(*args, **kwargs):
         return SpatialChannelAugmentation(MEGRawRanges.GENERATOR(*args, **kwargs),
                                           gridsize=MEGRawRangesSA.GRID_SIZE)
 
-    def inputshape(self):
-        # FIXME should not have magic number, comes from assumed sample rate of 200
-        return 700, self.GRID_SIZE, self.GRID_SIZE
+    # def inputshape(self):
+    #     # FIXME should not have magic number, comes from assumed sample rate of 200
+    #     return 700, self.GRID_SIZE, self.GRID_SIZE
 
 
 class MEGRawRangesTSA(MEGRawRangesTA):

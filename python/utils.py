@@ -200,7 +200,7 @@ def azimuthal_projection(pts, coordsystem='cart'):
     return spher2cart(theta, phi, rho)[:2]
 
 
-def chan2spatial(chanlocfile, coordsystem='sphere', channels=(range(36, 187)), grid=100):
+def chan2spatial(chanlocfile, coordsystem='sphere', channels=(range(36, 187)), grid=32):
     """
     Provides a transformation to convert the channel locations into a 2D spatial tensor
     :param chanlocfile: File to load the channel locations from.
