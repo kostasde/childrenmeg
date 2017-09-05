@@ -45,7 +45,6 @@ class SkipOnKeypress(keras.callbacks.Callback):
 
 def hp_search(model_constructor, dataset_constructor, args):
 
-    trials_file = Path(args.save_trials)
 
     callbacks = [
         keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min', patience=args.patience),
@@ -56,12 +55,17 @@ def hp_search(model_constructor, dataset_constructor, args):
     ]
 
     try:
+        trials_file = Path(args.save_trials)
         trials = pickle.load(trials_file.open('rb'))
         print('Loaded previous {0} trials from {1}'.format(len(trials.losses()), str(args.save_trials)))
     except (EOFError, FileNotFoundError) as e:
         print('Creating new trials file at:', args.save_trials)
         trials = Trials()
         pickle.dump(trials, trials_file.open('wb'))
+    except TypeError:
+        trials_file = None
+        trials = Trials()
+        print('WARNING: Not saving any of these trials!')
 
     def loss(hyperparams):
         print('-'*30)
@@ -69,43 +73,49 @@ def hp_search(model_constructor, dataset_constructor, args):
         print('-'*30)
 
         dataset = dataset_constructor(args.toplevel, batchsize=int(hyperparams[Searchable.PARAM_BATCH]))
-        model = model_constructor(dataset.inputshape(), dataset.outputshape(), params=hyperparams)
-        model.compile()
-        model.summary()
 
         try:
+            model = model_constructor(dataset.inputshape(), dataset.outputshape(), params=hyperparams)
+            model.compile()
+            model.summary()
+
             s = dataset.trainingset(flatten=model.NEEDS_FLAT)
             e = dataset.evaluationset(flatten=model.NEEDS_FLAT)
 
-            model.fit_generator(s, np.ceil(s.n / s.batch_size),
+            history = model.fit_generator(s, np.ceil(s.n / s.batch_size),
                                 validation_data=e, validation_steps=np.ceil(e.n / e.batch_size),
                                 workers=4, epochs=args.epochs, callbacks=callbacks)
-            metrics = model.evaluate_generator(e, np.ceil(e.n / e.batch_size), workers=4)
-            if np.any(np.isnan(metrics)):
-                raise ValueError()
+            # metrics = model.evaluate_generator(e, np.ceil(e.n / e.batch_size), workers=4)
+            history = history.history
+            val_loss = -max(history['val_loss']) if args.max else min(history['val_loss'])
+
+            if np.any(np.isnan(history['loss'])) or np.any(np.isinf(history['loss'])):
+                raise ValueError('Loss found of NaN or Inf.')
         except Exception as _e:
             print('Training failed with:', _e)
             return {'status': STATUS_FAIL}
 
-        if trials_file.exists():
+        if trials_file is not None and trials_file.exists():
             print('Saving trial...')
             pickle.dump(trials, trials_file.open('wb'))
 
-        if metrics[0] == np.nan or metrics[0] is np.nan:
-            print('NaN Found loss, forcing evaluation loss of inf...')
-            l = np.inf
+        if val_loss == np.nan or val_loss is np.nan:
+            print('NaN loss found, returning failure')
+            return {'status': STATUS_FAIL}
         elif 0 <= args.opt_metric < len(model.metrics_names):
-            l = metrics[args.opt_metric]
-            print('Using optimization metric:', model.metrics_names[args.opt_metric], 'Value:', l)
-        else:
-            l = metrics[0]
+            l = history['val_' + model.metrics_names[args.opt_metric]]
+            l = -max(l) if args.max else min(l)
+        # else:
+        #     l = val_loss
+
+        print('Using optimization metric:', model.metrics_names[args.opt_metric], 'Value:', abs(l))
 
         return {'loss': l, 'status': STATUS_OK}
 
     best_model = fmin(loss, space=model_constructor.search_space(), trials=trials,
                       algo=tpe.suggest, verbose=1, max_evals=args.max_evals)
 
-    if trials_file.exists():
+    if trials_file is not None and trials_file.exists():
         print('Saving all trials...')
         pickle.dump(trials, trials_file.open('wb'))
 
@@ -128,6 +138,8 @@ if __name__ == '__main__':
                                                                         ' the index of the metric that will be used to'
                                                                         'evaluate the minimization during the parameter'
                                                                         ' search.')
+    parser.add_argument('--max', action='store_true', help='Search for the maximum value of the optimization metric'
+                                                           'rather than the minimum value')
     parser.add_argument('--patience', default=10,
                         help='How many epochs of no change from which we determine there is no'
                              'need to proceed and can stop early.', type=int)

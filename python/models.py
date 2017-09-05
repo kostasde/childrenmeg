@@ -351,7 +351,7 @@ class SimpleMLP(Sequential, Searchable):
             Searchable.PARAM_OPT: hp.choice(Searchable.PARAM_OPT, [keras.optimizers.sgd, keras.optimizers.adam]),
             Searchable.PARAM_MOMENTUM: hp.loguniform(Searchable.PARAM_MOMENTUM, -7, 0),
             Searchable.PARAM_BATCH: hp.quniform(Searchable.PARAM_BATCH, 1, 100, 5),
-            Searchable.PARAM_DROPOUT: hp.normal(Searchable.PARAM_DROPOUT, 0.5, 0.2),
+            Searchable.PARAM_DROPOUT: hp.normal(Searchable.PARAM_DROPOUT, 0.5, 0.15),
             Searchable.PARAM_REG: hp.loguniform(Searchable.PARAM_REG, -4, 0),
             Searchable.PARAM_LAYERS: hp.choice(Searchable.PARAM_LAYERS, [
                 [hp.quniform('1layer1', 50, 1000, 10)],
@@ -506,9 +506,9 @@ class ShallowTSCNN(SimpleMLP):
             self.spatial = int(params[self.PARAM_FILTER_SPATIAL])
         else:
             params = {}
-            self.temporal = 50
-            self.spatial = 32
-            self.lunits = [16, 16, 128]
+            self.temporal = 128
+            self.spatial = 4
+            self.lunits = [16, 64, 128]
             self.do = 0.4
         return params
 
@@ -652,37 +652,62 @@ class TSCNN(ShallowTSCNN):
 
 class Shallow2DSTCNN(ShallowTSCNN):
 
+    PARAM_GRIDLEN = 'grid_length'
+    PARAM_ATTENTION = 'attention'
+
     def __init__(self, inputshape, outputshape, activation=keras.activations.relu, params=None):
         params = self.setupcnnparams(params)
-
-        self.lunits = [32, 16]
+        attention = int(params.get(self.PARAM_ATTENTION, 96))
 
         # Make the interpolated image
         signal_in = keras.layers.Input(shape=inputshape)
         # 2 comes from 2D locations
         locs_in = keras.layers.Input(shape=(inputshape[-1], 2))
-        conv = ProjectionLayer(gridsize=32)([signal_in, locs_in])
-        conv = ExpandLayer()(conv)
+        tempconv = ExpandLayer()(signal_in)
+
+        # Temporal Convolution
+        tempconv = keras.layers.Conv2D(1, (self.temporal, 1), activation=activation, data_format='channels_last', )(tempconv)
+        tempconv = keras.layers.SpatialDropout2D(self.do/2, data_format='channels_last')(tempconv)
+        tempconv = keras.layers.MaxPool2D(pool_size=(4, 1), data_format='channels_last')(tempconv)
+        tempconv = keras.layers.normalization.BatchNormalization()(tempconv)
+        tempconv = SqueezeLayer()(tempconv)
 
         # Start with 2D Spatial filtering
+        conv = ExpandLayer()(ProjectionLayer(gridsize=50)([tempconv, locs_in]))
         for units in self.lunits:
-            conv = keras.layers.Conv3D(units, (1, 4, 4), activation=activation, data_format='channels_last',)(conv)
+            conv = keras.layers.Conv3D(units, (1, self.spatial, self.spatial), activation=activation, data_format='channels_last',)(conv)
             conv = keras.layers.SpatialDropout3D(self.do, data_format='channels_last')(conv)
-            conv = keras.layers.MaxPool3D(pool_size=(1, 4, 4), data_format='channels_last')(conv)
+            conv = keras.layers.MaxPool3D(pool_size=(1, 2, 2), data_format='channels_last')(conv)
             conv = keras.layers.normalization.BatchNormalization()(conv)
 
-        conv = keras.layers.Conv3D(32, (32, 1, 1), activation=activation, data_format='channels_last', )(conv)
-        conv = keras.layers.SpatialDropout3D(self.do, data_format='channels_last')(conv)
-        conv = keras.layers.MaxPool3D(pool_size=(8, 1, 1), data_format='channels_last')(conv)
-        conv = keras.layers.normalization.BatchNormalization()(conv)
+        # Attention
+        rnn = keras.layers.Bidirectional(
+            keras.layers.LSTM(attention, return_sequences=True, dropout=self.do / 2, recurrent_dropout=self.do / 2,)
+        )(tempconv)
+        rnn = keras.layers.BatchNormalization()(rnn)
+        attn = keras.layers.TimeDistributed(keras.layers.Dense(self.lunits[-1], activation='softmax'))(rnn)
+        attn = ExpandLayer(-2)(attn)
+        attn = ExpandLayer(-2)(attn)
+
+        conv = keras.layers.Multiply()([conv, attn])
 
         # Classifier
-        # self.add(keras.layers.MaxPooling2D(data_format='channels_first'))
-        # self.add(keras.layers.MaxPool1D())
         output = keras.layers.Flatten()(conv)
+        # output = keras.layers.Dense(self.lunits[-1], activation=activation)(output)
+        # output = keras.layers.Dropout(self.do)(output)
+        # output = keras.layers.BatchNormalization()(output)
         output = keras.layers.Dense(outputshape, activation='softmax', name='OUT')(output)
 
         super(Model, self).__init__([signal_in, locs_in], [output])
+
+    @staticmethod
+    def search_space():
+        space = ShallowTSCNN.search_space()
+        # space[Shallow2DSTCNN.PARAM_GRIDLEN] = hp.quniform(Shallow2DSTCNN.PARAM_GRIDLEN, 20, 80, 5)
+        space[Shallow2DSTCNN.PARAM_ATTENTION] = hp.quniform(Shallow2DSTCNN.PARAM_ATTENTION, 16, 256, 2)
+        space[Searchable.PARAM_BATCH] = hp.quniform(Searchable.PARAM_BATCH, 1, 64, 2)
+        space[ShallowTSCNN.PARAM_FILTER_SPATIAL] = hp.quniform('_x', 1, 16, 1)
+        return space
 
 
 class SimpleLSTM(SimpleMLP):

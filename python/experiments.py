@@ -86,6 +86,7 @@ DATASETS = {
     'MEGraw': [None, MEGRawRanges],
     'MEGTAugRaw': [None, MEGRawRangesTA],
     'MEGSAugRaw': [None, MEGRawRangesSA],
+    'MEGTSA': [None, MEGRawRangesTSA],
     'FusionRaw': [None, FusionRawRanges]
 }
 

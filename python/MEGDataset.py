@@ -157,57 +157,6 @@ class SubjectFileLoader(KerasDataloader):
         return self._load(index_array, current_batch_size)
 
 
-class SpatialChannelAugmentation(SubjectFileLoader):
-
-    LOCATION_LOOKUP = {}
-    CHAN_LOCS_FILE = 'chanlocs.csv'
-
-    @staticmethod
-    def chan_locations(toplevel, subject, grid):
-        cls = SpatialChannelAugmentation
-        if subject in cls.LOCATION_LOOKUP.keys():
-            return cls.LOCATION_LOOKUP[subject]
-        else:
-            print('Looking up channels file for subject:', subject)
-            if not isinstance(toplevel, Path):
-                toplevel = Path(toplevel)
-            l = [x for x in toplevel.glob('**/' + subject + '/') if x.is_dir()]
-            if len(l) > 1:
-                print('Warning, multiple directories found for ', subject)
-                for i in l:
-                    print(5*' ', i)
-                print('Using, ', l[0])
-
-            cls.LOCATION_LOOKUP[subject] = utils.chan2spatial((l[0] / cls.CHAN_LOCS_FILE), grid=grid)
-            return cls.LOCATION_LOOKUP[subject]
-
-    def __init__(self, loader: SubjectFileLoader, cov=1e-2*np.eye(2), gridsize=100):
-        self.__class__ = type(loader.__class__.__name__, (self.__class__, loader.__class__), {})
-        self.__dict__ = loader.__dict__
-
-        self.loader = loader
-        self.cov = cov
-        self.gridsize = gridsize
-
-    def _load(self, index_array, batch_size, **kwargs):
-        x, y = self.loader._load(index_array, batch_size)
-        # Determine which subjects are involved
-        subject_labels = self.x[index_array, 0]
-
-        locs = np.zeros((batch_size, x.shape[-1], 2))
-
-        for i, subject in enumerate(subject_labels):
-            l = SpatialChannelAugmentation.chan_locations(self.loader.toplevel, subject, grid=self.gridsize)
-
-            # apply the noise to it if not evaluation
-            if not self.evaluate:
-                l += np.random.multivariate_normal([0, 0], self.cov, l.shape[0])
-
-            locs[i] = l
-
-        return [x, locs], y
-
-
 class TemporalAugmentation(SubjectFileLoader):
     # TODO Replace this with a keras layer so that this is implemented in GPU
 
@@ -233,7 +182,10 @@ class TemporalAugmentation(SubjectFileLoader):
                 self.inflate *= self.crops
 
     def _load(self, index_array, batch_size, **kwargs):
-        x, y = self.loader._load(index_array, batch_size)
+        ins, y = self.loader._load(index_array, batch_size)
+        # Handle multi-input loaders
+        multiin = isinstance(ins, (list, tuple))
+        x = ins[0] if multiin else ins
 
         if len(x.shape) > 3:
             raise TypeError('Cannot handle data with shape {0}, must be 2 or 3'.format(len(x.shape)))
@@ -262,7 +214,10 @@ class TemporalAugmentation(SubjectFileLoader):
         else:
             x = x_new
 
-        return x, y
+        if multiin:
+            return [x, *ins[1:]], y
+        else:
+            return x, y
 
 
 class BaseDataset:
@@ -663,30 +618,6 @@ class MEGRawRanges(MEGAgeRangesDataset):
 
     cache = RRCache(10000)
 
-    class DownSamplingLoader(BaseDatasetAgeRanges.AgeSubjectLoader):
-        DOWNSAMPLE_FACTOR = 20
-
-        # def _load(self, batch: np.ndarray, cols: list):
-        #     x, y = super(MEGRawRanges.DownSamplingLoader, self)._load(batch, cols)
-        #     if self.DOWNSAMPLE_FACTOR <= 1:
-        #         return x, y
-        #     # Simple mean interpolation downsampling
-        #     if len(x.shape) > 3:
-        #         raise TypeError('Cannot handle data with shape {0}, must be 2 or 3'.format(len(x.shape)))
-        #     if len(x.shape) == 2:
-        #         # Basically undoing operation that was done
-        #         # TODO see if this redundant operation can be removed
-        #         x = x.reshape((x.shape[0], -1, self.slice_length))
-        #     pad = self.DOWNSAMPLE_FACTOR - x.shape[1] % self.DOWNSAMPLE_FACTOR
-        #     x = np.append(x, np.nan * np.zeros((x.shape[0], pad, self.slice_length)), axis=1)
-        #     x = np.reshape(x, (x.shape[0], -1, self.DOWNSAMPLE_FACTOR, self.slice_length))
-        #     x = np.nanmean(x, axis=-2)
-        #     if len(x.shape) == 2 or self.flatten:
-        #         x = np.reshape(x, (x.shape[0], -1))
-        #     return x, y
-
-    GENERATOR = DownSamplingLoader
-
     # Do not cache the raw data
     @staticmethod
     @cached(cache)
@@ -725,22 +656,72 @@ class MEGRawRangesTA(MEGRawRanges):
 
 class MEGRawRangesSA(MEGRawRanges):
 
-    GRID_SIZE = 32
+    class SpatialChannelAugmentationLoader(BaseDatasetAgeRanges.AgeSubjectLoader):
+
+        GRID_SIZE = 32
+        LOCATION_LOOKUP = {}
+        CHAN_LOCS_FILE = 'chanlocs.csv'
+
+        @staticmethod
+        def chan_locations(toplevel, subject, grid):
+            cls = MEGRawRangesSA.SpatialChannelAugmentationLoader
+            if subject in cls.LOCATION_LOOKUP.keys():
+                return cls.LOCATION_LOOKUP[subject]
+            else:
+                print('Looking up channels file for subject:', subject)
+                if not isinstance(toplevel, Path):
+                    toplevel = Path(toplevel)
+                l = [x for x in toplevel.glob('**/' + subject + '/') if x.is_dir()]
+                if len(l) > 1:
+                    print('Warning, multiple directories found for ', subject)
+                    for i in l:
+                        print(5 * ' ', i)
+                    print('Using, ', l[0])
+
+                cls.LOCATION_LOOKUP[subject] = utils.chan2spatial((l[0] / cls.CHAN_LOCS_FILE), grid=grid)
+                return cls.LOCATION_LOOKUP[subject]
+
+        def __init__(self, x, toplevel, longest_vector, subject_hash, target_cols, slice_length, f_loader,
+                     cov=1e-2 * np.eye(2), gridsize=GRID_SIZE, **kwargs):
+            super(BaseDatasetAgeRanges.AgeSubjectLoader, self).__init__(
+                x, toplevel, longest_vector, subject_hash, target_cols, slice_length, f_loader, **kwargs
+            )
+            self.cov = cov
+            self.gridsize = gridsize
+
+        def _load(self, index_array, batch_size, **kwargs):
+            x, y = super(MEGRawRangesSA.SpatialChannelAugmentationLoader, self)._load(index_array, batch_size)
+            # Determine which subjects are involved
+            subject_labels = self.x[index_array, 0]
+
+            locs = np.zeros((batch_size, x.shape[-1], 2))
+
+            for i, subject in enumerate(subject_labels):
+                l = MEGRawRangesSA.SpatialChannelAugmentationLoader.chan_locations(
+                    self.toplevel, subject, grid=self.gridsize
+                )
+
+                # apply the noise to it if not evaluation
+                if not self.evaluate:
+                    l += np.random.multivariate_normal([0, 0], self.cov, l.shape[0])
+
+                locs[i] = l
+
+            return [x, locs], y
+
+    GENERATOR = SpatialChannelAugmentationLoader
+
+
+class MEGRawRangesTSA(MEGRawRangesSA):
 
     @staticmethod
     def GENERATOR(*args, **kwargs):
-        return SpatialChannelAugmentation(MEGRawRanges.GENERATOR(*args, **kwargs),
-                                          gridsize=MEGRawRangesSA.GRID_SIZE)
+        return TemporalAugmentation(MEGRawRangesSA.GENERATOR(*args, **kwargs))
 
-    # def inputshape(self):
-    #     # FIXME should not have magic number, comes from assumed sample rate of 200
-    #     return 700, self.GRID_SIZE, self.GRID_SIZE
+    def inputshape(self):
+        return 400, self.slice_length
 
 
-class MEGRawRangesTSA(MEGRawRangesTA):
-    @staticmethod
-    def GENERATOR(*args, **kwargs):
-        return SpatialChannelAugmentation(MEGRawRangesTA.GENERATOR(*args, **kwargs))
 
 
 
