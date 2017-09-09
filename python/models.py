@@ -303,13 +303,14 @@ class SimpleMLP(Sequential, Searchable):
 
     @staticmethod
     def parse_layers(params):
-        if isinstance(params[Searchable.PARAM_LAYERS], int):
-            n = params[Searchable.PARAM_LAYERS]+1
-            return [int(params['{0}layer{1}'.format(n, i)]) for i in range(1, n+1)]
+        if Searchable.PARAM_LAYERS not in params.keys() or isinstance(params[Searchable.PARAM_LAYERS], int):
+            layerkeys = sorted([key for key in params.keys() if re.match('\dlayer\d', key)])
+            if len(layerkeys) > 0:
+                return [int(params[key]) for key in layerkeys]
         elif isinstance(params[Searchable.PARAM_LAYERS], tuple):
             return [int(x) for x in params[Searchable.PARAM_LAYERS]]
-        else:
-            raise TypeError('Layers cannot be parsed from: ' + str(params))
+
+        raise TypeError('Layers cannot be parsed from: ' + str(params))
 
     def __init__(self, inputlength, outputlength, activation=keras.activations.relu, params=None):
         Searchable.__init__(self, params=params)
@@ -320,7 +321,7 @@ class SimpleMLP(Sequential, Searchable):
             self.do = params[Searchable.PARAM_DROPOUT]
             # self.do = 0.4
         else:
-            self.lunits = [64, 32]
+            self.lunits = [512, 256, 32]
             self.do = 0.4
 
         super().__init__(name=self.__class__.__name__)
@@ -347,16 +348,17 @@ class SimpleMLP(Sequential, Searchable):
     @staticmethod
     def search_space():
         return {
-            Searchable.PARAM_LR: hp.loguniform(Searchable.PARAM_LR, -8, -2),
+            Searchable.PARAM_LR: hp.loguniform(Searchable.PARAM_LR, -14, -2.3),
             Searchable.PARAM_OPT: hp.choice(Searchable.PARAM_OPT, [keras.optimizers.sgd, keras.optimizers.adam]),
             Searchable.PARAM_MOMENTUM: hp.loguniform(Searchable.PARAM_MOMENTUM, -7, 0),
             Searchable.PARAM_BATCH: hp.quniform(Searchable.PARAM_BATCH, 1, 100, 5),
             Searchable.PARAM_DROPOUT: hp.normal(Searchable.PARAM_DROPOUT, 0.5, 0.15),
-            Searchable.PARAM_REG: hp.loguniform(Searchable.PARAM_REG, -4, 0),
+            Searchable.PARAM_REG: hp.loguniform(Searchable.PARAM_REG, -8, 0),
             Searchable.PARAM_LAYERS: hp.choice(Searchable.PARAM_LAYERS, [
-                [hp.quniform('1layer1', 50, 1000, 10)],
-                [hp.quniform('2layer1', 50, 700, 10), hp.quniform('2layer2', 20, 100, 10)],
-                [hp.quniform('3layer1', 50, 200, 10), hp.quniform('3layer2', 20, 100, 10), hp.quniform('3layer3', 20, 100, 10)]
+                [hp.qloguniform('1layer1', 1.5, 9, 2)],
+                [hp.qloguniform('2layer1', 1.5, 9, 2), hp.qloguniform('2layer2', 1.5, 8, 2)],
+                [hp.qloguniform('3layer1', 1.5, 8, 2), hp.qloguniform('3layer2', 1.5, 7, 2),
+                 hp.qloguniform('3layer3', 1.5, 5.5, 2)],
             ])
         }
 
@@ -508,8 +510,9 @@ class ShallowTSCNN(SimpleMLP):
             params = {}
             self.temporal = 128
             self.spatial = 4
-            self.lunits = [16, 64, 128]
+            self.lunits = [16, 32, 64, 64]
             self.do = 0.4
+        self.filters = int(params.get(self.PARAM_FILTER_LAYERS, 3))
         return params
 
     def __init__(self, inputshape, outputshape, activation=keras.activations.elu, params=None):
@@ -543,29 +546,37 @@ class ShallowTSCNN(SimpleMLP):
         #     self.lunits[2], activation=activation, activity_regularizer=keras.regularizers.l2(self.reg))
         # )
         # self.add(keras.layers.Dropout(self.do))
-        # self.add(keras.layers.Dense(outputshape, activation='softmax', name='OUT'))
-        self.add(keras.layers.Dense(outputshape, activation='linear',
-                                    kernel_regularizer=keras.regularizers.l2(self.reg)))
+        self.add(keras.layers.Dense(outputshape, activation='softmax', name='OUT'))
+        # self.add(keras.layers.Dense(outputshape, activation='linear',
+        #                             kernel_regularizer=keras.regularizers.l2(self.reg)))
 
     NEEDS_FLAT = False
 
     PARAM_FILTER_SPATIAL = '_x'
     PARAM_FILTER_TEMPORAL = '_t'
+    PARAM_FILTER_LAYERS = 'f_layers'
 
     @staticmethod
     def search_space():
         cnn_space = SimpleMLP.search_space()
-        cnn_space[Searchable.PARAM_BATCH] = hp.quniform(Searchable.PARAM_BATCH, 1, 1024, 2)
-        cnn_space[Searchable.PARAM_LAYERS] = [
-            hp.quniform('3layer1', 1, 128, 2),
-            hp.quniform('3layer2', 1, 64, 2),
-            hp.quniform('3layer3', 20, 100, 10)
-        ]
+        cnn_space[Searchable.PARAM_BATCH] = hp.quniform(Searchable.PARAM_BATCH, 4, 128, 4)
+        cnn_space[ShallowTSCNN.PARAM_FILTER_LAYERS] = hp.quniform(At2DSCNN.PARAM_FILTER_LAYERS, 1, 5, 1)
+        cnn_space[Searchable.PARAM_LAYERS] = hp.choice(Searchable.PARAM_LAYERS, [
+            [hp.qloguniform('2layer1', 1.5, 5.5, 2), hp.qloguniform('2layer2', 1.5, 5.5, 2)],
+            [hp.qloguniform('3layer1', 1.5, 5.5, 2), hp.qloguniform('3layer2', 1.5, 5.5, 2),
+             hp.qloguniform('3layer3', 1.5, 5.5, 2)],
+            [hp.qloguniform('4layer1', 1.5, 5.5, 2), hp.qloguniform('4layer2', 1.5, 5.5, 2),
+             hp.qloguniform('4layer3', 1.5, 5.5, 2), hp.qloguniform('4layer4', 4, 6, 10)],
+            [hp.qloguniform('5layer1', 1.5, 5.5, 2), hp.qloguniform('5layer2', 1.5, 5.5, 2),
+             hp.qloguniform('5layer3', 1.5, 5.5, 2), hp.qloguniform('5layer4', 4, 6, 10),
+             hp.qloguniform('5layer5', 4, 6, 10)]
+        ])
         cnn_space[ShallowTSCNN.PARAM_FILTER_TEMPORAL] = hp.quniform('_t', 2, 256, 2)
         cnn_space[ShallowTSCNN.PARAM_FILTER_SPATIAL] = hp.quniform('_x', 2, 64, 2)
         return cnn_space
 
 
+# Probably not used for testing
 class TCNN(ShallowTSCNN):
 
     def __init__(self, inputshape, outputshape, activation=keras.activations.elu, params=None):
@@ -591,6 +602,7 @@ class TCNN(ShallowTSCNN):
         self.add(keras.layers.Dense(outputshape, activation='softmax'))
 
 
+# Probably not used for testing
 class LinearSCNN(ShallowTSCNN):
 
     def __init__(self, inputshape, outputshape, activation=keras.activations.elu, params=None):
@@ -616,6 +628,7 @@ class LinearSCNN(ShallowTSCNN):
         # self.add(keras.layers.Dense(outputshape, activation='softmax'))
 
 
+# Inspired by PAPER
 class TSCNN(ShallowTSCNN):
 
     def __init__(self, inputshape, outputshape, activation=keras.activations.elu, params=None):
@@ -625,7 +638,7 @@ class TSCNN(ShallowTSCNN):
         self.add(ExpandLayer(axis=-1, input_shape=inputshape))
         # Temporal without using entire channels vector
         self.add(keras.layers.Conv2D(
-            self.lunits[0], (self.temporal[0], 1),
+            self.lunits[0], (self.temporal, 1),
             activation=activation, data_format='channels_last'
         ))
         self.add(keras.layers.SpatialDropout2D(0.2))
@@ -634,7 +647,7 @@ class TSCNN(ShallowTSCNN):
 
         # Temporal without using entire channels vector
         self.add(keras.layers.Conv2D(
-            self.lunits[1], (1, self.spatial[0]),
+            self.lunits[1], (1, self.spatial),
             activation=activation, data_format='channels_last'
         ))
         self.add(keras.layers.SpatialDropout2D(0.2))
@@ -650,7 +663,10 @@ class TSCNN(ShallowTSCNN):
         # self.add(keras.layers.Dense(outputshape, activation='softmax'))
 
 
-class Shallow2DSTCNN(ShallowTSCNN):
+class At2DSCNN(ShallowTSCNN):
+    """
+    This class employs attention to weight a relatively deep set of features from the 2D sensor interpolation
+    """
 
     PARAM_GRIDLEN = 'grid_length'
     PARAM_ATTENTION = 'attention'
@@ -672,9 +688,9 @@ class Shallow2DSTCNN(ShallowTSCNN):
         tempconv = keras.layers.normalization.BatchNormalization()(tempconv)
         tempconv = SqueezeLayer()(tempconv)
 
-        # Start with 2D Spatial filtering
+        # Start with 2D Spatial filtering, up to a possible 3 layers
         conv = ExpandLayer()(ProjectionLayer(gridsize=50)([tempconv, locs_in]))
-        for units in self.lunits:
+        for units in self.lunits[:self.filters]:
             conv = keras.layers.Conv3D(units, (1, self.spatial, self.spatial), activation=activation, data_format='channels_last',)(conv)
             conv = keras.layers.SpatialDropout3D(self.do, data_format='channels_last')(conv)
             conv = keras.layers.MaxPool3D(pool_size=(1, 2, 2), data_format='channels_last')(conv)
@@ -693,24 +709,36 @@ class Shallow2DSTCNN(ShallowTSCNN):
 
         # Classifier
         output = keras.layers.Flatten()(conv)
-        # output = keras.layers.Dense(self.lunits[-1], activation=activation)(output)
-        # output = keras.layers.Dropout(self.do)(output)
-        # output = keras.layers.BatchNormalization()(output)
+        for units in self.lunits[self.filters:]:
+            output = keras.layers.Dense(units, activation=activation)(output)
+            output = keras.layers.Dropout(self.do)(output)
+            output = keras.layers.BatchNormalization()(output)
+
         output = keras.layers.Dense(outputshape, activation='softmax', name='OUT')(output)
+        # output = keras.layers.Dense(outputshape, activation='linear',
+        #                              kernel_regularizer=keras.regularizers.l2(self.reg))(output)
 
         super(Model, self).__init__([signal_in, locs_in], [output])
+
+    def compile(self, **kwargs):
+        extra_metrics = kwargs.pop('metrics', [])
+        super(SimpleMLP, self).compile(optimizer=self.opt_param(), loss=keras.losses.categorical_crossentropy,
+                                       metrics=[keras.metrics.categorical_crossentropy,
+                                                keras.metrics.categorical_accuracy, *extra_metrics], **kwargs)
+
 
     @staticmethod
     def search_space():
         space = ShallowTSCNN.search_space()
-        # space[Shallow2DSTCNN.PARAM_GRIDLEN] = hp.quniform(Shallow2DSTCNN.PARAM_GRIDLEN, 20, 80, 5)
-        space[Shallow2DSTCNN.PARAM_ATTENTION] = hp.quniform(Shallow2DSTCNN.PARAM_ATTENTION, 16, 256, 2)
-        space[Searchable.PARAM_BATCH] = hp.quniform(Searchable.PARAM_BATCH, 1, 64, 2)
+        space[At2DSCNN.PARAM_ATTENTION] = hp.qloguniform(At2DSCNN.PARAM_ATTENTION, 3, 6, 5)
         space[ShallowTSCNN.PARAM_FILTER_SPATIAL] = hp.quniform('_x', 1, 16, 1)
         return space
 
 
 class SimpleLSTM(SimpleMLP):
+    """
+    Basic Bidirectional LSTM, with optional fully connected output layers
+    """
 
     NEEDS_FLAT = False
 
@@ -880,19 +908,20 @@ class FACNN(ShallowTSCNN):
         return space
 
 
-class FACNN2(FACNN):
+class FACNN2(At2DSCNN):
 
     def __init__(self, inputshape, outputshape, activation=keras.activations.relu, params=None):
         params = self.setupcnnparams(params)
+        attention = int(params.get(self.PARAM_ATTENTION, 96))
 
         _input = keras.layers.Input(inputshape)
 
         # Develop CNN Features
         # Add dummy channel dimension
         features = ExpandLayer(axis=-1)(_input)
-        for i in range(2):
+        for units in self.lunits[:self.filters]:
             features = keras.layers.Conv2D(
-                self.lunits[0], (1, int(self.spatial//2)),
+                units, (1, self.spatial),
                 activation=activation, data_format='channels_last'
             )(features)
             features = keras.layers.SpatialDropout2D(self.do)(features)
@@ -900,7 +929,7 @@ class FACNN2(FACNN):
             features = keras.layers.BatchNormalization()(features)
 
         rnn = keras.layers.Bidirectional(
-            keras.layers.LSTM(self.temporal, return_sequences=True, dropout=self.do/2, recurrent_dropout=self.do/2,
+            keras.layers.LSTM(attention, return_sequences=True, dropout=self.do/2, recurrent_dropout=self.do/2,
                               implementation=2)
         )(_input)
         rnn = keras.layers.BatchNormalization()(rnn)
@@ -912,8 +941,8 @@ class FACNN2(FACNN):
         new_in = keras.layers.Multiply()([features, attn])
         fcnn = keras.layers.Flatten()(new_in)
 
-        for i, layer in enumerate(self.lunits[1:]):
-            fcnn = keras.layers.Dense(layer, activation=activation)(fcnn)
+        for units in self.lunits[self.filters:]:
+            fcnn = keras.layers.Dense(units, activation=activation)(fcnn)
             fcnn = keras.layers.Dropout(self.do)(fcnn)
             fcnn = keras.layers.BatchNormalization()(fcnn)
 
@@ -925,15 +954,56 @@ class FACNN2(FACNN):
         super(Model, self).__init__(_input, _output, name=self.__class__.__name__)
 
 
+class ASVM(FACNN):
+
+    def __init__(self, inputshape, outputshape, activation=keras.activations.relu, params=None):
+        Searchable.__init__(self, params)
+        Sequential.__init__(self)
+        self.do = params.get(SimpleMLP.PARAM_DROPOUT, 0.4)
+        attention = int(params.get(At2DSCNN.PARAM_ATTENTION, 96))
+
+        _input = keras.layers.Input(inputshape)
+
+        rnn = keras.layers.Bidirectional(
+            keras.layers.LSTM(attention, return_sequences=True, dropout=self.do, recurrent_dropout=self.do,
+                              implementation=2)
+        )(_input)
+        rnn = keras.layers.BatchNormalization()(rnn)
+
+        # Apply single layer softmax to weight input features
+        attn = keras.layers.TimeDistributed(keras.layers.Dense(inputshape[-1], activation='softmax'))(rnn)
+
+        new_in = keras.layers.Multiply()([_input, attn])
+        fcnn = keras.layers.Flatten()(new_in)
+
+        # _output = keras.layers.Dense(outputshape, activation='softmax', name='OUT')(fcnn)
+        _output = keras.layers.Dense(outputshape, activation='linear',
+                                     kernel_regularizer=keras.regularizers.l2(self.reg))(fcnn)
+
+        super(Model, self).__init__(_input, _output, name=self.__class__.__name__)
+
+    @staticmethod
+    def search_space():
+        space = LinearSVM.search_space()
+        space[At2DSCNN.PARAM_ATTENTION] = hp.qloguniform(At2DSCNN.PARAM_ATTENTION, 1.5, 5.5, 5)
+        space[SimpleMLP.PARAM_DROPOUT] = hp.normal(SimpleMLP.PARAM_DROPOUT, 0.4, 0.1)
+        return space
+
+    def compile(self, **kwargs):
+        extra_metrics = kwargs.pop('metrics', [])
+        super(SimpleMLP, self).compile(optimizer=self.opt_param(), loss=keras.losses.categorical_hinge,
+                                          metrics=[keras.metrics.categorical_crossentropy,
+                                                 keras.metrics.categorical_accuracy, *extra_metrics], **kwargs)
+
 MODELS = [
     # Basic Regression
     LinearRegression,
     # Basic Classification
     LogisticRegression, LinearSVM, SimpleMLP, StackedAutoEncoder,
     # CNN Based
-    ShallowTSCNN, TCNN, LinearSCNN, TSCNN, Shallow2DSTCNN,
+    ShallowTSCNN, TCNN, LinearSCNN, TSCNN, At2DSCNN,
     # RNN Based
     SimpleLSTM,
     # Attention
-    AttentionLSTM, FACNN, FACNN2
+    AttentionLSTM, FACNN, FACNN2, ASVM
 ]

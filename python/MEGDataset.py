@@ -17,6 +17,8 @@ PREV_EVAL_FILE = 'preprocessed.pkl'
 SUBJECT_TABLE = 'subject_table.mat'
 SUBJECT_STRUCT = 'subject_struct.mat'
 
+TEST_SUBJECTS = ['CC011', 'CC061', 'CC017', 'CC092', 'CC097', 'CC099', 'CC005', 'CC026', 'CC090']
+
 # Headers that we will import for the subjects
 HEADER_ID = 'ID'
 HEADER_AGE = 'age'
@@ -84,7 +86,7 @@ def parsesubjects(subjecttable):
 
     for subject in idlist:
         index = idlist.index(subject)
-        subject_dictionary[subject] = \
+        subject_dictionary[subject.strip()] = \
             {HEADER_AGE: agelist[index], HEADER_SEX: sexlist[index]}
 
     return subject_dictionary
@@ -115,7 +117,7 @@ class SubjectFileLoader(KerasDataloader):
 
         super().__init__(x.shape[0], batchsize, shuffle=shuffle, seed=seed)
 
-    def _load(self, index_array, batch_size, nancheck=False):
+    def _load(self, index_array, batch_size, nancheck=True):
         if self.flatten:
             # batches x time x features
             x = np.zeros([batch_size, self.longest_vector])
@@ -274,39 +276,39 @@ class BaseDataset:
             with (self.toplevel / self.preprocessed_file).open('rb') as f:
                 print('Loaded previous preprocessing!')
                 self.buckets, self.longest_vector, self.slice_length,\
-                self.testpoints, self.loaded_subjects = pickle.load(f)
+                self.testpoints, self.training_subjects = pickle.load(f)
                 # list of subjects that we will use for the cross validation
                 # self.leaveoutsubjects = np.unique(self.datapoints[:, 0])
                 # Todo: warn/update pickled file if new subjects exist
         else:
             print('Preprocessing data...')
 
-            self.loaded_subjects, self.longest_vector, self.slice_length = self.files_to_load(tests)
+            self.training_subjects, self.longest_vector, self.slice_length = self.files_to_load(tests)
 
-            # TODO: Need more stable way of doing test subjects, should be set outside
-            testsubjects = np.random.choice(list(self.loaded_subjects.keys()),
-                                            int(len(self.loaded_subjects)/10), replace=False)
-            self.testpoints = np.array([item for x in testsubjects for item in self.loaded_subjects[x]])
+            if TEST_SUBJECTS:
+                print('Forcing test subjects...')
+                testsubjects = TEST_SUBJECTS
+            else:
+                testsubjects = np.random.choice(list(self.training_subjects.keys()),
+                                                int(len(self.training_subjects) / 10), replace=False)
+            self.testpoints = np.array([item for x in testsubjects for item in self.training_subjects[x]])
+            for subject in testsubjects:
+                self.training_subjects.pop(subject)
             print('Subjects used for testing:', testsubjects)
 
-            datapoint_ordering = sorted(self.loaded_subjects, key=lambda x: -len(self.loaded_subjects[x]))
+            datapoint_ordering = sorted(self.training_subjects, key=lambda x: -len(self.training_subjects[x]))
             self.buckets = [[] for x in range(self.NUM_BUCKETS)]
             # Fill the buckets up and down
             for i in range(len(datapoint_ordering)):
                 if int(i / self.NUM_BUCKETS) % 2:
                     index = self.NUM_BUCKETS - (i % self.NUM_BUCKETS) - 1
-                    self.buckets[int(index)].extend(self.loaded_subjects[datapoint_ordering[i]])
+                    self.buckets[int(index)].extend(self.training_subjects[datapoint_ordering[i]])
                 else:
-                    self.buckets[int(i % self.NUM_BUCKETS)].extend(self.loaded_subjects[datapoint_ordering[i]])
-
-            # self.datapoints = self.loaded_subjects[np.in1d(self.loaded_subjects[:, 0], self.leaveoutsubjects), :]
-
-            # # leave out 10% of randomly selected data for test validation
-            # self.testpoints, self.loaded_subjects = self.random_slices(self.datapoints, (0.1, 0.9))
+                    self.buckets[int(i % self.NUM_BUCKETS)].extend(self.training_subjects[datapoint_ordering[i]])
 
             with (self.toplevel / self.preprocessed_file).open('wb') as f:
                 pickle.dump((self.buckets, self.longest_vector, self.slice_length,
-                             self.testpoints, self.loaded_subjects), f)
+                             self.testpoints, self.training_subjects), f)
                 # numpoints = self.datapoints.size[0]
                 # ind = np.arange(numpoints)
                 # ind = np.random.choice(ind, replace=False, size=int(0.2*numpoints)
@@ -472,7 +474,7 @@ class BaseDatasetAgeRanges(BaseDataset, metaclass=ABCMeta):
                 high = BaseDatasetAgeRanges.AGE_RANGES[i][1]
                 y[np.where((y_float[:, age_col] >= low) & (y_float[:, age_col] < high))[0], i] = 1
 
-            dims = tuple(i for i in range(1, len(x.shape)))
+            # dims = tuple(i for i in range(1, len(x.shape)))
             return x, y
 
     GENERATOR = AgeSubjectLoader
@@ -658,7 +660,7 @@ class MEGRawRangesSA(MEGRawRanges):
 
     class SpatialChannelAugmentationLoader(BaseDatasetAgeRanges.AgeSubjectLoader):
 
-        GRID_SIZE = 32
+        GRID_SIZE = 50
         LOCATION_LOOKUP = {}
         CHAN_LOCS_FILE = 'chanlocs.csv'
 

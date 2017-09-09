@@ -45,7 +45,6 @@ class SkipOnKeypress(keras.callbacks.Callback):
 
 def hp_search(model_constructor, dataset_constructor, args):
 
-
     callbacks = [
         keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min', patience=args.patience),
         keras.callbacks.EarlyStopping(min_delta=0.001, verbose=1, mode='min', patience=args.patience//2),
@@ -91,6 +90,19 @@ def hp_search(model_constructor, dataset_constructor, args):
 
             if np.any(np.isnan(history['loss'])) or np.any(np.isinf(history['loss'])):
                 raise ValueError('Loss found of NaN or Inf.')
+        except KeyboardInterrupt:
+            print('Training interrupted.')
+            while True:
+                l = input("Loss Value (write 'None' to treat as failed trial):")
+                history = {}
+                if l == 'None':
+                    val_loss = np.nan
+                elif l.isnumeric():
+                    val_loss = float(l)
+                else:
+                    print('Could not parse value...')
+                    continue
+                break
         except Exception as _e:
             print('Training failed with:', _e)
             return {'status': STATUS_FAIL}
@@ -102,15 +114,15 @@ def hp_search(model_constructor, dataset_constructor, args):
         if val_loss == np.nan or val_loss is np.nan:
             print('NaN loss found, returning failure')
             return {'status': STATUS_FAIL}
+        elif len(history.keys()) == 0:
+            l = val_loss
         elif 0 <= args.opt_metric < len(model.metrics_names):
             l = history['val_' + model.metrics_names[args.opt_metric]]
             l = -max(l) if args.max else min(l)
-        # else:
-        #     l = val_loss
 
         print('Using optimization metric:', model.metrics_names[args.opt_metric], 'Value:', abs(l))
 
-        return {'loss': l, 'status': STATUS_OK}
+        return {'loss': l, 'attachments': {'history': history}, 'status': STATUS_OK}
 
     best_model = fmin(loss, space=model_constructor.search_space(), trials=trials,
                       algo=tpe.suggest, verbose=1, max_evals=args.max_evals)

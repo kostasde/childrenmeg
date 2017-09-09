@@ -1,4 +1,5 @@
 import argparse
+from sklearn.metrics import confusion_matrix
 
 # from models import MODELS
 from MEGDataset import *
@@ -54,7 +55,24 @@ def test(model, dataset, args):
     return model.evaluate_generator(ts, np.ceil(ts.n/ts.batch_size), workers=args.workers)
 
 
-def print_metrics(metrics, confusion_matrix=None):
+def predict(model, dataset, args):
+    """
+    Method to explicitly calculate the predictions of a model, rather than calculate just metrics.
+    :param model:
+    :param dataset:
+    :param args:
+    :return: Prediction array(s), True array(s)
+    """
+    ts = dataset.testset(flatten=model.NEEDS_FLAT)
+    iterations = np.ceil(ts.n/ts.batch_size)
+    y_true = []
+    for i in range(int(iterations)):
+        _, y = next(ts)
+        y_true.append(y)
+    return np.argmax(model.predict_generator(ts, iterations, workers=args.workers), -1), np.argmax(np.vstack(y_true), -1)
+
+
+def print_metrics(metrics, predictions, args):
     """
     Pretty Formatted printing of metricts. Also deals with compiling and printing the mean and deviation confusion
     matrix.
@@ -62,6 +80,8 @@ def print_metrics(metrics, confusion_matrix=None):
     :param confusion_matrix: A confusion matrix callback if being used.
     :return:
     """
+    print('=' * 100)
+    print('Metrics')
     print('=' * 100)
     metrics = np.array(metrics)
     mean = np.mean(metrics, axis=0)
@@ -75,6 +95,14 @@ def print_metrics(metrics, confusion_matrix=None):
         print(metrics[:, i])
         print('Mean', mean[i], 'Stddev', stddev[i])
         print('-' * 100)
+    if args.confusion_matrix:
+        print('=' * 100)
+        print('Confusion Matrix')
+        print('=' * 100)
+        for y_pred, y_true in predictions:
+            cm = confusion_matrix(y_true, y_pred)
+            print(cm)
+
     print('=' * 100)
 
 DATASETS = {
@@ -134,18 +162,13 @@ if __name__ == '__main__':
     dataset = DATASETS[args.dataset][MODELS[args.model].TYPE](args.toplevel, batchsize=args.batch_size)
 
     # Callbacks
-    callbacks = [keras.callbacks.ReduceLROnPlateau(verbose=1, patience=args.patience//10, factor=0.5, epsilon=0.05),
+    callbacks = [keras.callbacks.ReduceLROnPlateau(verbose=1, patience=args.patience//5, factor=0.5, epsilon=0.05),
                  keras.callbacks.EarlyStopping(min_delta=0.005, verbose=1, mode='min', patience=args.patience//2),
                  keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min', patience=args.patience),
                  # keras.callbacks.TensorBoard(histogram_freq=1, write_grads=True, write_images=True,),
                  ]
     more_metrics = []
-    if args.confusion_matrix:
-        args.confusion_matrix = ConfusionMatrix(len(BaseDatasetAgeRanges.AGE_RANGES))
-        callbacks.append(args.confusion_matrix)
-        more_metrics += args.confusion_matrix.get_metrics()
-    else:
-        args.confusion_matrix = None
+    # TODO support for more metrics
     if args.save_model_params is not None:
         args.save_model_params = Path(args.save_model_params)
         callbacks.append(keras.callbacks.ModelCheckpoint(str(args.save_model_params / 'Fold-1-weights.hdf5'), verbose=1,
@@ -166,11 +189,14 @@ if __name__ == '__main__':
         model.summary()
         return model
 
-    # Test without training, use saved models. If available, quit when finished, otherwise train.
+    # Test without training, use saved models if available, quit when finished, otherwise train.
     if args.test and args.save_model_params is not None:
         print('Using', args.save_model_params, 'to perform tests...')
+        if args.confusion_matrix:
+            print('Printing confusion matrix for each fold.')
         d = [x for x in Path(args.save_model_params).glob('Fold-*-weights.hdf5')]
         metrics = []
+        predictions = []
         if len(d) > 0:
             dataset.next_leaveout(force=args.fold)
             d.sort(key=lambda x: int(re.findall(r'\d+', str(x))[0]))
@@ -180,9 +206,11 @@ if __name__ == '__main__':
                 model.load_weights(f)
                 print('Loaded previous weights!')
                 metrics.append(test(model, dataset, args))
+                if args.confusion_matrix:
+                    predictions.append(predict(model, dataset, args))
                 if dataset.next_leaveout() is None:
                     break
-            print_metrics(metrics, args.confusion_matrix)
+            print_metrics(metrics, predictions, args)
             exit()
         else:
             print('Could not use existing files...')
@@ -211,4 +239,4 @@ if __name__ == '__main__':
 
     print('\n\nComplete.')
 
-    print_metrics(metrics, args.confusion_matrix)
+    print_metrics(metrics, [], args)

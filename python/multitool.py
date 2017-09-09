@@ -1,10 +1,13 @@
 import argparse
-import shutil
+import cmd
+import readline
 from utils import *
 from pathlib import Path
 from threading import Thread
 from tqdm import tqdm
 from pandas import read_csv
+
+import MEGDataset
 
 W = '\033[0m'   # white (normal)
 R = '\033[31m'  # red
@@ -124,6 +127,95 @@ def handle_param_search_tool(args):
     print('Analyzing Top Level...')
     pass
 
+
+class DatasetShell(cmd.Cmd):
+    intro = """This prompt provides tools to manage dataset files. Type ? or 'help' for a list of possible actions. Type
+    'exit' to end the shell."""
+    prompt = 'dataset>> '
+
+    extension = '.npy'
+    toplevel = None
+    test_subjects = None
+
+    def do_add_subject(self, args):
+        if not self.toplevel:
+            print('No top level set. You need to set the top level...')
+            self.do_set_toplevel([])
+        for subject in args:
+            print(O + 'Analyzing subject: ', subject)
+            d = self.toplevel / subject
+            if not self.binary_check('Subject Directory', d.exists() and d.is_dir()): continue
+
+
+    def do_set_toplevel(self, args):
+        if len(args) == 0:
+            toplevel = self.get_file_dir('Top Level: ')
+        else:
+            toplevel = Path(args[0])
+        try:
+            self.subject_struct = MEGDataset.parsesubjects(self.toplevel)
+        except (FileNotFoundError, TypeError):
+            print('Could not find subject struct in:', toplevel)
+        self.toplevel = toplevel
+
+    def do_summary(self):
+        print('Top Level:', self.toplevel)
+        print('Test Subjects:', self.test_subjects)
+
+    def do_extension(self, args):
+        if len(args) == 0:
+            print('Current Extension:', self.extension)
+        else:
+            self.extension = args[0]
+            self.do_extension([])
+
+    def do_exit(self, args):
+        if len(args) > 0:
+            print('Ignoring', *args)
+        print('Exiting...')
+        return True
+
+    def do_create(self, args):
+        if not self.binary_check('Top Level', self.toplevel): self.do_set_toplevel([])
+        if not self.binary_check('Test Subjects', self.test_subjects): return
+        self.do_summary()
+
+        channels = int(input('Number of channels: '))
+        samples = int(input('Samples per datum: '))
+
+        loaded_subjects = {}
+        for subject in
+
+    @staticmethod
+    def get_file_dir(prompt='Path:'):
+        while True:
+            f = Path(input(prompt=prompt))
+            if not f.exists():
+                if input('Does not exist. Proceed? [y/n] ').lower() != 'y':
+                    continue
+                else:
+                    break
+            elif not f.is_dir():
+                if input('Not a directory. Proceed? [y/n] ').lower() != 'y':
+                    continue
+                else:
+                    break
+        return f
+
+    @staticmethod
+    def binary_check(check_arg, val, width=30):
+        print('{0 <{1}} =>{2: <5}'.format(check_arg, width, G+'[yes]' if val else R+'[no]'))
+        return val
+
+    def precmd(self, line):
+        line = str(line).lower()
+        return line.split()
+
+
+def handle_dataset(args):
+    dshell = DatasetShell()
+    dshell.cmdloop()
+
 # Command line arguments
 parser = argparse.ArgumentParser(
     description='Manage the eeglab dataset directory structure. Extract features, organize and clean files'
@@ -206,6 +298,8 @@ param_search_parser.set_defaults(func=handle_param_search_tool)
 # This command helps manage the dataset files
 # ----------------------------------------------------------------------------------------------------------------------
 
+dataset_parser = subparsers.add_parser('dataset', help='CMD tool to manage dataset files')
+dataset_parser.set_defaults(func=lambda :)
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Main
