@@ -1,6 +1,9 @@
 import pickle
 import numpy as np
-from time import sleep
+import time
+
+import utils
+from tqdm import tqdm
 
 from keras.preprocessing.image import Iterator as KerasDataloader
 
@@ -8,13 +11,15 @@ from keras.preprocessing.image import Iterator as KerasDataloader
 from cachetools import cached, RRCache
 from abc import ABCMeta, abstractmethod
 from scipy.io import loadmat
+from scipy import interpolate
 from pathlib import Path
-from pandas import read_csv
 
 PREV_EVAL_FILE = 'preprocessed.pkl'
 
 SUBJECT_TABLE = 'subject_table.mat'
 SUBJECT_STRUCT = 'subject_struct.mat'
+
+TEST_SUBJECTS = ['CC011', 'CC061', 'CC017', 'CC092', 'CC097', 'CC099', 'CC005', 'CC026', 'CC090']
 
 # Headers that we will import for the subjects
 HEADER_ID = 'ID'
@@ -83,14 +88,10 @@ def parsesubjects(subjecttable):
 
     for subject in idlist:
         index = idlist.index(subject)
-        subject_dictionary[subject] = \
+        subject_dictionary[subject.strip()] = \
             {HEADER_AGE: agelist[index], HEADER_SEX: sexlist[index]}
 
     return subject_dictionary
-
-
-class CrossValidationComplete(Exception):
-    pass
 
 
 class SubjectFileLoader(KerasDataloader):
@@ -100,7 +101,139 @@ class SubjectFileLoader(KerasDataloader):
     This class is a somewhat generic generator used for the training, validation and test datasets of the Dataset classes.
     """
 
-    cache = RRCache(32768)
+    def __init__(self, x, toplevel, longest_vector, subject_hash, target_cols, slice_length, f_loader, batchsize=-1,
+                 flatten=True, shuffle=True, seed=None, evaluate=False):
+
+        self.x = np.asarray(x)
+        self.toplevel = toplevel
+        self.longest_vector = longest_vector
+        self.slice_length = slice_length
+        self.subject_hash = subject_hash
+        self.targets = target_cols
+        self.f_loader = f_loader
+        self.flatten = flatten
+        self.evaluate = evaluate
+
+        if batchsize < 0:
+            batchsize = x.shape[0]
+
+        super().__init__(x.shape[0], batchsize, shuffle=shuffle, seed=seed)
+
+    def _load(self, index_array, batch_size, nancheck=True):
+        if self.flatten:
+            # batches x time x features
+            x = np.zeros([batch_size, self.longest_vector])
+        else:
+            # batches x (flattened time*features)
+            x = np.zeros([batch_size, int(np.ceil(self.longest_vector/self.slice_length)), self.slice_length])
+
+        y = np.zeros([batch_size, 1])
+
+        for i, row in enumerate(index_array):
+            ep = tuple(str(f) for f in self.x[row, 1:])
+            try:
+                temp = self.f_loader(ep)
+                if 0 in temp.shape:
+                    raise ValueError('Empty data.')
+            # if temp is None:
+            except ValueError as e:
+                print('Error occurred in: {0}.\n{1}'.format(ep, e))
+                print('Skipping Datapoint...')
+                temp = np.full_like(x[i], np.nan)
+            if self.flatten:
+                temp = temp.ravel()
+                x[i, :len(temp)] = temp
+            else:
+                x[i, :, :temp.shape[-1]] = temp
+
+            y[i, :] = np.array([self.subject_hash[self.x[row, 0]][column] for column in self.targets])
+
+        dims = tuple(i for i in range(1, len(x.shape)))
+        if nancheck:
+            return x[~np.isnan(x).any(axis=dims)], y[~np.isnan(x).any(axis=dims)]
+        else:
+            return x, y
+
+    def __next__(self):
+        with self.lock:
+            index_array, current_index, current_batch_size = next(self.index_generator)
+
+        return self._load(index_array, current_batch_size)
+
+
+class TemporalAugmentation(SubjectFileLoader):
+    # TODO Replace this with a keras layer so that this is implemented in GPU
+
+    DATASET_SAMPLE_RATE = 200
+
+    def __init__(self, loader: SubjectFileLoader, croplen=2.0, limits=(-0.5, 3.0),
+                 inflate=True, cropstyle='uniform',):
+        self.__class__ = type(loader.__class__.__name__, (self.__class__, loader.__class__), {})
+        self.__dict__ = loader.__dict__
+
+        self.loader = loader
+        self.croplen = croplen
+        self.cropstyle = cropstyle
+        self.inflate = 1
+
+        # If we are inflating the size of an epoch, modify the loader's size
+        if inflate:
+            # crops, time should always be first dimension, ensure croplen is less than time slices
+            f = loader.f_loader((loader.x[0][1],))
+            self.crops = (f.shape[0] - croplen*self.DATASET_SAMPLE_RATE)
+
+            if self.crops > 0:
+                self.inflate *= self.crops
+
+    def _load(self, index_array, batch_size, **kwargs):
+        ins, y = self.loader._load(index_array, batch_size)
+        # Handle multi-input loaders
+        multiin = isinstance(ins, (list, tuple))
+        x = ins[0] if multiin else ins
+
+        if len(x.shape) > 3:
+            raise TypeError('Cannot handle data with shape {0}, must be 2 or 3'.format(len(x.shape)))
+        if len(x.shape) == 2:
+            # Basically undoing operation that was done
+            # TODO see if this redundant operation can be removed
+            x = x.reshape((x.shape[0], -1, self.slice_length))
+
+        x_new = np.zeros((x.shape[0], int(self.croplen*self.DATASET_SAMPLE_RATE), *x.shape[2:]))
+
+        # select resampling offset and starting point
+        if not self.evaluate:
+            if self.cropstyle == 'uniform':
+                starts = np.random.choice(np.arange(self.crops), size=x.shape[0]).astype(int)
+            else:
+                starts = np.zeros(x.shape[0])
+            for i, s in enumerate(starts):
+                x_new[i, :] = \
+                    x[i, s:s+int(self.croplen*self.DATASET_SAMPLE_RATE), :]
+        else:
+            # Just do the first croplen length for evaulation, should consider interpolated version
+            x_new = x[:, :x_new.shape[1], :]
+
+        if self.loader.flatten:
+            x = x_new.reshape((x.shape[0], -1))
+        else:
+            x = x_new
+
+        if multiin:
+            return [x, *ins[1:]], y
+        else:
+            return x, y
+
+
+class BaseDataset:
+
+    DATASET_TARGETS = [HEADER_AGE]
+    NUM_BUCKETS = 10
+    LOAD_SUFFIX = '.npy'
+
+    # Not sure I like this...
+    GENERATOR = SubjectFileLoader
+
+    cache = RRCache(2*16384)
 
     @staticmethod
     # @lru_cache(maxsize=8192)
@@ -119,62 +252,6 @@ class SubjectFileLoader(KerasDataloader):
 
         # l = zscore(l)
         return l
-
-    def __init__(self, x, longest_vector, subject_hash, target_cols, slice_length, batchsize=-1,
-                 flatten=True, shuffle=True, seed=None):
-
-        self.x = np.asarray(x)
-        self.longest_vector = longest_vector
-        self.slice_length = slice_length
-        self.subject_hash = subject_hash
-        self.targets = target_cols
-        self.flatten = flatten
-
-        if batchsize < 0:
-            batchsize = x.shape[0]
-
-        super().__init__(x.shape[0], batchsize, shuffle=shuffle, seed=seed)
-
-    def _load(self, index_array, batch_size):
-        if self.flatten:
-            # batches x time x features
-            x = np.zeros([batch_size, self.longest_vector])
-        else:
-            # batches x (flattened time*features)
-            x = np.zeros([batch_size, int(np.ceil(self.longest_vector/self.slice_length)), self.slice_length])
-
-        y = np.zeros([batch_size, 1])
-
-        for i, row in enumerate(index_array):
-            ep = tuple(str(f) for f in self.x[row, 1:])
-            temp = self.get_features(ep)
-            if temp is None:
-                temp = np.full_like(x[i], np.nan)
-            if self.flatten:
-                temp = temp.ravel()
-                x[i, :len(temp)] = temp
-            else:
-                x[i, :, :temp.shape[-1]] = temp
-            y[i, :] = np.array([self.subject_hash[self.x[row, 0]][column] for column in self.targets])
-
-        dims = tuple(i for i in range(1, len(x.shape)))
-        return x[~np.isnan(x).any(axis=dims)], y[~np.isnan(x).any(axis=dims)]
-
-    def __next__(self):
-        with self.lock:
-            index_array, current_index, current_batch_size = next(self.index_generator)
-
-        return self._load(index_array, current_batch_size)
-
-
-class BaseDataset:
-
-    DATASET_TARGETS = [HEADER_AGE]
-    NUM_BUCKETS = 10
-    LOAD_SUFFIX = '.npy'
-
-    # Not sure I like this...
-    GENERATOR = SubjectFileLoader
 
     def __init__(self, toplevel, PDK=True, PA=True, VG=True, MO=False, batchsize=2):
         self.toplevel = Path(toplevel)
@@ -201,39 +278,39 @@ class BaseDataset:
             with (self.toplevel / self.preprocessed_file).open('rb') as f:
                 print('Loaded previous preprocessing!')
                 self.buckets, self.longest_vector, self.slice_length,\
-                self.testpoints, self.loaded_subjects = pickle.load(f)
+                self.testpoints, self.training_subjects = pickle.load(f)
                 # list of subjects that we will use for the cross validation
                 # self.leaveoutsubjects = np.unique(self.datapoints[:, 0])
                 # Todo: warn/update pickled file if new subjects exist
         else:
             print('Preprocessing data...')
 
-            self.loaded_subjects, self.longest_vector, self.slice_length = self.files_to_load(tests)
+            self.training_subjects, self.longest_vector, self.slice_length = self.files_to_load(tests)
 
-            # TODO: Need more stable way of doing test subjects, should be set outside
-            testsubjects = np.random.choice(list(self.loaded_subjects.keys()),
-                                            int(len(self.loaded_subjects)/10), replace=False)
-            self.testpoints = np.array([item for x in testsubjects for item in self.loaded_subjects[x]])
+            if TEST_SUBJECTS:
+                print('Forcing test subjects...')
+                testsubjects = TEST_SUBJECTS
+            else:
+                testsubjects = np.random.choice(list(self.training_subjects.keys()),
+                                                int(len(self.training_subjects) / 10), replace=False)
+            self.testpoints = np.array([item for x in testsubjects for item in self.training_subjects[x]])
+            for subject in testsubjects:
+                self.training_subjects.pop(subject)
             print('Subjects used for testing:', testsubjects)
 
-            datapoint_ordering = sorted(self.loaded_subjects, key=lambda x: -len(self.loaded_subjects[x]))
+            datapoint_ordering = sorted(self.training_subjects, key=lambda x: -len(self.training_subjects[x]))
             self.buckets = [[] for x in range(self.NUM_BUCKETS)]
             # Fill the buckets up and down
             for i in range(len(datapoint_ordering)):
                 if int(i / self.NUM_BUCKETS) % 2:
                     index = self.NUM_BUCKETS - (i % self.NUM_BUCKETS) - 1
-                    self.buckets[int(index)].extend(self.loaded_subjects[datapoint_ordering[i]])
+                    self.buckets[int(index)].extend(self.training_subjects[datapoint_ordering[i]])
                 else:
-                    self.buckets[int(i % self.NUM_BUCKETS)].extend(self.loaded_subjects[datapoint_ordering[i]])
-
-            # self.datapoints = self.loaded_subjects[np.in1d(self.loaded_subjects[:, 0], self.leaveoutsubjects), :]
-
-            # # leave out 10% of randomly selected data for test validation
-            # self.testpoints, self.loaded_subjects = self.random_slices(self.datapoints, (0.1, 0.9))
+                    self.buckets[int(i % self.NUM_BUCKETS)].extend(self.training_subjects[datapoint_ordering[i]])
 
             with (self.toplevel / self.preprocessed_file).open('wb') as f:
                 pickle.dump((self.buckets, self.longest_vector, self.slice_length,
-                             self.testpoints, self.loaded_subjects), f)
+                             self.testpoints, self.training_subjects), f)
                 # numpoints = self.datapoints.size[0]
                 # ind = np.arange(numpoints)
                 # ind = np.random.choice(ind, replace=False, size=int(0.2*numpoints)
@@ -261,16 +338,19 @@ class BaseDataset:
         longest_vector = -1
         slice_length = -1
         loaded_subjects = {}
-        for subject in [x for x in self.toplevel.iterdir() if x.is_dir() and x.name in self.subject_hash.keys()]:
-            print('Loading subject', subject.stem, '...')
+        for subject in tqdm([x for x in self.toplevel.iterdir() if x.is_dir() and x.name in self.subject_hash.keys()]):
+            tqdm.write('Loading subject ' + subject.stem + '...')
             loaded_subjects[subject.stem] = []
-            for experiment in [t for e in self.modality_folders if (subject / e).exists()
-                               for t in (subject / e).iterdir() if t.name in tests]:
+            for experiment in tqdm([t for e in self.modality_folders if (subject / e).exists()
+                                    for t in (subject / e).iterdir() if t.name in tests]):
 
-                for epoch in [l for l in experiment.iterdir() if l.suffix == self.LOAD_SUFFIX]:
+                for epoch in tqdm([l for l in experiment.iterdir() if l.suffix == self.LOAD_SUFFIX]):
                     try:
                         # f = loadmat(str(epoch), squeeze_me=True)
-                        f = self.GENERATOR.get_features(tuple([epoch]))
+                        f = self.get_features(tuple([epoch]))
+                        if np.isnan(f).any():
+                            tqdm.write('NaNs found in ' + str(epoch))
+                            time.sleep(1)
                         # slice_length = max(slice_length, len(f['header']))
                         # longest_vector = max(longest_vector,
                         #                           len(f['features'].reshape(-1)))
@@ -278,7 +358,7 @@ class BaseDataset:
                         longest_vector = max(longest_vector, f.shape[0]*f.shape[1])
                         loaded_subjects[subject.stem].append((subject.stem, epoch))
                     except Exception as e:
-                        print('Warning: Skipping file, error occurred loading:', epoch)
+                        tqdm.write('Warning: Skipping file, error occurred loading: ' + str(epoch))
 
         return loaded_subjects, longest_vector, slice_length
 
@@ -316,7 +396,7 @@ class BaseDataset:
     def current_leaveout(self):
         return self.leaveout
 
-    def sanityset(self, fold=5, batchsize=None, flatten=True):
+    def sanityset(self, fold=3, batchsize=None, flatten=True):
         """
         Provides a generator for a small subset of data to ensure that the model can train to it
         :return: 
@@ -324,8 +404,9 @@ class BaseDataset:
         if batchsize is None:
             batchsize = self.batchsize
 
-        return self.GENERATOR(np.array(self.buckets[fold]), self.longest_vector, self.subject_hash,
-                              self.DATASET_TARGETS, self.slice_length, batchsize=batchsize, flatten=flatten)
+        return self.GENERATOR(np.array(self.buckets[fold][int(0*len(self.buckets[fold])):int(1*len(self.buckets[fold]))]),
+                              self.toplevel, self.longest_vector, self.subject_hash, self.DATASET_TARGETS,
+                              self.slice_length, self.get_features, batchsize=batchsize, flatten=flatten)
 
     def trainingset(self, batchsize=None, flatten=True):
         """
@@ -340,8 +421,8 @@ class BaseDataset:
         if self.traindata is None:
             raise AttributeError('No fold initialized... Try calling next_leaveout')
 
-        return self.GENERATOR(self.traindata, self.longest_vector, self.subject_hash, self.DATASET_TARGETS,
-                              self.slice_length, batchsize=batchsize, flatten=flatten)
+        return self.GENERATOR(self.traindata, self.toplevel, self.longest_vector, self.subject_hash, self.DATASET_TARGETS,
+                              self.slice_length, self.get_features, batchsize=batchsize, flatten=flatten)
 
     def evaluationset(self, batchsize=None, flatten=True):
         """
@@ -352,8 +433,8 @@ class BaseDataset:
         if batchsize is None:
             batchsize = self.batchsize
 
-        return self.GENERATOR(self.eval_points, self.longest_vector, self.subject_hash, self.DATASET_TARGETS,
-                              self.slice_length, batchsize=batchsize, flatten=flatten)
+        return self.GENERATOR(self.eval_points, self.toplevel, self.longest_vector, self.subject_hash, self.DATASET_TARGETS,
+                              self.slice_length, self.get_features, batchsize=batchsize, flatten=flatten, evaluate=True)
 
     def testset(self, batchsize=None, flatten=True):
         """
@@ -364,11 +445,11 @@ class BaseDataset:
         if batchsize is None:
             batchsize = self.batchsize
 
-        return self.GENERATOR(self.testpoints, self.longest_vector, self.subject_hash, self.DATASET_TARGETS,
-                              self.slice_length, batchsize=batchsize, flatten=flatten)
+        return self.GENERATOR(self.testpoints, self.toplevel, self.longest_vector, self.subject_hash, self.DATASET_TARGETS,
+                              self.slice_length, self.get_features, batchsize=batchsize, flatten=flatten, evaluate=True)
 
     def inputshape(self):
-        return self.longest_vector
+        return int(self.longest_vector // self.slice_length), self.slice_length
 
     def outputshape(self):
         return len(self.DATASET_TARGETS)
@@ -390,7 +471,7 @@ class BaseDatasetAgeRanges(BaseDataset, metaclass=ABCMeta):
 
         def _load(self, batch: np.ndarray, cols: list):
             x, y_float = super()._load(batch, cols)
-            y = np.zeros([batch.shape[0], len(BaseDatasetAgeRanges.AGE_RANGES)])
+            y = np.zeros([x.shape[0], len(BaseDatasetAgeRanges.AGE_RANGES)])
 
             age_col = BaseDataset.DATASET_TARGETS.index(HEADER_AGE)
             for i in range(len(BaseDatasetAgeRanges.AGE_RANGES)):
@@ -398,8 +479,8 @@ class BaseDatasetAgeRanges(BaseDataset, metaclass=ABCMeta):
                 high = BaseDatasetAgeRanges.AGE_RANGES[i][1]
                 y[np.where((y_float[:, age_col] >= low) & (y_float[:, age_col] < high))[0], i] = 1
 
-            dims = tuple(i for i in range(1, len(x.shape)))
-            return x[~np.isnan(x).any(axis=dims)], y[~np.isnan(x).any(axis=dims)]
+            # dims = tuple(i for i in range(1, len(x.shape)))
+            return x, y
 
     GENERATOR = AgeSubjectLoader
 
@@ -457,49 +538,45 @@ class FusionDataset(MEGDataset, AcousticDataset):
         else:
             self.megind = None
 
-    class FusionFileLoader(SubjectFileLoader):
+    @staticmethod
+    # @cached(BaseDataset.cache)
+    def get_features(path_to_file):
+        """
+        Loads arrays from file, and returned as a flattened vector, cached to save some time
+        :param path_to_file:
+        :return: numpy vector
+        """
+        # m = loadmat(str(path_to_file[0]), squeeze_me=True)['features'].ravel()
+        # a = loadmat(str(path_to_file[1]), squeeze_me=True)['features'].ravel(
 
-        @staticmethod
-        @cached(SubjectFileLoader.cache)
-        def get_features(path_to_file):
-            """
-            Loads arrays from file, and returned as a flattened vector, cached to save some time
-            :param path_to_file:
-            :return: numpy vector
-            """
-            # m = loadmat(str(path_to_file[0]), squeeze_me=True)['features'].ravel()
-            # a = loadmat(str(path_to_file[1]), squeeze_me=True)['features'].ravel(
+        #        print(path_to_file)
 
-            #        print(path_to_file)
+        m = np.load(str(path_to_file[0]))
+        a = np.load(str(path_to_file[1]))
 
-            m = np.load(str(path_to_file[0]))
-            a = np.load(str(path_to_file[1]))
+        # if megind is not None:
+        #     m = m[:, megind].squeeze()
 
-            if megind is not None:
-                m = m[:, megind].squeeze()
+        # m = zscore(m)
+        # a = zscore(a)
 
-            # m = zscore(m)
-            # a = zscore(a)
+        #        if np.isnan(m.max()):
+        #            print('Bad MEG file.')
+        #            exit()
+        #        elif np.isnan(a.max()):
+        #            print('Bad Audio File.')
+        #            exit()
 
-            #        if np.isnan(m.max()):
-            #            print('Bad MEG file.')
-            #            exit()
-            #        elif np.isnan(a.max()):
-            #            print('Bad Audio File.')
-            #            exit()
+        return np.concatenate((m, a), axis=-1)
 
-            return np.concatenate((m, a))
-
-            # return loadmat(path_to_file, squeeze_me=True)['features'].reshape(-1)
-
-    GENERATOR = FusionFileLoader
+        # return loadmat(path_to_file, squeeze_me=True)['features'].reshape(-1)
 
     def files_to_load(self, tests):
         longest_vector = -1
         slice_length = -1
         loaded_subjects = {}
-        for subject in [x for x in self.toplevel.iterdir() if x.is_dir() and x.name in self.subject_hash.keys()]:
-            print('Loading subject', subject.stem, '...')
+        for subject in tqdm([x for x in self.toplevel.iterdir() if x.is_dir() and x.name in self.subject_hash.keys()]):
+            tqdm.write('Loading subject ' + subject.stem + '...')
             loaded_subjects[subject.stem] = []
 
             # Determine overlap of MEG and Audio data
@@ -529,7 +606,7 @@ class FusionDataset(MEGDataset, AcousticDataset):
                         #                      len(megf['features'].reshape(-1)) + len(audf['features'].reshape(-1)))
                         loaded_subjects[subject.stem].append((subject.stem, audioepochs[epoch], megepochs[epoch]))
                     except Exception:
-                        print('Warning: Skipping file, error occurred loading:', epoch)
+                        tqdm.write('Warning: Skipping file, error occurred loading: ' + str(epoch))
 
         return loaded_subjects, longest_vector, slice_length
 
@@ -539,57 +616,120 @@ class FusionDataset(MEGDataset, AcousticDataset):
 
 
 class FusionAgeRangesDataset(FusionDataset, BaseDatasetAgeRanges):
-
-    class FusionAgeRangesFileLoader(FusionDataset.FusionFileLoader):
-
-        def _load(self, batch: np.ndarray, cols: list):
-            x, y_float = super(FusionDataset.FusionFileLoader, self)._load(batch, cols)
-
-            y = np.zeros([batch.shape[0], len(BaseDatasetAgeRanges.AGE_RANGES)])
-
-            age_col = BaseDataset.DATASET_TARGETS.index(HEADER_AGE)
-            for i in range(len(BaseDatasetAgeRanges.AGE_RANGES)):
-                low = BaseDatasetAgeRanges.AGE_RANGES[i][0]
-                high = BaseDatasetAgeRanges.AGE_RANGES[i][1]
-                y[np.where((y_float[:, age_col] >= low) & (y_float[:, age_col] < high))[0], i] = 1
-
-            return x[~np.isnan(x).any(axis=1)], y[~np.isnan(x).any(axis=1)]
-
-    GENERATOR = FusionAgeRangesFileLoader
+    pass
 
 
 # Classes that are used for raw data rather than opensmile feature-sets
-class MEGAugmentedRawRanges(MEGAgeRangesDataset):
-    LOAD_SUFFIX = '.csv'
+class MEGRawRanges(MEGAgeRangesDataset):
+    LOAD_SUFFIX = '.npy'
 
-    class AugmentedLoader(BaseDatasetAgeRanges.AgeSubjectLoader):
-        @staticmethod
-        @cached(SubjectFileLoader.cache)
-        def get_features(path_to_file):
-            # FIXME workaround for now, but using the csv seems shortsighted...
-            x = read_csv(str(path_to_file[0])).as_matrix()
+    cache = RRCache(10000)
 
-            if x.dtype.type is not np.float64:
-                print('Unable to read as float,', path_to_file[0])
-                return None
+    # Do not cache the raw data
+    @staticmethod
+    @cached(cache)
+    def get_features(path_to_file):
+        return np.load(path_to_file[0])
 
-            return x
+    @property
+    def modality_folders(self):
+        return ['raw/MEG']
 
     def inputshape(self):
-        return self.longest_vector//self.slice_length, self.slice_length
+        # FIXME should not have magic number, comes from assumed sample rate of 200
+        return 700, self.slice_length
 
-    GENERATOR = AugmentedLoader
 
-
-class FusionAugmentedRawRanges(FusionAgeRangesDataset):
+class FusionRawRanges(FusionAgeRangesDataset):
     LOAD_SUFFIX = '.csv'
 
-    class AugmentedFusionLoader(MEGAugmentedRawRanges.AugmentedLoader):
+    @staticmethod
+    @cached(FusionAgeRangesDataset.cache)
+    def get_features(path_to_file):
+        m, a = super().get_features(path_to_file[0]), super().get_features(path_to_file[1])
+        return np.concatenate((m, a))
+
+
+class MEGRawRangesTA(MEGRawRanges):
+
+    @staticmethod
+    def GENERATOR(*args, **kwargs):
+        return TemporalAugmentation(BaseDatasetAgeRanges.GENERATOR(*args, **kwargs))
+
+    def inputshape(self):
+        # FIXME should not have magic number, comes from assumed sample rate of 200
+        return 400, self.slice_length
+
+
+class MEGRawRangesSA(MEGRawRanges):
+
+    class SpatialChannelAugmentationLoader(BaseDatasetAgeRanges.AgeSubjectLoader):
+
+        GRID_SIZE = 50
+        LOCATION_LOOKUP = {}
+        CHAN_LOCS_FILE = 'chanlocs.csv'
 
         @staticmethod
-        @cached(SubjectFileLoader.cache)
-        def get_features(path_to_file):
-            m, a = super().get_features(path_to_file[0]), super().get_features(path_to_file[1])
-            return np.concatenate((m, a))
+        def chan_locations(toplevel, subject, grid):
+            cls = MEGRawRangesSA.SpatialChannelAugmentationLoader
+            if subject in cls.LOCATION_LOOKUP.keys():
+                return cls.LOCATION_LOOKUP[subject]
+            else:
+                print('Looking up channels file for subject:', subject)
+                if not isinstance(toplevel, Path):
+                    toplevel = Path(toplevel)
+                l = [x for x in toplevel.glob('**/' + subject + '/') if x.is_dir()]
+                if len(l) > 1:
+                    print('Warning, multiple directories found for ', subject)
+                    for i in l:
+                        print(5 * ' ', i)
+                    print('Using, ', l[0])
 
-    GENERATOR = AugmentedFusionLoader
+                cls.LOCATION_LOOKUP[subject] = utils.chan2spatial((l[0] / cls.CHAN_LOCS_FILE), grid=grid)
+                return cls.LOCATION_LOOKUP[subject]
+
+        def __init__(self, x, toplevel, longest_vector, subject_hash, target_cols, slice_length, f_loader,
+                     cov=1e-2 * np.eye(2), gridsize=GRID_SIZE, **kwargs):
+            super(BaseDatasetAgeRanges.AgeSubjectLoader, self).__init__(
+                x, toplevel, longest_vector, subject_hash, target_cols, slice_length, f_loader, **kwargs
+            )
+            self.cov = cov
+            self.gridsize = gridsize
+
+        def _load(self, index_array, batch_size, **kwargs):
+            x, y = super(MEGRawRangesSA.SpatialChannelAugmentationLoader, self)._load(index_array, batch_size)
+            # Determine which subjects are involved
+            subject_labels = self.x[index_array, 0]
+
+            locs = np.zeros((batch_size, x.shape[-1], 2))
+
+            for i, subject in enumerate(subject_labels):
+                l = MEGRawRangesSA.SpatialChannelAugmentationLoader.chan_locations(
+                    self.toplevel, subject, grid=self.gridsize
+                )
+
+                # apply the noise to it if not evaluation
+                if not self.evaluate:
+                    l += np.random.multivariate_normal([0, 0], self.cov, l.shape[0])
+
+                locs[i] = l
+
+            return [x, locs], y
+
+    GENERATOR = SpatialChannelAugmentationLoader
+
+
+class MEGRawRangesTSA(MEGRawRangesSA):
+
+    @staticmethod
+    def GENERATOR(*args, **kwargs):
+        return TemporalAugmentation(MEGRawRangesSA.GENERATOR(*args, **kwargs))
+
+    def inputshape(self):
+        return 400, self.slice_length
+
+
+
+
+
+

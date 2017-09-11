@@ -2,6 +2,9 @@
 *~
 __*
 
+# Ignore ipython notebooks used for testing things, unless explicitly added
+*.ipynb
+
 # Tar
 *.tar
 

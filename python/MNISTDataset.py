@@ -82,7 +82,7 @@ class MNISTRegression:
 
         return self.leaveout
 
-    def trainingset(self, batchsize=None):
+    def trainingset(self, batchsize=None, flatten=True):
         """
         Provides a generator object with the current training set
         :param batchsize:
@@ -94,9 +94,9 @@ class MNISTRegression:
         if self.x_train is None:
             raise AttributeError('No fold initialized... Try calling next_leaveout')
 
-        return ArrayFeeder(self.x_train, self.y_train, batchsize)
+        return ArrayFeeder(self.x_train, self.y_train, batchsize, flatten=flatten)
 
-    def evaluationset(self, batchsize=None):
+    def evaluationset(self, batchsize=None, flatten=True):
         """
         Provides a generator object with the current training set
         :param batchsize:
@@ -105,9 +105,9 @@ class MNISTRegression:
         if batchsize is None:
             batchsize = self.batchsize
 
-        return ArrayFeeder(self.x_eval, self.y_eval, batchsize)
+        return ArrayFeeder(self.x_eval, self.y_eval, batchsize, flatten=flatten)
 
-    def testset(self, batchsize=None):
+    def testset(self, batchsize=None, flatten=True):
         """
         Provides a generator object with the current training set
         :param batchsize:
@@ -116,10 +116,10 @@ class MNISTRegression:
         if batchsize is None:
             batchsize = self.batchsize
 
-        return ArrayFeeder(self.x_test, self.y_test, batchsize)
+        return ArrayFeeder(self.x_test, self.y_test, batchsize, flatten=flatten)
 
     def inputshape(self):
-        return self.x_train.shape[-1]
+        return self.x_train.shape[1:]
 
     def outputshape(self):
         return 1
@@ -139,3 +139,29 @@ class MNISTClassification(MNISTRegression):
 
     def outputshape(self):
         return self.y_train.shape[-1]
+
+
+class MNISTNoisyRegression(MNISTRegression):
+
+    def __init__(self, toplevel, batchsize=-1, shuffle=True, seed=None, mean=0.0, dev=0.2):
+        super().__init__(toplevel, batchsize, shuffle, seed)
+
+        self.x_train += np.random.normal(mean, dev, size=self.x_train.shape)
+        self.x_eval += np.random.normal(mean, dev, size=self.x_eval.shape)
+        self.x_test += np.random.normal(mean, dev, size=self.x_test.shape)
+        self.x = [d + np.random.normal(mean, dev, size=d.shape) for d in self.x]
+
+
+class MNISTNoisyClassification(MNISTClassification):
+
+    TYPE = TYPE_CLASSIFICATION
+
+    def __init__(self, toplevel, batchsize=-1, shuffle=True, seed=None, mean=0.0, dev=0.5):
+        super().__init__(toplevel, batchsize, shuffle, seed)
+
+        self.x_train += np.random.normal(mean, dev, size=self.x_train.shape)
+        self.x_eval += np.random.normal(mean, dev, size=self.x_eval.shape)
+        self.x_test += np.random.normal(mean, dev, size=self.x_test.shape)
+        # self.x = [d + np.random.normal(mean, dev, size=d.shape) for d in self.x]
+
+
