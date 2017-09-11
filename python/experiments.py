@@ -1,5 +1,8 @@
 import argparse
+
+import time
 from sklearn.metrics import confusion_matrix
+from keras.backend import clear_session
 
 # from models import MODELS
 from MEGDataset import *
@@ -51,7 +54,8 @@ def test(model, dataset, args):
     :param args: 
     :return: Array of metrics x folds, reporting test metric of each 
     """
-    ts = dataset.testset(flatten=model.NEEDS_FLAT)
+    batchsize = args.batch_size if args.batch_size > 0 else int(model.batchsize)
+    ts = dataset.testset(flatten=model.NEEDS_FLAT, batchsize=batchsize)
     return model.evaluate_generator(ts, np.ceil(ts.n/ts.batch_size), workers=args.workers)
 
 
@@ -63,7 +67,8 @@ def predict(model, dataset, args):
     :param args:
     :return: Prediction array(s), True array(s)
     """
-    ts = dataset.testset(flatten=model.NEEDS_FLAT)
+    batchsize = args.batch_size if args.batch_size > 0 else int(model.batchsize)
+    ts = dataset.testset(flatten=model.NEEDS_FLAT, batchsize=batchsize)
     iterations = np.ceil(ts.n/ts.batch_size)
     y_true = []
     for i in range(int(iterations)):
@@ -86,6 +91,7 @@ def print_metrics(metrics, predictions, args):
     metrics = np.array(metrics)
     mean = np.mean(metrics, axis=0)
     stddev = np.std(metrics, axis=0)
+    cm = []
     for i, m in enumerate([model.loss, *model.metrics]):
         if hasattr(m, '__name__'):
             print(m.__name__)
@@ -100,9 +106,16 @@ def print_metrics(metrics, predictions, args):
         print('Confusion Matrix')
         print('=' * 100)
         for y_pred, y_true in predictions:
-            cm = confusion_matrix(y_true, y_pred)
-            print(cm)
-
+            if len(y_true) < len(y_pred) or len(y_pred) < len(y_true):
+                y_pred = y_pred[:min((len(y_true), len(y_pred)))]
+                y_true = y_true[:min((len(y_true), len(y_pred)))]
+            c = confusion_matrix(y_true, y_pred)
+            cm.append(c)
+            print(c)
+            print('-' * 100)
+        print('-' * 100)
+        print('Mean:')
+        print(np.array(cm).mean(axis=0))
     print('=' * 100)
 
 DATASETS = {
@@ -154,8 +167,9 @@ if __name__ == '__main__':
                                                                         'parameters for each fold of an experiment in '
                                                                         'the provided directory.')
     parser.add_argument('--workers', '-w', default=WORKERS, type=int, help='The number of threads to use to load data.')
-    parser.add_argument('--fold', default=0, type=int, help='When not performing cross validation, selects which fold '
+    parser.add_argument('--fold', default=1, type=int, help='When not performing cross validation, selects which fold '
                                                             'to be used as evaluation set.')
+    parser.add_argument('--null-hyp', action='store_true', help='Run a test with initial state weights')
     args = parser.parse_args()
 
     # Load the appropriate dataset, considering whether it is regression or classification
@@ -171,6 +185,7 @@ if __name__ == '__main__':
     # TODO support for more metrics
     if args.save_model_params is not None:
         args.save_model_params = Path(args.save_model_params)
+        # fixme this has become mostly a placeholder, probably a better way of doing this.
         callbacks.append(keras.callbacks.ModelCheckpoint(str(args.save_model_params / 'Fold-1-weights.hdf5'), verbose=1,
                                                          save_best_only=True))
 
@@ -178,18 +193,20 @@ if __name__ == '__main__':
     print('Using ', dataset.__class__.__name__)
     print('-'*30)
 
+    # Load Any provided hyperparameters
     if args.hyper_params is not None:
         args.hyper_params = pickle.load(args.hyper_params)
         print('Loaded provided Hyper-parameters')
         print(args.hyper_params)
 
+    # Utility function for making the model type that we will use
     def model_maker():
         model = MODELS[args.model](dataset.inputshape(), dataset.outputshape(), params=args.hyper_params)
         model.compile(metrics=more_metrics)
         model.summary()
         return model
 
-    # Test without training, use saved models if available, quit when finished, otherwise train.
+    # Test without training, use saved models if available, quit when finished, otherwise train models.
     if args.test and args.save_model_params is not None:
         print('Using', args.save_model_params, 'to perform tests...')
         if args.confusion_matrix:
@@ -198,7 +215,7 @@ if __name__ == '__main__':
         metrics = []
         predictions = []
         if len(d) > 0:
-            dataset.next_leaveout(force=args.fold)
+            dataset.next_leaveout(force=args.fold-1)
             d.sort(key=lambda x: int(re.findall(r'\d+', str(x))[0]))
             for f in d:
                 model = model_maker()
@@ -210,6 +227,8 @@ if __name__ == '__main__':
                     predictions.append(predict(model, dataset, args))
                 if dataset.next_leaveout() is None:
                     break
+                # Ensure GPU removes current model
+                clear_session()
             print_metrics(metrics, predictions, args)
             exit()
         else:
@@ -217,18 +236,33 @@ if __name__ == '__main__':
             print('Training and then testing instead.')
             print('-'*30)
             print()
+    elif args.null_hyp and args.test:
+        print('Testing null hypothesis...')
+        dataset.next_leaveout(force=args.fold-1)
+        if args.confusion_matrix:
+            print('Printing confusion matrix for each fold.')
+        metrics = []
+        predictions = []
+        while True:
+            print('Testing fold {0}.'.format(dataset.current_leaveout()))
+            model = model_maker()
+            metrics.append(test(model, dataset, args))
+            if args.confusion_matrix:
+                predictions.append(predict(model, dataset, args))
+            if not dataset.next_leaveout():
+                break
+        print_metrics(metrics, predictions, args)
+        exit()
 
+    # Train the models
     # First fold
-    metrics = [(train_and_test(model_maker, dataset, args, callbacks=callbacks))]
-
-    # Loop through remaining folds
+    dataset.next_leaveout(force=args.fold-1)
+    metrics = []
+    # Loop through folds
     while args.cross_validation:
-        fold = dataset.next_leaveout()
-        if fold is None:
-            break
-
+        fold = dataset.current_leaveout()
         print('-' * 30)
-        print('Testing Fold:', fold)
+        print('Training Fold:', fold)
         print('-' * 30)
 
         if args.save_model_params is not None:
@@ -237,6 +271,10 @@ if __name__ == '__main__':
                                                             verbose=1, save_best_only=True)
         metrics.append(train_and_test(model_maker, dataset, args, callbacks=callbacks))
 
-    print('\n\nComplete.')
+        if not args.cross_validation or not dataset.next_leaveout():
+            break
+        # Ensure GPU is cleared
+        clear_session()
 
+    print('\n\nComplete.')
     print_metrics(metrics, [], args)

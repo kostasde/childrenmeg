@@ -48,6 +48,8 @@ def hp_search(model_constructor, dataset_constructor, args):
     callbacks = [
         keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min', patience=args.patience),
         keras.callbacks.EarlyStopping(min_delta=0.001, verbose=1, mode='min', patience=args.patience//2),
+        keras.callbacks.EarlyStopping(min_delta=0.001, verbose=1, monitor='categorical_accuracy', mode='max',
+                                      patience=args.patience//5),
         keras.callbacks.ReduceLROnPlateau(verbose=1, epsilon=0.05, patience=args.patience//10, factor=0.5),
         keras.callbacks.TerminateOnNaN(),
         SkipOnKeypress(),
@@ -97,7 +99,7 @@ def hp_search(model_constructor, dataset_constructor, args):
                 history = {}
                 if l == 'None':
                     val_loss = np.nan
-                elif l.isnumeric():
+                elif re.match("^\d+?\.\d+?$", l):
                     val_loss = float(l)
                 else:
                     print('Could not parse value...')
@@ -132,7 +134,12 @@ def hp_search(model_constructor, dataset_constructor, args):
         pickle.dump(trials, trials_file.open('wb'))
 
     print('All Losses:', trials.losses())
+    print('-'*30)
     print('Best Model Found:', best_model)
+    his = trials.attachments['ATTACH::{0}::history'.format(trials.best_trial['tid'])]
+    if len(his.keys()) > 0:
+        print(np.vstack((his['loss'], his['val_loss'])))
+        print(np.vstack((his['categorical_accuracy'], his['val_categorical_accuracy'])))
 
     return best_model, trials
 

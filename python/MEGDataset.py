@@ -1,5 +1,7 @@
 import pickle
 import numpy as np
+import time
+
 import utils
 from tqdm import tqdm
 
@@ -346,6 +348,9 @@ class BaseDataset:
                     try:
                         # f = loadmat(str(epoch), squeeze_me=True)
                         f = self.get_features(tuple([epoch]))
+                        if np.isnan(f).any():
+                            tqdm.write('NaNs found in ' + str(epoch))
+                            time.sleep(1)
                         # slice_length = max(slice_length, len(f['header']))
                         # longest_vector = max(longest_vector,
                         #                           len(f['features'].reshape(-1)))

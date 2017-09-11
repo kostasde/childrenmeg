@@ -690,18 +690,20 @@ class At2DSCNN(ShallowTSCNN):
 
         # Start with 2D Spatial filtering, up to a possible 3 layers
         conv = ExpandLayer()(ProjectionLayer(gridsize=50)([tempconv, locs_in]))
+        weight_attention = 0
         for units in self.lunits[:self.filters]:
             conv = keras.layers.Conv3D(units, (1, self.spatial, self.spatial), activation=activation, data_format='channels_last',)(conv)
             conv = keras.layers.SpatialDropout3D(self.do, data_format='channels_last')(conv)
             conv = keras.layers.MaxPool3D(pool_size=(1, 2, 2), data_format='channels_last')(conv)
             conv = keras.layers.normalization.BatchNormalization()(conv)
+            weight_attention = units
 
         # Attention
         rnn = keras.layers.Bidirectional(
             keras.layers.LSTM(attention, return_sequences=True, dropout=self.do / 2, recurrent_dropout=self.do / 2,)
         )(tempconv)
         rnn = keras.layers.BatchNormalization()(rnn)
-        attn = keras.layers.TimeDistributed(keras.layers.Dense(self.lunits[-1], activation='softmax'))(rnn)
+        attn = keras.layers.TimeDistributed(keras.layers.Dense(weight_attention, activation='softmax'))(rnn)
         attn = ExpandLayer(-2)(attn)
         attn = ExpandLayer(-2)(attn)
 
@@ -916,9 +918,21 @@ class FACNN2(At2DSCNN):
 
         _input = keras.layers.Input(inputshape)
 
+        # Temporal Convolution
+        tempconv = ExpandLayer()(_input)
+        tempconv = keras.layers.Conv2D(1, (self.temporal, 1), activation=activation, data_format='channels_last', )(
+            tempconv)
+        tempconv = keras.layers.SpatialDropout2D(self.do / 2, data_format='channels_last')(tempconv)
+        tempconv = keras.layers.MaxPool2D(pool_size=(4, 1), data_format='channels_last')(tempconv)
+
+        # features -> spatial convolution
+        features = keras.layers.normalization.BatchNormalization()(tempconv)
+        # Temporal convolution is squeezed to be used by attention mechanism
+        tempconv = SqueezeLayer()(tempconv)
+
         # Develop CNN Features
         # Add dummy channel dimension
-        features = ExpandLayer(axis=-1)(_input)
+        weight_attention = 0
         for units in self.lunits[:self.filters]:
             features = keras.layers.Conv2D(
                 units, (1, self.spatial),
@@ -927,15 +941,16 @@ class FACNN2(At2DSCNN):
             features = keras.layers.SpatialDropout2D(self.do)(features)
             features = keras.layers.MaxPool2D((1, 2))(features)
             features = keras.layers.BatchNormalization()(features)
+            weight_attention = units
 
         rnn = keras.layers.Bidirectional(
             keras.layers.LSTM(attention, return_sequences=True, dropout=self.do/2, recurrent_dropout=self.do/2,
                               implementation=2)
-        )(_input)
+        )(tempconv)
         rnn = keras.layers.BatchNormalization()(rnn)
 
         # Apply single layer softmax to weight input features
-        attn = keras.layers.TimeDistributed(keras.layers.Dense(self.lunits[0], activation='softmax'))(rnn)
+        attn = keras.layers.TimeDistributed(keras.layers.Dense(weight_attention, activation='softmax'))(rnn)
         attn = ExpandLayer(-2)(attn)
 
         new_in = keras.layers.Multiply()([features, attn])
