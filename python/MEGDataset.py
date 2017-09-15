@@ -467,6 +467,8 @@ class BaseDatasetAgeRanges(BaseDataset, metaclass=ABCMeta):
     AGE_16_18 = (16, 19)
     AGE_RANGES = [AGE_4_5, AGE_6_7, AGE_8_9, AGE_10_11, AGE_12_13, AGE_14_15, AGE_16_18]
 
+    AGE_DISTRIBUTION = False
+
     class AgeSubjectLoader(SubjectFileLoader):
 
         def _load(self, batch: np.ndarray, cols: list):
@@ -477,7 +479,19 @@ class BaseDatasetAgeRanges(BaseDataset, metaclass=ABCMeta):
             for i in range(len(BaseDatasetAgeRanges.AGE_RANGES)):
                 low = BaseDatasetAgeRanges.AGE_RANGES[i][0]
                 high = BaseDatasetAgeRanges.AGE_RANGES[i][1]
-                y[np.where((y_float[:, age_col] >= low) & (y_float[:, age_col] < high))[0], i] = 1
+                inds = np.where((y_float[:, age_col] >= low) & (y_float[:, age_col] < high))[0]
+                if not BaseDatasetAgeRanges.AGE_DISTRIBUTION:
+                    y[inds, i] = 1
+                elif i == 0:
+                    y[inds, i] = 0.8
+                    y[inds, i+1] = 0.2
+                elif i == len(BaseDatasetAgeRanges.AGE_RANGES)-1:
+                    y[inds, i] = 0.8
+                    y[inds, i-1] = 0.2
+                else:
+                    y[inds, i] = 0.7
+                    y[inds, i+1] = 0.15
+                    y[inds, i-1] = 0.15
 
             # dims = tuple(i for i in range(1, len(x.shape)))
             return x, y

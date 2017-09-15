@@ -262,7 +262,7 @@ class LogisticRegression(Sequential, Searchable):
                                kernel_regularizer=keras.regularizers.l2(self.reg),
                                # kernel_initializer=keras.initializers.TruncatedNormal(stddev=0.01),
                                bias_initializer=keras.initializers.Constant(value=0.0001)
-            )
+                               )
         ], self.__class__.__name__)
 
     def compile(self, **kwargs):
@@ -348,7 +348,7 @@ class SimpleMLP(Sequential, Searchable):
     @staticmethod
     def search_space():
         return {
-            Searchable.PARAM_LR: hp.loguniform(Searchable.PARAM_LR, -14, -2.3),
+            Searchable.PARAM_LR: hp.loguniform(Searchable.PARAM_LR, -12, 0),
             Searchable.PARAM_OPT: hp.choice(Searchable.PARAM_OPT, [keras.optimizers.sgd, keras.optimizers.adam]),
             Searchable.PARAM_MOMENTUM: hp.loguniform(Searchable.PARAM_MOMENTUM, -7, 0),
             Searchable.PARAM_BATCH: hp.quniform(Searchable.PARAM_BATCH, 1, 100, 5),
@@ -366,7 +366,7 @@ class SimpleMLP(Sequential, Searchable):
 class StackedAutoEncoder(SimpleMLP):
     """
     This encoder trains layer-wise by using Stacked Autoencoders.
-    
+
     Only uses the fit_generator interface.
     """
 
@@ -388,17 +388,17 @@ class StackedAutoEncoder(SimpleMLP):
                 x = self.transform([x, 1])
             return x, x
 
-    # def __init__(self, inputlength, outputlength, activation=keras.activations.relu, params=None):
-    #     """
-    #     Create a stacked autoencoder
-    #     :param inputlength:
-    #     :param outputlength:
-    #     :param activation:
-    #     :param params:
-    #     """
-    #     super().__init__(inputlength, outputlength, activation, params)
-        # pop the classifier layer, and build the decoding layers
-        # self.pop()
+            # def __init__(self, inputlength, outputlength, activation=keras.activations.relu, params=None):
+            #     """
+            #     Create a stacked autoencoder
+            #     :param inputlength:
+            #     :param outputlength:
+            #     :param activation:
+            #     :param params:
+            #     """
+            #     super().__init__(inputlength, outputlength, activation, params)
+            # pop the classifier layer, and build the decoding layers
+            # self.pop()
 
     def fit_generator(self, generator,
                       steps_per_epoch,
@@ -416,11 +416,11 @@ class StackedAutoEncoder(SimpleMLP):
                       pickle_safe=False,
                       initial_epoch=0):
         """
-        Special implementation of fit_generator that trains layer-wise, 
-        :param layer_min_delta: Minimum change that needs to occur to continue training the layer 
+        Special implementation of fit_generator that trains layer-wise,
+        :param layer_min_delta: Minimum change that needs to occur to continue training the layer
         :param fine_tune: If true, after the model is finished being trained in a layer-wise fashion, a final training
         step occurs where all the layers are trained via backpropagation.
-        :return: 
+        :return:
         """
         if verbose:
             print('Beginning greedy training')
@@ -508,11 +508,11 @@ class ShallowTSCNN(SimpleMLP):
             self.spatial = int(params[self.PARAM_FILTER_SPATIAL])
         else:
             params = {}
-            self.temporal = 128
-            self.spatial = 4
-            self.lunits = [16, 32, 64, 64]
+            self.temporal = 96
+            self.spatial = 5
+            self.lunits = [128, 128]
             self.do = 0.4
-        self.filters = int(params.get(self.PARAM_FILTER_LAYERS, 3))
+        self.filters = int(params.get(self.PARAM_FILTER_LAYERS, 1))
         return params
 
     def __init__(self, inputshape, outputshape, activation=keras.activations.elu, params=None):
@@ -533,7 +533,7 @@ class ShallowTSCNN(SimpleMLP):
         # self.add(keras.layers.Permute((2, 1)))
         # self.add(keras.layers.Conv1D(
         #     self.lunits[1], self.spatial, padding='valid', activation=activation,
-            # activity_regularizer=keras.regularizers.l2(self.reg)
+        # activity_regularizer=keras.regularizers.l2(self.reg)
         # ))
 
         # Classifier
@@ -641,7 +641,7 @@ class TSCNN(ShallowTSCNN):
             self.lunits[0], (self.temporal, 1),
             activation=activation, data_format='channels_last'
         ))
-        self.add(keras.layers.SpatialDropout2D(0.2))
+        self.add(keras.layers.SpatialDropout2D(self.do/2))
         self.add(keras.layers.MaxPool2D((2, 1)))
         self.add(keras.layers.BatchNormalization())
 
@@ -650,7 +650,7 @@ class TSCNN(ShallowTSCNN):
             self.lunits[1], (1, self.spatial),
             activation=activation, data_format='channels_last'
         ))
-        self.add(keras.layers.SpatialDropout2D(0.2))
+        self.add(keras.layers.SpatialDropout2D(self.do/2))
         # self.add(keras.layers.MaxPool2D((1, 2)))
         self.add(keras.layers.BatchNormalization())
 
@@ -663,12 +663,52 @@ class TSCNN(ShallowTSCNN):
         # self.add(keras.layers.Dense(outputshape, activation='softmax'))
 
 
+class SpatialCNN(ShallowTSCNN):
+    PARAM_GRIDLEN = 'grid_length'
+
+    def __init__(self, inputshape, outputshape, activation=keras.activations.relu, params=None):
+        params = self.setupcnnparams(params)
+
+        # Make the interpolated image
+        signal_in = keras.layers.Input(shape=inputshape)
+        # 2 comes from 2D locations
+        locs_in = keras.layers.Input(shape=(inputshape[-1], 2))
+        tempconv = ExpandLayer()(signal_in)
+
+        # Temporal Convolution
+        tempconv = keras.layers.Conv2D(1, (self.temporal, 1), activation=activation, data_format='channels_last', )(tempconv)
+        tempconv = keras.layers.SpatialDropout2D(self.do/2, data_format='channels_last')(tempconv)
+        tempconv = keras.layers.MaxPool2D(pool_size=(4, 1), data_format='channels_last')(tempconv)
+        tempconv = keras.layers.normalization.BatchNormalization()(tempconv)
+        tempconv = SqueezeLayer()(tempconv)
+
+        # Start with 2D Spatial filtering, up to a possible 3 layers
+        conv = ExpandLayer()(ProjectionLayer(gridsize=50)([tempconv, locs_in]))
+        for units in self.lunits[:self.filters]:
+            conv = keras.layers.Conv3D(units, (1, self.spatial, self.spatial), activation=activation, data_format='channels_last',)(conv)
+            conv = keras.layers.SpatialDropout3D(self.do, data_format='channels_last')(conv)
+            conv = keras.layers.MaxPool3D(pool_size=(1, 2, 2), data_format='channels_last')(conv)
+            conv = keras.layers.normalization.BatchNormalization()(conv)
+
+        # Classifier
+        output = keras.layers.Flatten()(conv)
+        for units in self.lunits[self.filters:]:
+            output = keras.layers.Dense(units, activation=activation)(output)
+            output = keras.layers.Dropout(self.do)(output)
+            output = keras.layers.BatchNormalization()(output)
+
+        output = keras.layers.Dense(outputshape, activation='softmax', name='OUT')(output)
+        # output = keras.layers.Dense(outputshape, activation='linear',
+        #                              kernel_regularizer=keras.regularizers.l2(self.reg))(output)
+
+        super(Model, self).__init__([signal_in, locs_in], [output])
+
+
 class At2DSCNN(ShallowTSCNN):
     """
     This class employs attention to weight a relatively deep set of features from the 2D sensor interpolation
     """
 
-    PARAM_GRIDLEN = 'grid_length'
     PARAM_ATTENTION = 'attention'
 
     def __init__(self, inputshape, outputshape, activation=keras.activations.relu, params=None):
@@ -724,9 +764,13 @@ class At2DSCNN(ShallowTSCNN):
 
     def compile(self, **kwargs):
         extra_metrics = kwargs.pop('metrics', [])
-        super(SimpleMLP, self).compile(optimizer=self.opt_param(), loss=keras.losses.categorical_crossentropy,
+        def next_2(y_true, y_pred):
+            return K.mean(K.abs(K.argmax(y_true) - K.argmax(y_pred)) <= 1)
+        super(SimpleMLP, self).compile(optimizer=self.opt_param(), loss=keras.losses.kullback_leibler_divergence,
                                        metrics=[keras.metrics.categorical_crossentropy,
-                                                keras.metrics.categorical_accuracy, *extra_metrics], **kwargs)
+                                                keras.metrics.categorical_accuracy,
+                                                next_2,
+                                                *extra_metrics], **kwargs)
 
 
     @staticmethod
@@ -743,6 +787,7 @@ class SimpleLSTM(SimpleMLP):
     """
 
     NEEDS_FLAT = False
+    PARAM_SEQ = 'return_sequences'
 
     def __init__(self, inputshape, outputshape, activation=keras.activations.relu, params=None):
         Searchable.__init__(self, params=params)
@@ -751,16 +796,19 @@ class SimpleLSTM(SimpleMLP):
         if params is not None:
             self.lunits = self.parse_layers(params)
             self.do = params[Searchable.PARAM_DROPOUT]
+            self.return_seq = bool(params[SimpleLSTM.PARAM_SEQ])
         else:
+            self.return_seq = False
             self.lunits = [256, 512]
             self.do = 0.4
 
         self.add(keras.layers.wrappers.Bidirectional(
-            keras.layers.LSTM(self.lunits[0], dropout=self.do/2,
-                              recurrent_dropout=self.do,), input_shape=inputshape))
+            keras.layers.LSTM(self.lunits[0], dropout=self.do/2, return_sequences=self.return_seq,
+                              recurrent_dropout=self.do/2,), input_shape=inputshape))
         self.add(keras.layers.BatchNormalization())
 
-        # self.add(keras.layers.Flatten())
+        if self.return_seq:
+            self.add(keras.layers.Flatten())
 
         for i, layer in enumerate(self.lunits[1:]):
             self.add(keras.layers.Dense(layer, activation=activation))
@@ -776,10 +824,11 @@ class SimpleLSTM(SimpleMLP):
     @staticmethod
     def search_space():
         rnn_space = SimpleMLP.search_space()
+        rnn_space[SimpleLSTM.PARAM_SEQ] = hp.choice(SimpleLSTM.PARAM_SEQ, [0, 1])
         rnn_space[Searchable.PARAM_BATCH] = hp.quniform(Searchable.PARAM_BATCH, 1, 512, 2)
         rnn_space[Searchable.PARAM_LAYERS] = hp.choice(Searchable.PARAM_LAYERS, [
-            [hp.quniform('1layer1', 1, 128, 2)],
-            [hp.quniform('2layer1', 1, 128, 2), hp.quniform('2layer2', 20, 100, 10)]
+            [hp.quniform('1layer1', 1, 512, 8)],
+            [hp.quniform('2layer1', 1, 512, 8), hp.qloguniform('2layer2', 3, 7, 5)]
         ])
         return rnn_space
 
@@ -895,8 +944,8 @@ class FACNN(ShallowTSCNN):
     def compile(self, **kwargs):
         extra_metrics = kwargs.pop('metrics', [])
         super(SimpleMLP, self).compile(optimizer=self.opt_param(), loss=keras.losses.categorical_crossentropy,
-                                          metrics=[keras.metrics.categorical_crossentropy,
-                                                 keras.metrics.categorical_accuracy, *extra_metrics], **kwargs)
+                                       metrics=[keras.metrics.categorical_crossentropy,
+                                                keras.metrics.categorical_accuracy, *extra_metrics], **kwargs)
 
     @staticmethod
     def search_space():
@@ -914,7 +963,7 @@ class FACNN2(At2DSCNN):
 
     def __init__(self, inputshape, outputshape, activation=keras.activations.relu, params=None):
         params = self.setupcnnparams(params)
-        attention = int(params.get(self.PARAM_ATTENTION, 96))
+        attention = int(params.get(self.PARAM_ATTENTION, 55))
 
         _input = keras.layers.Input(inputshape)
 
@@ -923,7 +972,7 @@ class FACNN2(At2DSCNN):
         tempconv = keras.layers.Conv2D(1, (self.temporal, 1), activation=activation, data_format='channels_last', )(
             tempconv)
         tempconv = keras.layers.SpatialDropout2D(self.do / 2, data_format='channels_last')(tempconv)
-        tempconv = keras.layers.MaxPool2D(pool_size=(4, 1), data_format='channels_last')(tempconv)
+        tempconv = keras.layers.AveragePooling2D(pool_size=(4, 1), data_format='channels_last')(tempconv)
 
         # features -> spatial convolution
         features = keras.layers.normalization.BatchNormalization()(tempconv)
@@ -939,21 +988,23 @@ class FACNN2(At2DSCNN):
                 activation=activation, data_format='channels_last'
             )(features)
             features = keras.layers.SpatialDropout2D(self.do)(features)
-            features = keras.layers.MaxPool2D((1, 2))(features)
+            features = keras.layers.AveragePooling2D((1, 2))(features)
             features = keras.layers.BatchNormalization()(features)
             weight_attention = units
 
-        rnn = keras.layers.Bidirectional(
-            keras.layers.LSTM(attention, return_sequences=True, dropout=self.do/2, recurrent_dropout=self.do/2,
-                              implementation=2)
-        )(tempconv)
-        rnn = keras.layers.BatchNormalization()(rnn)
+        # rnn = keras.layers.Bidirectional(
+        #     keras.layers.LSTM(attention, return_sequences=True, dropout=self.do/2, recurrent_dropout=self.do/2,
+        #                       implementation=2)
+        # )(tempconv)
+        # rnn = keras.layers.BatchNormalization()(rnn)
+        rnn = keras.layers.TimeDistributed(keras.layers.Dense(128, activation=activation))(tempconv)
 
         # Apply single layer softmax to weight input features
         attn = keras.layers.TimeDistributed(keras.layers.Dense(weight_attention, activation='softmax'))(rnn)
         attn = ExpandLayer(-2)(attn)
 
         new_in = keras.layers.Multiply()([features, attn])
+        # fcnn = keras.layers.GlobalAveragePooling2D(data_format='channels_last')(new_in)
         fcnn = keras.layers.Flatten()(new_in)
 
         for units in self.lunits[self.filters:]:
@@ -1007,8 +1058,8 @@ class ASVM(FACNN):
     def compile(self, **kwargs):
         extra_metrics = kwargs.pop('metrics', [])
         super(SimpleMLP, self).compile(optimizer=self.opt_param(), loss=keras.losses.categorical_hinge,
-                                          metrics=[keras.metrics.categorical_crossentropy,
-                                                 keras.metrics.categorical_accuracy, *extra_metrics], **kwargs)
+                                       metrics=[keras.metrics.categorical_crossentropy,
+                                                keras.metrics.categorical_accuracy, *extra_metrics], **kwargs)
 
 MODELS = [
     # Basic Regression
@@ -1016,7 +1067,7 @@ MODELS = [
     # Basic Classification
     LogisticRegression, LinearSVM, SimpleMLP, StackedAutoEncoder,
     # CNN Based
-    ShallowTSCNN, TCNN, LinearSCNN, TSCNN, At2DSCNN,
+    ShallowTSCNN, TCNN, LinearSCNN, TSCNN, SpatialCNN,
     # RNN Based
     SimpleLSTM,
     # Attention

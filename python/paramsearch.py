@@ -40,7 +40,7 @@ class SkipOnKeypress(keras.callbacks.Callback):
                 if self.model.stop_training:
                     print('Stopping...')
 
-    # def on_train_end(self, logs=None):
+                    # def on_train_end(self, logs=None):
 
 
 def hp_search(model_constructor, dataset_constructor, args):
@@ -84,8 +84,8 @@ def hp_search(model_constructor, dataset_constructor, args):
             e = dataset.evaluationset(flatten=model.NEEDS_FLAT)
 
             history = model.fit_generator(s, np.ceil(s.n / s.batch_size),
-                                validation_data=e, validation_steps=np.ceil(e.n / e.batch_size),
-                                workers=4, epochs=args.epochs, callbacks=callbacks)
+                                          validation_data=e, validation_steps=np.ceil(e.n / e.batch_size),
+                                          workers=4, epochs=args.epochs, callbacks=callbacks)
             # metrics = model.evaluate_generator(e, np.ceil(e.n / e.batch_size), workers=4)
             history = history.history
             val_loss = -max(history['val_loss']) if args.max else min(history['val_loss'])
@@ -139,7 +139,10 @@ def hp_search(model_constructor, dataset_constructor, args):
     his = trials.attachments['ATTACH::{0}::history'.format(trials.best_trial['tid'])]
     if len(his.keys()) > 0:
         print(np.vstack((his['loss'], his['val_loss'])))
-        print(np.vstack((his['categorical_accuracy'], his['val_categorical_accuracy'])))
+        if 'categorical_accuracy' in his.keys():
+            print(np.vstack((his['categorical_accuracy'], his['val_categorical_accuracy'])))
+        elif 'acc' in his.keys():
+            print(np.vstack((his['acc'], his['val_acc'])))
 
     return best_model, trials
 

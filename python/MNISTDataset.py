@@ -20,7 +20,7 @@ class ArrayFeeder(KerasDataloader):
             index_array, current_index, current_batch_size = next(self.index_generator)
 
         if self.flatten:
-            return np.reshape(self.x[index_array], [self.x[index_array].shape[0], -1]), self.y
+            return np.reshape(self.x[index_array], [self.x[index_array].shape[0], -1]), self.y[index_array]
 
         return self.x[index_array], self.y[index_array]
 
@@ -48,7 +48,7 @@ class MNISTRegression:
         self.y = np.split(self.y, self.NUM_BUCKETS)
 
         if batchsize < 0:
-            batchsize = self.x_train.shape[0]//10
+            batchsize = 128
         self.batchsize = batchsize
 
         self.next_leaveout(force=0)
@@ -80,6 +80,9 @@ class MNISTRegression:
 
         self.leaveout += 1
 
+        return self.leaveout
+
+    def current_leaveout(self):
         return self.leaveout
 
     def trainingset(self, batchsize=None, flatten=True):
