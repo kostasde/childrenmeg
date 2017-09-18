@@ -253,6 +253,14 @@ class BaseDataset:
         # l = zscore(l)
         return l
 
+    @staticmethod
+    def print_folds(buckets):
+        for i, b in enumerate(buckets):
+            b = np.array(b)
+            print('Fold {0}, total datapoints: {1}'.format(i+1, b.shape[0]))
+            subjects, counts = np.unique(b[:, 0], return_counts=True)
+            print('{0} Subjects used: {1}\nPoints per subject: {2}\n\n'.format(len(subjects), subjects, counts))
+
     def __init__(self, toplevel, PDK=True, PA=True, VG=True, MO=False, batchsize=2):
         self.toplevel = Path(toplevel)
         # some basic checking to make sure we have the right directory
@@ -282,6 +290,7 @@ class BaseDataset:
                 # list of subjects that we will use for the cross validation
                 # self.leaveoutsubjects = np.unique(self.datapoints[:, 0])
                 # Todo: warn/update pickled file if new subjects exist
+                self.print_folds(self.buckets)
         else:
             print('Preprocessing data...')
 
@@ -314,6 +323,7 @@ class BaseDataset:
                 # numpoints = self.datapoints.size[0]
                 # ind = np.arange(numpoints)
                 # ind = np.random.choice(ind, replace=False, size=int(0.2*numpoints)
+            self.print_folds(self.buckets)
 
         self.next_leaveout(force=0)
 

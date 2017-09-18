@@ -833,6 +833,9 @@ class SimpleLSTM(SimpleMLP):
         return rnn_space
 
 
+# class DeepLSTM(ShallowLSTM)
+
+
 class AttentionLSTM(Model, Searchable):
 
     TYPE = TYPE_CLASSIFICATION

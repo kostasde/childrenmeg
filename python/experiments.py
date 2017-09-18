@@ -36,10 +36,10 @@ def train_and_test(model_maker, dataset, args, callbacks=None):
 
     if args.test:
         print('Test performance')
-        s = dataset.testset(flatten=model.NEEDS_FLAT)
+        s = dataset.testset(flatten=model.NEEDS_FLAT, batchsize=batchsize)
     else:
         print('Validation Performance')
-        s = dataset.evaluationset(flatten=model.NEEDS_FLAT)
+        s = dataset.evaluationset(flatten=model.NEEDS_FLAT, batchsize=batchsize)
 
     metrics = model.evaluate_generator(s, np.ceil(s.n / s.batch_size), workers=args.workers)
     print(metrics)
@@ -186,8 +186,9 @@ if __name__ == '__main__':
     if args.save_model_params is not None:
         args.save_model_params = Path(args.save_model_params)
         # fixme this has become mostly a placeholder, probably a better way of doing this.
-        callbacks.append(keras.callbacks.ModelCheckpoint(str(args.save_model_params / 'Fold-1-weights.hdf5'), verbose=1,
-                                                         save_best_only=True))
+        callbacks.append(keras.callbacks.ModelCheckpoint(
+            str(args.save_model_params / 'Fold-{0}-weights.hdf5'.format(args.fold)), verbose=1, save_best_only=True)
+        )
 
     print('-' * 30)
     print('Using ', dataset.__class__.__name__)
@@ -268,8 +269,8 @@ if __name__ == '__main__':
         if args.save_model_params is not None:
             callbacks[-1] = keras.callbacks.ModelCheckpoint(str(args.save_model_params /
                                                                 'Fold-{0}-weights.hdf5'.format(fold)),
-                                                            verbose=1, save_best_only=True,
-                                                            monitor='val_categorical_accuracy')
+                                                            verbose=1, save_best_only=True,)
+                                                            # monitor='val_categorical_accuracy')
         metrics.append(train_and_test(model_maker, dataset, args, callbacks=callbacks))
 
         if not args.cross_validation or not dataset.next_leaveout():
