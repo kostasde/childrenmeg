@@ -58,7 +58,9 @@ def hp_search(model_constructor, dataset_constructor, args):
     try:
         trials_file = Path(args.save_trials)
         trials = pickle.load(trials_file.open('rb'))
-        print('Loaded previous {0} trials from {1}'.format(len(trials.losses()), str(args.save_trials)))
+        print('Loaded previous {0} trial attempts, with {1} valid losses from {2}'.format(
+            len(trials.losses()), len([x for x in trials.losses() if x]), str(args.save_trials))
+        )
     except (EOFError, FileNotFoundError) as e:
         print('Creating new trials file at:', args.save_trials)
         trials = Trials()
@@ -135,6 +137,8 @@ def hp_search(model_constructor, dataset_constructor, args):
 
     print('All Losses:', trials.losses())
     print('-'*30)
+    print('Attempts performed: {0}\nAttempts successful: {1}'.format(len(trials.losses()),
+                                                                     len([x for x in trials.losses() if x])))
     print('Best Model Found:', best_model)
     his = trials.attachments['ATTACH::{0}::history'.format(trials.best_trial['tid'])]
     if len(his.keys()) > 0:

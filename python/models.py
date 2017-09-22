@@ -197,8 +197,8 @@ class Searchable:
     def __init__(self, params):
         if params is None:
             params = {
-                Searchable.PARAM_LR: 1e-3, Searchable.PARAM_BATCH: 128, Searchable.PARAM_REG: 0.1,
-                Searchable.PARAM_MOMENTUM: 0.1, Searchable.PARAM_OPT: keras.optimizers.adam
+                Searchable.PARAM_LR: 1e-2, Searchable.PARAM_BATCH: 128, Searchable.PARAM_REG: 0.1,
+                Searchable.PARAM_MOMENTUM: 0.05, Searchable.PARAM_OPT: keras.optimizers.sgd
             }
 
         self.lr = params[Searchable.PARAM_LR]
@@ -510,7 +510,7 @@ class ShallowTSCNN(SimpleMLP):
             params = {}
             self.temporal = 96
             self.spatial = 5
-            self.lunits = [128, 128]
+            self.lunits = [16, 16, 64]
             self.do = 0.4
         self.filters = int(params.get(self.PARAM_FILTER_LAYERS, 1))
         return params
@@ -560,7 +560,7 @@ class ShallowTSCNN(SimpleMLP):
     def search_space():
         cnn_space = SimpleMLP.search_space()
         cnn_space[Searchable.PARAM_BATCH] = hp.quniform(Searchable.PARAM_BATCH, 4, 128, 4)
-        cnn_space[ShallowTSCNN.PARAM_FILTER_LAYERS] = hp.quniform(At2DSCNN.PARAM_FILTER_LAYERS, 1, 5, 1)
+        cnn_space[ShallowTSCNN.PARAM_FILTER_LAYERS] = hp.quniform(At2DSCNN.PARAM_FILTER_LAYERS, 2, 5, 1)
         cnn_space[Searchable.PARAM_LAYERS] = hp.choice(Searchable.PARAM_LAYERS, [
             [hp.qloguniform('2layer1', 1.5, 5.5, 2), hp.qloguniform('2layer2', 1.5, 5.5, 2)],
             [hp.qloguniform('3layer1', 1.5, 5.5, 2), hp.qloguniform('3layer2', 1.5, 5.5, 2),
@@ -766,7 +766,7 @@ class At2DSCNN(ShallowTSCNN):
         extra_metrics = kwargs.pop('metrics', [])
         def next_2(y_true, y_pred):
             return K.mean(K.abs(K.argmax(y_true) - K.argmax(y_pred)) <= 1)
-        super(SimpleMLP, self).compile(optimizer=self.opt_param(), loss=keras.losses.kullback_leibler_divergence,
+        super(SimpleMLP, self).compile(optimizer=self.opt_param(), loss=keras.losses.categorical_crossentropy,
                                        metrics=[keras.metrics.categorical_crossentropy,
                                                 keras.metrics.categorical_accuracy,
                                                 next_2,
@@ -835,7 +835,7 @@ class SimpleLSTM(SimpleMLP):
 
 # class DeepLSTM(ShallowLSTM)
 
-
+# Feed-forward LSTM Based attention from FEED-FORWARD NETWORKS WITH ATTENTION CAN SOLVE SOME LONG-TERM MEMORY PROBLEMS
 class AttentionLSTM(Model, Searchable):
 
     TYPE = TYPE_CLASSIFICATION
@@ -850,7 +850,7 @@ class AttentionLSTM(Model, Searchable):
             self.lunits = SimpleMLP.parse_layers(params)
             self.do = params[Searchable.PARAM_DROPOUT]
         else:
-            self.lunits = [32, 64]
+            self.lunits = [4, 32]
             self.do = 0.4
 
         _input = keras.layers.Input(inputshape)
@@ -861,16 +861,13 @@ class AttentionLSTM(Model, Searchable):
         )(_input)
         rnn = keras.layers.BatchNormalization()(rnn)
 
-        # Apply single layer MLP and softmax to weight input features
-        if len(self.lunits) >= 2:
-            attn = keras.layers.TimeDistributed(keras.layers.Dense(self.lunits[1], activation=activation))(rnn)
-            attn = keras.layers.TimeDistributed(keras.layers.Dropout(self.do))(attn)
-        else:
-            attn = rnn
-        attn = keras.layers.TimeDistributed(keras.layers.Dense(inputshape[-1], activation='softmax'))(attn)
+        a = rnn
+        for i in range(2):
+            a = keras.layers.TimeDistributed(keras.layers.Dense(2))(a)
+        e = SqueezeLayer()(keras.layers.TimeDistributed(keras.layers.Dense(1, activation=activation))(a))
+        alpha = keras.layers.Dense(inputshape[0], activation='softmax')(e)
 
-        new_in = keras.layers.Multiply()([_input, attn])
-        fcnn = keras.layers.Flatten()(new_in)
+        fcnn = keras.layers.Dot(-1)([keras.layers.Permute((2, 1))(rnn), alpha])
 
         for i, layer in enumerate(self.lunits[2:]):
             fcnn = keras.layers.Dense(layer, activation=activation)(fcnn)
@@ -878,15 +875,15 @@ class AttentionLSTM(Model, Searchable):
             fcnn = keras.layers.BatchNormalization()(fcnn)
 
         # self.add(keras.layers.Flatten())
-        # _output = keras.layers.Dense(outputshape, activation='softmax', name='OUT')(fcnn)
-        _output = keras.layers.Dense(outputshape, activation='linear',
-                                     kernel_regularizer=keras.regularizers.l2(self.reg))(fcnn)
+        _output = keras.layers.Dense(outputshape, activation='softmax', name='OUT')(fcnn)
+        # _output = keras.layers.Dense(outputshape, activation='linear',
+        #                              kernel_regularizer=keras.regularizers.l2(self.reg))(fcnn)
 
         super(Model, self).__init__(_input, _output, name=self.__class__.__name__)
 
     def compile(self, **kwargs):
         extra_metrics = kwargs.pop('metrics', [])
-        super().compile(optimizer=self.opt_param(), loss=keras.losses.categorical_hinge,
+        super().compile(optimizer=self.opt_param(), loss=keras.losses.categorical_crossentropy,
                         metrics=[keras.metrics.categorical_crossentropy, keras.metrics.categorical_accuracy,
                                  *extra_metrics], **kwargs)
 
@@ -972,15 +969,16 @@ class FACNN2(At2DSCNN):
 
         # Temporal Convolution
         tempconv = ExpandLayer()(_input)
-        tempconv = keras.layers.Conv2D(1, (self.temporal, 1), activation=activation, data_format='channels_last', )(
-            tempconv)
+        tempconv = keras.layers.Conv2D(1, (self.temporal, 1), activation=activation, data_format='channels_last', )\
+                (tempconv)
         tempconv = keras.layers.SpatialDropout2D(self.do / 2, data_format='channels_last')(tempconv)
-        tempconv = keras.layers.AveragePooling2D(pool_size=(4, 1), data_format='channels_last')(tempconv)
+        tempconv = keras.layers.MaxPooling2D(pool_size=(4, 1), data_format='channels_last')(tempconv)
 
         # features -> spatial convolution
         features = keras.layers.normalization.BatchNormalization()(tempconv)
         # Temporal convolution is squeezed to be used by attention mechanism
         tempconv = SqueezeLayer()(tempconv)
+        # tempconv = keras.layers.Reshape([76, -1])(features)
 
         # Develop CNN Features
         # Add dummy channel dimension
@@ -988,30 +986,94 @@ class FACNN2(At2DSCNN):
         for units in self.lunits[:self.filters]:
             features = keras.layers.Conv2D(
                 units, (1, self.spatial),
-                activation=activation, data_format='channels_last'
+                activation=activation, data_format='channels_last',
             )(features)
             features = keras.layers.SpatialDropout2D(self.do)(features)
-            features = keras.layers.AveragePooling2D((1, 2))(features)
+            features = keras.layers.MaxPooling2D((1, 2))(features)
             features = keras.layers.BatchNormalization()(features)
             weight_attention = units
 
-        # rnn = keras.layers.Bidirectional(
-        #     keras.layers.LSTM(attention, return_sequences=True, dropout=self.do/2, recurrent_dropout=self.do/2,
-        #                       implementation=2)
-        # )(tempconv)
-        # rnn = keras.layers.BatchNormalization()(rnn)
-        rnn = keras.layers.TimeDistributed(keras.layers.Dense(128, activation=activation))(tempconv)
+        rnn = keras.layers.Bidirectional(
+            keras.layers.LSTM(attention, return_sequences=True, dropout=self.do/2, recurrent_dropout=self.do/2,
+                              implementation=2)
+        )(tempconv)
+        rnn = keras.layers.BatchNormalization()(rnn)
+        # rnn = keras.layers.TimeDistributed(keras.layers.Dense(128, activation=activation))(tempconv)
 
         # Apply single layer softmax to weight input features
         attn = keras.layers.TimeDistributed(keras.layers.Dense(weight_attention, activation='softmax'))(rnn)
         attn = ExpandLayer(-2)(attn)
 
         new_in = keras.layers.Multiply()([features, attn])
+        # Can try average pooling instead of
         # fcnn = keras.layers.GlobalAveragePooling2D(data_format='channels_last')(new_in)
         fcnn = keras.layers.Flatten()(new_in)
 
         for units in self.lunits[self.filters:]:
-            fcnn = keras.layers.Dense(units, activation=activation)(fcnn)
+            fcnn = keras.layers.Dense(units, activation=activation, kernel_initializer=keras.initializers.lecun_normal())(fcnn)
+            fcnn = keras.layers.Dropout(self.do)(fcnn)
+            fcnn = keras.layers.BatchNormalization()(fcnn)
+
+        # self.add(keras.layers.Flatten())
+        _output = keras.layers.Dense(outputshape, activation='softmax', name='OUT')(fcnn)
+        # _output = keras.layers.Dense(outputshape, activation='linear',
+        #                              kernel_regularizer=keras.regularizers.l2(self.reg))(fcnn)
+
+        super(Model, self).__init__(_input, _output, name=self.__class__.__name__)
+
+
+class FACNN3(FACNN2):
+
+    def __init__(self, inputshape, outputshape, activation=keras.activations.relu, params=None):
+        params = self.setupcnnparams(params)
+        attention = int(params.get(self.PARAM_ATTENTION, 55))
+
+        _input = keras.layers.Input(inputshape)
+
+        # Temporal Convolution
+        tempconv = ExpandLayer()(_input)
+        tempconv = keras.layers.Conv2D(self.lunits[0], (self.temporal, 1), activation=activation, data_format='channels_last', )\
+                (tempconv)
+        tempconv = keras.layers.SpatialDropout2D(self.do / 2, data_format='channels_last')(tempconv)
+        tempconv = keras.layers.MaxPooling2D(pool_size=(4, 1), data_format='channels_last')(tempconv)
+
+        # features -> spatial convolution
+        features = keras.layers.normalization.BatchNormalization()(tempconv)
+        # Temporal convolution is squeezed to be used by attention mechanism
+        tempconv = SqueezeLayer()(tempconv)
+        # tempconv = keras.layers.Reshape([76, -1])(features)
+
+        # Develop CNN Features
+        # Add dummy channel dimension
+        weight_attention = 0
+        for units in self.lunits[1:self.filters]:
+            features = keras.layers.Conv2D(
+                units, (1, self.spatial),
+                activation=activation, data_format='channels_last',
+            )(features)
+            features = keras.layers.SpatialDropout2D(self.do)(features)
+            features = keras.layers.MaxPooling2D((1, 2))(features)
+            features = keras.layers.BatchNormalization()(features)
+            weight_attention = units
+
+        rnn = keras.layers.Bidirectional(
+            keras.layers.LSTM(attention, return_sequences=True, dropout=self.do/2, recurrent_dropout=self.do/2,
+                              implementation=2)
+        )(tempconv)
+        rnn = keras.layers.BatchNormalization()(rnn)
+        # rnn = keras.layers.TimeDistributed(keras.layers.Dense(128, activation=activation))(tempconv)
+
+        # Apply single layer softmax to weight input features
+        attn = keras.layers.TimeDistributed(keras.layers.Dense(weight_attention, activation='softmax'))(rnn)
+        attn = ExpandLayer(-2)(attn)
+
+        new_in = keras.layers.Multiply()([features, attn])
+        # Can try average pooling instead of
+        # fcnn = keras.layers.GlobalAveragePooling2D(data_format='channels_last')(new_in)
+        fcnn = keras.layers.Flatten()(new_in)
+
+        for units in self.lunits[self.filters:]:
+            fcnn = keras.layers.Dense(units, activation=activation, kernel_initializer=keras.initializers.lecun_normal())(fcnn)
             fcnn = keras.layers.Dropout(self.do)(fcnn)
             fcnn = keras.layers.BatchNormalization()(fcnn)
 
@@ -1074,5 +1136,5 @@ MODELS = [
     # RNN Based
     SimpleLSTM,
     # Attention
-    AttentionLSTM, FACNN, FACNN2, ASVM
+    AttentionLSTM, FACNN, FACNN2, At2DSCNN, ASVM
 ]
