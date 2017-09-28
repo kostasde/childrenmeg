@@ -201,13 +201,13 @@ class Searchable:
     def __init__(self, params):
         self.params = params if params else {}
 
-        self.lr = self.params.get(Searchable.PARAM_LR, 1e-2)
+        self.lr = self.params.get(Searchable.PARAM_LR, 1e-3)
         self.momentum = self.params.get(Searchable.PARAM_MOMENTUM, 0.05)
         self.reg = self.params.get(Searchable.PARAM_REG, 0.05)
         self.batchsize = self.params.get(Searchable.PARAM_BATCH, 128)
 
         self.optimizer = Searchable.parse_choice(self.params.get(Searchable.PARAM_OPT, 0), Searchable.OPTIMIZERS)
-        self.activation = Searchable.parse_choice(self.params.get(Searchable.PARAM_ACTIVATION, 0), Searchable.ACTIVATIONS)
+        self.activation = Searchable.parse_choice(self.params.get(Searchable.PARAM_ACTIVATION, 1), Searchable.ACTIVATIONS)
 
 
 class LinearRegression(Sequential, Searchable):
@@ -491,12 +491,16 @@ class StackedAutoEncoder(SimpleMLP):
                                   pickle_safe=pickle_safe, initial_epoch=initial_epoch)
 
 
-class ShallowTSCNN(SimpleMLP):
+class ShallowFBCSP(SimpleMLP):
     """
-    This model implements a fairly straightforward CNN that first filters temporally, and then performs spatial
-    filtering across the temporal filters and channels.
+    This model creates a learned convolution based FBCSP, this is a reproduction using description and source that uses
+     different libraries.
 
-    The input data should have the form (time x channels)
+       Schirrmeister, R. T., Springenberg, J. T., Fiederer, L. D. J.,
+       Glasstetter, M., Eggensperger, K., Tangermann, M., ... & Ball, T. (2017).
+       Deep learning with convolutional neural networks for EEG decoding and
+       visualization.
+       arXiv preprint arXiv:1703.05051.
     """
 
     def setupcnnparams(self, params):
@@ -510,10 +514,10 @@ class ShallowTSCNN(SimpleMLP):
             self.spatial = int(params[self.PARAM_FILTER_SPATIAL])
         else:
             params = {}
-            self.temporal = 96
-            self.spatial = 5
-            self.lunits = [32, 128]
-            self.do = 0.4
+            self.temporal = 25
+            self.spatial = 25
+            self.lunits = [40, 40]
+            self.do = 0.5
         self.filters = int(params.get(self.PARAM_FILTER_LAYERS, 1))
         return params
 
@@ -522,33 +526,32 @@ class ShallowTSCNN(SimpleMLP):
 
         # Build layers
         # Temporal Filtering
-        self.add(keras.layers.Conv1D(
-            self.lunits[0], self.temporal, padding='causal', activation=activation, input_shape=inputshape,
+        self.add(ExpandLayer(input_shape=inputshape))
+        self.add(keras.layers.Conv2D(
+            self.lunits[0], (self.temporal, 1), activation='linear', data_format='channels_last',
             # activity_regularizer=keras.regularizers.l2(self.reg)
         ))
-        self.add(keras.layers.MaxPool1D())
-        # self.add(ExpandLayer(input_shape=inputshape))
-        self.add(keras.layers.normalization.BatchNormalization())
-        self.add(keras.layers.Dropout(self.do/2))
-
         # Spatial Filtering
-        # self.add(keras.layers.Permute((2, 1)))
-        # self.add(keras.layers.Conv1D(
-        #     self.lunits[1], self.spatial, padding='valid', activation=activation,
-        # activity_regularizer=keras.regularizers.l2(self.reg)
-        # ))
+        self.add(keras.layers.Conv2D(
+            self.lunits[1], (1, self.spatial), activation='linear', use_bias=False, data_format='channels_last',
+            # activity_regularizer=keras.regularizers.l2(self.reg)
+        ))
+
+        self.add(keras.layers.BatchNormalization())
+        self.add(keras.layers.Activation(K.square))
+        self.add(keras.layers.AveragePooling2D((75, 1), 15))
+        self.add(keras.layers.Activation(lambda x: K.log(K.maximum(x, K.constant(1e-6)))))
+        self.add(keras.layers.Dropout(self.do))
+
+        # Output convolution
+        self.add(keras.layers.Conv2D(
+            self.lunits[1], (10, 1), activation='linear', data_format='channels_last',
+        ))
 
         # Classifier
-        # self.add(keras.layers.MaxPool1D())
         self.add(keras.layers.Flatten())
-        self.add(keras.layers.Dense(self.lunits[2], activation=activation))
-        self.add(keras.layers.Dropout(self.do))
-        self.add(keras.layers.normalization.BatchNormalization())
-        # self.add(keras.layers.Dense(
-        #     self.lunits[2], activation=activation, activity_regularizer=keras.regularizers.l2(self.reg))
-        # )
-        # self.add(keras.layers.Dropout(self.do))
         self.add(keras.layers.Dense(outputshape, activation='softmax', name='OUT'))
+
         # self.add(keras.layers.Dense(outputshape, activation='linear',
         #                             kernel_regularizer=keras.regularizers.l2(self.reg)))
 
@@ -562,7 +565,7 @@ class ShallowTSCNN(SimpleMLP):
     def search_space():
         cnn_space = SimpleMLP.search_space()
         cnn_space[Searchable.PARAM_BATCH] = hp.quniform(Searchable.PARAM_BATCH, 4, 128, 4)
-        cnn_space[ShallowTSCNN.PARAM_FILTER_LAYERS] = hp.quniform(At2DSCNN.PARAM_FILTER_LAYERS, 2, 5, 1)
+        cnn_space[ShallowFBCSP.PARAM_FILTER_LAYERS] = hp.quniform(At2DSCNN.PARAM_FILTER_LAYERS, 2, 5, 1)
         cnn_space[Searchable.PARAM_LAYERS] = hp.choice(Searchable.PARAM_LAYERS, [
             [hp.qloguniform('2layer1', 1.5, 5.5, 2), hp.qloguniform('2layer2', 1.5, 5.5, 2)],
             [hp.qloguniform('3layer1', 1.5, 5.5, 2), hp.qloguniform('3layer2', 1.5, 5.5, 2),
@@ -573,13 +576,13 @@ class ShallowTSCNN(SimpleMLP):
              hp.qloguniform('5layer3', 1.5, 5.5, 2), hp.qloguniform('5layer4', 4, 6, 10),
              hp.qloguniform('5layer5', 4, 6, 10)]
         ])
-        cnn_space[ShallowTSCNN.PARAM_FILTER_TEMPORAL] = hp.quniform('_t', 2, 256, 2)
-        cnn_space[ShallowTSCNN.PARAM_FILTER_SPATIAL] = hp.quniform('_x', 2, 64, 2)
+        cnn_space[ShallowFBCSP.PARAM_FILTER_TEMPORAL] = hp.quniform('_t', 2, 256, 2)
+        cnn_space[ShallowFBCSP.PARAM_FILTER_SPATIAL] = hp.quniform('_x', 2, 64, 2)
         return cnn_space
 
 
 # Probably not used for testing
-class TCNN(ShallowTSCNN):
+class TCNN(ShallowFBCSP):
 
     def __init__(self, inputshape, outputshape, activation=keras.activations.elu, params=None):
         params = self.setupcnnparams(params)
@@ -605,7 +608,7 @@ class TCNN(ShallowTSCNN):
 
 
 # Probably not used for testing
-class LinearSCNN(ShallowTSCNN):
+class LinearSCNN(ShallowFBCSP):
 
     def __init__(self, inputshape, outputshape, activation=keras.activations.elu, params=None):
         params = self.setupcnnparams(params)
@@ -631,7 +634,7 @@ class LinearSCNN(ShallowTSCNN):
 
 
 # Inspired by PAPER
-class TSCNN(ShallowTSCNN):
+class FBCSP(ShallowFBCSP):
 
     def __init__(self, inputshape, outputshape, activation=keras.activations.elu, params=None):
         params = self.setupcnnparams(params)
@@ -665,7 +668,7 @@ class TSCNN(ShallowTSCNN):
         # self.add(keras.layers.Dense(outputshape, activation='softmax'))
 
 
-class SpatialCNN(ShallowTSCNN):
+class SpatialCNN(ShallowFBCSP):
     PARAM_GRIDLEN = 'grid_length'
 
     def __init__(self, inputshape, outputshape, activation=keras.activations.relu, params=None):
@@ -706,7 +709,7 @@ class SpatialCNN(ShallowTSCNN):
         super(Model, self).__init__([signal_in, locs_in], [output])
 
 
-class At2DSCNN(ShallowTSCNN):
+class At2DSCNN(ShallowFBCSP):
     """
     This class employs attention to weight a relatively deep set of features from the 2D sensor interpolation
     """
@@ -777,9 +780,9 @@ class At2DSCNN(ShallowTSCNN):
 
     @staticmethod
     def search_space():
-        space = ShallowTSCNN.search_space()
+        space = ShallowFBCSP.search_space()
         space[At2DSCNN.PARAM_ATTENTION] = hp.qloguniform(At2DSCNN.PARAM_ATTENTION, 3, 6, 5)
-        space[ShallowTSCNN.PARAM_FILTER_SPATIAL] = hp.quniform('_x', 1, 16, 1)
+        space[ShallowFBCSP.PARAM_FILTER_SPATIAL] = hp.quniform('_x', 1, 16, 1)
         return space
 
 
@@ -901,7 +904,7 @@ class AttentionLSTM(Model, Searchable):
         return space
 
 
-class FACNN(ShallowTSCNN):
+class FACNN(ShallowFBCSP):
 
     def __init__(self, inputshape, outputshape, activation=keras.activations.relu, params=None):
         params = self.setupcnnparams(params)
@@ -952,7 +955,7 @@ class FACNN(ShallowTSCNN):
 
     @staticmethod
     def search_space():
-        space = TSCNN.search_space()
+        space = FBCSP.search_space()
         space[Searchable.PARAM_BATCH] = hp.quniform(Searchable.PARAM_BATCH, 2, 256, 2)
         space[Searchable.PARAM_LAYERS] = hp.choice(Searchable.PARAM_LAYERS, [
             [hp.quniform('1layer1', 1, 64, 2)],
@@ -972,7 +975,7 @@ class FACNN2(At2DSCNN):
         params = self.setupcnnparams(params)
         attention = int(params.get(self.PARAM_ATTENTION, 55))
         temp_pool = int(params.get(self.PARAM_TEMP_POOL, 4))
-        spat_pool = int(params.get(self.PARAM_SPAT_POOL, 2))
+        spat_pool = int(params.get(self.PARAM_SPAT_POOL, 1))
 
         _input = keras.layers.Input(inputshape)
 
@@ -1154,7 +1157,7 @@ MODELS = [
     # Basic Classification
     LogisticRegression, LinearSVM, SimpleMLP, StackedAutoEncoder,
     # CNN Based
-    ShallowTSCNN, TCNN, LinearSCNN, TSCNN, SpatialCNN,
+    ShallowFBCSP, TCNN, LinearSCNN, FBCSP, SpatialCNN,
     # RNN Based
     SimpleLSTM,
     # Attention
