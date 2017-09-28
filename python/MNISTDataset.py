@@ -1,4 +1,3 @@
-import pickle
 import numpy as np
 
 import keras
@@ -131,14 +130,15 @@ class MNISTRegression:
 class MNISTClassification(MNISTRegression):
 
     TYPE = TYPE_CLASSIFICATION
+    NUM_CLASSES = 10
 
     def __init__(self, toplevel, batchsize=-1, shuffle=True, seed=None):
         super().__init__(toplevel, batchsize, shuffle, seed)
 
-        self.y_test = keras.utils.to_categorical(self.y_test, self.NUM_BUCKETS)
-        self.y_eval = keras.utils.to_categorical(self.y_eval, self.NUM_BUCKETS)
-        self.y_train = keras.utils.to_categorical(self.y_train, self.NUM_BUCKETS)
-        self.y = [keras.utils.to_categorical(y, self.NUM_BUCKETS) for y in self.y]
+        self.y_test = keras.utils.to_categorical(self.y_test, self.NUM_CLASSES)
+        self.y_eval = keras.utils.to_categorical(self.y_eval, self.NUM_CLASSES)
+        self.y_train = keras.utils.to_categorical(self.y_train, self.NUM_CLASSES)
+        self.y = [keras.utils.to_categorical(y, self.NUM_CLASSES) for y in self.y]
 
     def outputshape(self):
         return self.y_train.shape[-1]

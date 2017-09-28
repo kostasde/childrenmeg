@@ -269,8 +269,8 @@ if __name__ == '__main__':
         if args.save_model_params is not None:
             callbacks[-1] = keras.callbacks.ModelCheckpoint(str(args.save_model_params /
                                                                 'Fold-{0}-weights.hdf5'.format(fold)),
-                                                            verbose=1, save_best_only=True,)
-                                                            # monitor='val_categorical_accuracy')
+                                                            verbose=1, save_best_only=True,
+                                                            monitor='val_categorical_crossentropy')
         metrics.append(train_and_test(model_maker, dataset, args, callbacks=callbacks))
 
         if not args.cross_validation or not dataset.next_leaveout():

@@ -154,7 +154,7 @@ class ProjectionLayer(keras.layers.Layer):
 
 class Searchable:
     """
-    Makes the model searchable if it implements this interface
+    Provides a set of fairly general searchable hyper-parameters that will be used by most models
     """
 
     PARAM_LR = 'learning_rate'
@@ -164,6 +164,10 @@ class Searchable:
     PARAM_REG = 'regularization'
     PARAM_DROPOUT = 'dropout'
     PARAM_LAYERS = 'layers'
+    PARAM_ACTIVATION = 'activation'
+
+    OPTIMIZERS = [keras.optimizers.sgd, keras.optimizers.adam]
+    ACTIVATIONS = [keras.activations.relu, keras.activations.elu, keras.layers.LeakyReLU]
 
     NEEDS_FLAT = True
 
@@ -176,13 +180,13 @@ class Searchable:
         pass
 
     @staticmethod
-    def parse_opt(params):
-        if callable(params[Searchable.PARAM_OPT]):
-            return params[Searchable.PARAM_OPT]
-        elif isinstance(params[Searchable.PARAM_OPT], int):
-            return [keras.optimizers.sgd, keras.optimizers.adam][params[Searchable.PARAM_OPT]]
+    def parse_choice(choice, OPTIONS):
+        if choice in OPTIONS:
+            return choice
+        elif isinstance(choice, int):
+            return OPTIONS[choice]
         else:
-            raise TypeError('Optimizer cannot be parsed from: ' + str(params))
+            raise TypeError('Choice cannot be parsed...')
 
     def opt_param(self):
         if self.optimizer is keras.optimizers.adam:
@@ -195,17 +199,15 @@ class Searchable:
             raise AttributeError('Optimizer not properly initialized, got: ' + str(self.optimizer))
 
     def __init__(self, params):
-        if params is None:
-            params = {
-                Searchable.PARAM_LR: 1e-2, Searchable.PARAM_BATCH: 128, Searchable.PARAM_REG: 0.1,
-                Searchable.PARAM_MOMENTUM: 0.05, Searchable.PARAM_OPT: keras.optimizers.sgd
-            }
+        self.params = params if params else {}
 
-        self.lr = params[Searchable.PARAM_LR]
-        self.batchsize = params[Searchable.PARAM_BATCH]
-        self.reg = params[Searchable.PARAM_REG]
-        self.momentum = params[Searchable.PARAM_MOMENTUM]
-        self.optimizer = self.parse_opt(params)
+        self.lr = self.params.get(Searchable.PARAM_LR, 1e-2)
+        self.momentum = self.params.get(Searchable.PARAM_MOMENTUM, 0.05)
+        self.reg = self.params.get(Searchable.PARAM_REG, 0.05)
+        self.batchsize = self.params.get(Searchable.PARAM_BATCH, 128)
+
+        self.optimizer = Searchable.parse_choice(self.params.get(Searchable.PARAM_OPT, 0), Searchable.OPTIMIZERS)
+        self.activation = Searchable.parse_choice(self.params.get(Searchable.PARAM_ACTIVATION, 0), Searchable.ACTIVATIONS)
 
 
 class LinearRegression(Sequential, Searchable):
@@ -240,7 +242,7 @@ class LinearRegression(Sequential, Searchable):
     def search_space():
         return {
             Searchable.PARAM_LR: hp.loguniform(Searchable.PARAM_LR, -7, -2),
-            Searchable.PARAM_OPT: hp.choice(Searchable.PARAM_OPT, [keras.optimizers.sgd, keras.optimizers.adam]),
+            Searchable.PARAM_OPT: hp.choice(Searchable.PARAM_OPT, Searchable.OPTIMIZERS),
             Searchable.PARAM_MOMENTUM: hp.loguniform(Searchable.PARAM_MOMENTUM, -7, 0),
             Searchable.PARAM_BATCH: hp.quniform(Searchable.PARAM_BATCH, 10, 200, 10),
             Searchable.PARAM_REG: hp.loguniform(Searchable.PARAM_REG, -4, -1)
@@ -276,7 +278,7 @@ class LogisticRegression(Sequential, Searchable):
     def search_space():
         return {
             Searchable.PARAM_LR: hp.loguniform(Searchable.PARAM_LR, -7, 0),
-            Searchable.PARAM_OPT: hp.choice(Searchable.PARAM_OPT, [keras.optimizers.sgd, keras.optimizers.adam]),
+            Searchable.PARAM_OPT: hp.choice(Searchable.PARAM_OPT, Searchable.OPTIMIZERS),
             Searchable.PARAM_MOMENTUM: hp.loguniform(Searchable.PARAM_MOMENTUM, -7, 0),
             Searchable.PARAM_BATCH: hp.quniform(Searchable.PARAM_BATCH, 1, 1000, 10),
             Searchable.PARAM_REG: hp.loguniform(Searchable.PARAM_REG, -4, 0)
@@ -349,7 +351,7 @@ class SimpleMLP(Sequential, Searchable):
     def search_space():
         return {
             Searchable.PARAM_LR: hp.loguniform(Searchable.PARAM_LR, -12, 0),
-            Searchable.PARAM_OPT: hp.choice(Searchable.PARAM_OPT, [keras.optimizers.sgd, keras.optimizers.adam]),
+            Searchable.PARAM_OPT: hp.choice(Searchable.PARAM_OPT, Searchable.OPTIMIZERS),
             Searchable.PARAM_MOMENTUM: hp.loguniform(Searchable.PARAM_MOMENTUM, -7, 0),
             Searchable.PARAM_BATCH: hp.quniform(Searchable.PARAM_BATCH, 1, 100, 5),
             Searchable.PARAM_DROPOUT: hp.normal(Searchable.PARAM_DROPOUT, 0.5, 0.15),
@@ -510,7 +512,7 @@ class ShallowTSCNN(SimpleMLP):
             params = {}
             self.temporal = 96
             self.spatial = 5
-            self.lunits = [16, 16, 64]
+            self.lunits = [32, 128]
             self.do = 0.4
         self.filters = int(params.get(self.PARAM_FILTER_LAYERS, 1))
         return params
@@ -850,20 +852,21 @@ class AttentionLSTM(Model, Searchable):
             self.lunits = SimpleMLP.parse_layers(params)
             self.do = params[Searchable.PARAM_DROPOUT]
         else:
-            self.lunits = [4, 32]
+            self.lunits = [32, 128]
             self.do = 0.4
 
         _input = keras.layers.Input(inputshape)
 
         rnn = keras.layers.Bidirectional(
             keras.layers.LSTM(self.lunits[0], return_sequences=True, dropout=self.do/2, recurrent_dropout=self.do/2,
-                              implementation=2)
+                              implementation=2, kernel_regularizer=keras.regularizers.l2(self.reg))
         )(_input)
         rnn = keras.layers.BatchNormalization()(rnn)
 
         a = rnn
         for i in range(2):
-            a = keras.layers.TimeDistributed(keras.layers.Dense(2))(a)
+            a = keras.layers.TimeDistributed(keras.layers.Dense(2, activation=activation,
+                                                                kernel_regularizer=keras.regularizers.l2(self.reg)))(a)
         e = SqueezeLayer()(keras.layers.TimeDistributed(keras.layers.Dense(1, activation=activation))(a))
         alpha = keras.layers.Dense(inputshape[0], activation='softmax')(e)
 
@@ -961,18 +964,24 @@ class FACNN(ShallowTSCNN):
 
 class FACNN2(At2DSCNN):
 
+    PARAM_TEMP_POOL = 'temp_pool'
+    PARAM_SPAT_POOL = 'spat_pool'
+    PARAM_ACTIVATION = 'activation'
+
     def __init__(self, inputshape, outputshape, activation=keras.activations.relu, params=None):
         params = self.setupcnnparams(params)
         attention = int(params.get(self.PARAM_ATTENTION, 55))
+        temp_pool = int(params.get(self.PARAM_TEMP_POOL, 4))
+        spat_pool = int(params.get(self.PARAM_SPAT_POOL, 2))
 
         _input = keras.layers.Input(inputshape)
 
         # Temporal Convolution
         tempconv = ExpandLayer()(_input)
-        tempconv = keras.layers.Conv2D(1, (self.temporal, 1), activation=activation, data_format='channels_last', )\
-                (tempconv)
+        tempconv = keras.layers.Conv2D(1, (self.temporal, 1), activation=self.activation, data_format='channels_last',
+                                       kernel_regularizer=keras.regularizers.l2(self.reg))(tempconv)
         tempconv = keras.layers.SpatialDropout2D(self.do / 2, data_format='channels_last')(tempconv)
-        tempconv = keras.layers.MaxPooling2D(pool_size=(4, 1), data_format='channels_last')(tempconv)
+        tempconv = keras.layers.MaxPooling2D(pool_size=(temp_pool, 1), data_format='channels_last')(tempconv)
 
         # features -> spatial convolution
         features = keras.layers.normalization.BatchNormalization()(tempconv)
@@ -986,10 +995,11 @@ class FACNN2(At2DSCNN):
         for units in self.lunits[:self.filters]:
             features = keras.layers.Conv2D(
                 units, (1, self.spatial),
-                activation=activation, data_format='channels_last',
+                activation=self.activation, data_format='channels_last',
+                kernel_regularizer=keras.regularizers.l2(self.reg)
             )(features)
             features = keras.layers.SpatialDropout2D(self.do)(features)
-            features = keras.layers.MaxPooling2D((1, 2))(features)
+            features = keras.layers.MaxPooling2D((1, spat_pool))(features)
             features = keras.layers.BatchNormalization()(features)
             weight_attention = units
 
@@ -1010,7 +1020,9 @@ class FACNN2(At2DSCNN):
         fcnn = keras.layers.Flatten()(new_in)
 
         for units in self.lunits[self.filters:]:
-            fcnn = keras.layers.Dense(units, activation=activation, kernel_initializer=keras.initializers.lecun_normal())(fcnn)
+            fcnn = keras.layers.Dense(units, activation=self.activation,
+                                      kernel_initializer=keras.initializers.lecun_normal(),
+                                      kernel_regularizer=keras.regularizers.l2(self.reg))(fcnn)
             fcnn = keras.layers.Dropout(self.do)(fcnn)
             fcnn = keras.layers.BatchNormalization()(fcnn)
 
@@ -1021,27 +1033,37 @@ class FACNN2(At2DSCNN):
 
         super(Model, self).__init__(_input, _output, name=self.__class__.__name__)
 
+    @staticmethod
+    def search_space():
+        space = At2DSCNN.search_space()
+        space[FACNN2.PARAM_SPAT_POOL] = hp.quniform(FACNN2.PARAM_SPAT_POOL, 1, 5, 1)
+        space[FACNN2.PARAM_TEMP_POOL] = hp.quniform(FACNN2.PARAM_TEMP_POOL, 1, 5, 1)
+        return space
+
 
 class FACNN3(FACNN2):
 
     def __init__(self, inputshape, outputshape, activation=keras.activations.relu, params=None):
         params = self.setupcnnparams(params)
         attention = int(params.get(self.PARAM_ATTENTION, 55))
+        temp_pool = int(params.get(self.PARAM_TEMP_POOL, 4))
+        spat_pool = int(params.get(self.PARAM_SPAT_POOL, 2))
+        activation = params.get(self.PARAM_ACTIVATION, activation)
 
         _input = keras.layers.Input(inputshape)
 
         # Temporal Convolution
         tempconv = ExpandLayer()(_input)
-        tempconv = keras.layers.Conv2D(self.lunits[0], (self.temporal, 1), activation=activation, data_format='channels_last', )\
-                (tempconv)
+        tempconv = keras.layers.Conv2D(self.lunits[0], (self.temporal, 1), activation=activation, data_format='channels_last',
+                                       kernel_regularizer=keras.regularizers.l2(self.reg))(tempconv)
         tempconv = keras.layers.SpatialDropout2D(self.do / 2, data_format='channels_last')(tempconv)
-        tempconv = keras.layers.MaxPooling2D(pool_size=(4, 1), data_format='channels_last')(tempconv)
+        tempconv = keras.layers.MaxPooling2D(pool_size=(temp_pool, 1), data_format='channels_last')(tempconv)
 
         # features -> spatial convolution
         features = keras.layers.normalization.BatchNormalization()(tempconv)
         # Temporal convolution is squeezed to be used by attention mechanism
-        tempconv = SqueezeLayer()(tempconv)
-        # tempconv = keras.layers.Reshape([76, -1])(features)
+        # tempconv = SqueezeLayer()(tempconv)
+        tempconv = keras.layers.Reshape([inputshape[0], -1])(features)
 
         # Develop CNN Features
         # Add dummy channel dimension
@@ -1049,10 +1071,10 @@ class FACNN3(FACNN2):
         for units in self.lunits[1:self.filters]:
             features = keras.layers.Conv2D(
                 units, (1, self.spatial),
-                activation=activation, data_format='channels_last',
+                activation=activation, data_format='channels_last', kernel_regularizer=keras.regularizers.l2(self.reg)
             )(features)
             features = keras.layers.SpatialDropout2D(self.do)(features)
-            features = keras.layers.MaxPooling2D((1, 2))(features)
+            features = keras.layers.MaxPooling2D((1, spat_pool))(features)
             features = keras.layers.BatchNormalization()(features)
             weight_attention = units
 
