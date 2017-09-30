@@ -9,6 +9,8 @@ from keras.callbacks import Callback
 from keras.models import Sequential, Model
 from hyperopt import hp
 
+from Attention import Attention, dot_product
+
 from MEGDataset import BaseDatasetAgeRanges as AgeRanges
 
 TYPE_REGRESSION = 0
@@ -152,6 +154,47 @@ class ProjectionLayer(keras.layers.Layer):
         return K.reshape(mmul, [-1, data.get_shape()[1].value, self.gridsize, self.gridsize])
 
 
+class AttentionLSTMIn(keras.layers.LSTM):
+    """
+
+    """
+    def __init__(self, units, implementation=2, **kwargs):
+        implementation = implementation if implementation > 0 else 2
+        super().__init__(units, implementation=implementation, **kwargs)
+
+    def build(self, input_shape):
+
+        # TODO Create a deep multi-layer "alignment-like" function
+        # Layer that considers previous state and incoming input, to weight incoming input
+        self.attention_kernel = self.add_weight(shape=(self.units + input_shape[-1], input_shape[-1]),
+                                                name='attention_kernel',
+                                                initializer=self.kernel_initializer,
+                                                regularizer=self.kernel_regularizer,
+                                                trainable=True,
+                                                constraint=self.kernel_constraint)
+
+        self.attention_bias = None if not self.use_bias else self.add_weight(shape=(input_shape[-1],),
+                                                                             name='attention_bias',
+                                                                             trainable=True,
+                                                                             initializer=self.bias_initializer,
+                                                                             regularizer=self.bias_regularizer,
+                                                                             constraint=self.bias_constraint)
+        super(AttentionLSTMIn, self).build(input_shape)
+
+    def step(self, inputs, states):
+        h_tm1 = states[0]
+
+        new_in = K.concatenate((inputs, h_tm1))
+        energy = K.dot(new_in, self.attention_kernel)
+        if self.use_bias:
+            energy = K.bias_add(energy, self.attention_bias)
+        alpha = K.softmax(energy)
+
+        inputs = inputs * alpha
+
+        return super(AttentionLSTMIn, self).step(inputs, states)
+
+
 class Searchable:
     """
     Provides a set of fairly general searchable hyper-parameters that will be used by most models
@@ -206,7 +249,7 @@ class Searchable:
         self.reg = self.params.get(Searchable.PARAM_REG, 0.05)
         self.batchsize = self.params.get(Searchable.PARAM_BATCH, 128)
 
-        self.optimizer = Searchable.parse_choice(self.params.get(Searchable.PARAM_OPT, 0), Searchable.OPTIMIZERS)
+        self.optimizer = Searchable.parse_choice(self.params.get(Searchable.PARAM_OPT, 1), Searchable.OPTIMIZERS)
         self.activation = Searchable.parse_choice(self.params.get(Searchable.PARAM_ACTIVATION, 1), Searchable.ACTIVATIONS)
 
 
@@ -335,6 +378,7 @@ class SimpleMLP(Sequential, Searchable):
         self.add(keras.layers.Dropout(self.do, name='L1'))
         for i, l in enumerate(self.lunits[1:]):
             self.add(keras.layers.Dense(l, activation=activation, name='IN{0}'.format(i+2)))
+            self.add(keras.layers.normalization.BatchNormalization())
             self.add(keras.layers.Dropout(self.do, name='L{0}'.format(i+2)))
         self.add(keras.layers.Dense(outputlength, activation='softmax', name='OUT'))
         # Consider using SVM output layer
@@ -516,7 +560,7 @@ class ShallowFBCSP(SimpleMLP):
             params = {}
             self.temporal = 25
             self.spatial = 25
-            self.lunits = [40, 40]
+            self.lunits = [16, 32]
             self.do = 0.5
         self.filters = int(params.get(self.PARAM_FILTER_LAYERS, 1))
         return params
@@ -531,6 +575,9 @@ class ShallowFBCSP(SimpleMLP):
             self.lunits[0], (self.temporal, 1), activation='linear', data_format='channels_last',
             # activity_regularizer=keras.regularizers.l2(self.reg)
         ))
+        # self.add(keras.layers.BatchNormalization())
+        # self.add(keras.layers.Dropout(self.do/2,))
+
         # Spatial Filtering
         self.add(keras.layers.Conv2D(
             self.lunits[1], (1, self.spatial), activation='linear', use_bias=False, data_format='channels_last',
@@ -545,8 +592,9 @@ class ShallowFBCSP(SimpleMLP):
 
         # Output convolution
         self.add(keras.layers.Conv2D(
-            self.lunits[1], (10, 1), activation='linear', data_format='channels_last',
+            10, (30, 1), activation='linear', data_format='channels_last',
         ))
+        self.add(keras.layers.BatchNormalization())
 
         # Classifier
         self.add(keras.layers.Flatten())
@@ -682,25 +730,25 @@ class SpatialCNN(ShallowFBCSP):
 
         # Temporal Convolution
         tempconv = keras.layers.Conv2D(1, (self.temporal, 1), activation=activation, data_format='channels_last', )(tempconv)
-        tempconv = keras.layers.SpatialDropout2D(self.do/2, data_format='channels_last')(tempconv)
-        tempconv = keras.layers.MaxPool2D(pool_size=(4, 1), data_format='channels_last')(tempconv)
         tempconv = keras.layers.normalization.BatchNormalization()(tempconv)
+        tempconv = keras.layers.MaxPool2D(pool_size=(4, 1), data_format='channels_last')(tempconv)
+        tempconv = keras.layers.SpatialDropout2D(self.do/2, data_format='channels_last')(tempconv)
         tempconv = SqueezeLayer()(tempconv)
 
         # Start with 2D Spatial filtering, up to a possible 3 layers
         conv = ExpandLayer()(ProjectionLayer(gridsize=50)([tempconv, locs_in]))
         for units in self.lunits[:self.filters]:
             conv = keras.layers.Conv3D(units, (1, self.spatial, self.spatial), activation=activation, data_format='channels_last',)(conv)
-            conv = keras.layers.SpatialDropout3D(self.do, data_format='channels_last')(conv)
-            conv = keras.layers.MaxPool3D(pool_size=(1, 2, 2), data_format='channels_last')(conv)
             conv = keras.layers.normalization.BatchNormalization()(conv)
+            conv = keras.layers.MaxPool3D(pool_size=(1, 2, 2), data_format='channels_last')(conv)
+            conv = keras.layers.SpatialDropout3D(self.do, data_format='channels_last')(conv)
 
         # Classifier
         output = keras.layers.Flatten()(conv)
         for units in self.lunits[self.filters:]:
             output = keras.layers.Dense(units, activation=activation)(output)
-            output = keras.layers.Dropout(self.do)(output)
             output = keras.layers.BatchNormalization()(output)
+            output = keras.layers.Dropout(self.do)(output)
 
         output = keras.layers.Dense(outputshape, activation='softmax', name='OUT')(output)
         # output = keras.layers.Dense(outputshape, activation='linear',
@@ -728,9 +776,9 @@ class At2DSCNN(ShallowFBCSP):
 
         # Temporal Convolution
         tempconv = keras.layers.Conv2D(1, (self.temporal, 1), activation=activation, data_format='channels_last', )(tempconv)
-        tempconv = keras.layers.SpatialDropout2D(self.do/2, data_format='channels_last')(tempconv)
-        tempconv = keras.layers.MaxPool2D(pool_size=(4, 1), data_format='channels_last')(tempconv)
         tempconv = keras.layers.normalization.BatchNormalization()(tempconv)
+        tempconv = keras.layers.MaxPool2D(pool_size=(4, 1), data_format='channels_last')(tempconv)
+        tempconv = keras.layers.SpatialDropout2D(self.do/2, data_format='channels_last')(tempconv)
         tempconv = SqueezeLayer()(tempconv)
 
         # Start with 2D Spatial filtering, up to a possible 3 layers
@@ -738,9 +786,9 @@ class At2DSCNN(ShallowFBCSP):
         weight_attention = 0
         for units in self.lunits[:self.filters]:
             conv = keras.layers.Conv3D(units, (1, self.spatial, self.spatial), activation=activation, data_format='channels_last',)(conv)
-            conv = keras.layers.SpatialDropout3D(self.do, data_format='channels_last')(conv)
-            conv = keras.layers.MaxPool3D(pool_size=(1, 2, 2), data_format='channels_last')(conv)
             conv = keras.layers.normalization.BatchNormalization()(conv)
+            conv = keras.layers.MaxPool3D(pool_size=(1, 2, 2), data_format='channels_last')(conv)
+            conv = keras.layers.SpatialDropout3D(self.do, data_format='channels_last')(conv)
             weight_attention = units
 
         # Attention
@@ -758,8 +806,8 @@ class At2DSCNN(ShallowFBCSP):
         output = keras.layers.Flatten()(conv)
         for units in self.lunits[self.filters:]:
             output = keras.layers.Dense(units, activation=activation)(output)
-            output = keras.layers.Dropout(self.do)(output)
             output = keras.layers.BatchNormalization()(output)
+            output = keras.layers.Dropout(self.do)(output)
 
         output = keras.layers.Dense(outputshape, activation='softmax', name='OUT')(output)
         # output = keras.layers.Dense(outputshape, activation='linear',
@@ -804,12 +852,14 @@ class SimpleLSTM(SimpleMLP):
             self.return_seq = bool(params[SimpleLSTM.PARAM_SEQ])
         else:
             self.return_seq = False
-            self.lunits = [256, 512]
+            self.lunits = [64, 128]
             self.do = 0.4
 
-        self.add(keras.layers.wrappers.Bidirectional(
-            keras.layers.LSTM(self.lunits[0], dropout=self.do/2, return_sequences=self.return_seq,
-                              recurrent_dropout=self.do/2,), input_shape=inputshape))
+        # self.add(keras.layers.wrappers.Bidirectional(
+        #     keras.layers.LSTM(self.lunits[0], return_sequences=self.return_seq, implementation=2,
+        #                       # recurrent_dropout=self.do/2, dropout=self.do/2,
+        #                       ), input_shape=inputshape))
+        self.add(keras.layers.LSTM(self.lunits[0]))
         self.add(keras.layers.BatchNormalization())
 
         if self.return_seq:
@@ -817,8 +867,8 @@ class SimpleLSTM(SimpleMLP):
 
         for i, layer in enumerate(self.lunits[1:]):
             self.add(keras.layers.Dense(layer, activation=activation))
-            self.add(keras.layers.Dropout(self.do))
             self.add(keras.layers.BatchNormalization())
+            self.add(keras.layers.Dropout(self.do))
 
         # self.add(keras.layers.Flatten())
         self.add(keras.layers.Dense(outputshape, activation='softmax', name='OUT'))
@@ -855,37 +905,41 @@ class AttentionLSTM(Model, Searchable):
             self.lunits = SimpleMLP.parse_layers(params)
             self.do = params[Searchable.PARAM_DROPOUT]
         else:
-            self.lunits = [32, 128]
-            self.do = 0.4
+            self.lunits = [32, 64]
+            self.do = 0.25
 
-        _input = keras.layers.Input(inputshape)
+        ins = keras.layers.Input(inputshape)
 
-        rnn = keras.layers.Bidirectional(
-            keras.layers.LSTM(self.lunits[0], return_sequences=True, dropout=self.do/2, recurrent_dropout=self.do/2,
-                              implementation=2, kernel_regularizer=keras.regularizers.l2(self.reg))
-        )(_input)
-        rnn = keras.layers.BatchNormalization()(rnn)
+        conv = ExpandLayer()(ins)
+        # conv = keras.layers.Conv2D(self.lunits[0], (25, 1), activation='linear',
+        #                            kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
+        # conv = keras.layers.BatchNormalization()(conv)
+        # conv = keras.layers.SpatialDropout2D(self.do/2)(conv)
 
-        a = rnn
-        for i in range(2):
-            a = keras.layers.TimeDistributed(keras.layers.Dense(2, activation=activation,
-                                                                kernel_regularizer=keras.regularizers.l2(self.reg)))(a)
-        e = SqueezeLayer()(keras.layers.TimeDistributed(keras.layers.Dense(1, activation=activation))(a))
-        alpha = keras.layers.Dense(inputshape[0], activation='softmax')(e)
+        conv = keras.layers.Conv2D(self.lunits[0], (1, 5), activation=activation,
+                                   kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
+        conv = keras.layers.Conv2D(self.lunits[0], (1, 21), activation=activation,
+                                   kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
+        # conv = keras.layers.SpatialDropout2D(self.do/2)(conv)
+        # conv = keras.layers.Conv2D(self.lunits[0], (1, 5), activation=activation,
+        #                            kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
+        conv = keras.layers.BatchNormalization()(conv)
+        conv = keras.layers.AveragePooling2D((75, 1), 15)(conv)
+        conv = keras.layers.SpatialDropout2D(self.do)(conv)
+        conv = SqueezeLayer(-2)(conv)
 
-        fcnn = keras.layers.Dot(-1)([keras.layers.Permute((2, 1))(rnn), alpha])
+        # attn = keras.layers.Bidirectional(AttentionLSTMIn(self.lunits[1], implementation=2, dropout=self.do,
+        #                                                   kernel_regularizer=keras.layers.regularizers.l2(self.reg)))(conv)
+        # attn = keras.layers.BatchNormalization()(attn)
+        #
+        attn = keras.layers.Flatten()(conv)
+        attn = keras.layers.Dense(self.lunits[1], activation=activation,
+                                  kernel_regularizer=keras.layers.regularizers.l2(self.reg))(
+            keras.layers.BatchNormalization()(attn)
+        )
+        outs = keras.layers.Dense(outputshape, activation='softmax')(attn)
 
-        for i, layer in enumerate(self.lunits[2:]):
-            fcnn = keras.layers.Dense(layer, activation=activation)(fcnn)
-            fcnn = keras.layers.Dropout(self.do)(fcnn)
-            fcnn = keras.layers.BatchNormalization()(fcnn)
-
-        # self.add(keras.layers.Flatten())
-        _output = keras.layers.Dense(outputshape, activation='softmax', name='OUT')(fcnn)
-        # _output = keras.layers.Dense(outputshape, activation='linear',
-        #                              kernel_regularizer=keras.regularizers.l2(self.reg))(fcnn)
-
-        super(Model, self).__init__(_input, _output, name=self.__class__.__name__)
+        super(Model, self).__init__(ins, outs, name=self.__class__.__name__)
 
     def compile(self, **kwargs):
         extra_metrics = kwargs.pop('metrics', [])
@@ -904,68 +958,7 @@ class AttentionLSTM(Model, Searchable):
         return space
 
 
-class FACNN(ShallowFBCSP):
-
-    def __init__(self, inputshape, outputshape, activation=keras.activations.relu, params=None):
-        params = self.setupcnnparams(params)
-
-        _input = keras.layers.Input(inputshape)
-
-        # Develop CNN Features
-        # Add dummy channel dimension
-        features = ExpandLayer(axis=-1)(_input)
-        features = keras.layers.Conv2D(
-            self.lunits[0], (1, self.spatial),
-            activation=activation, data_format='channels_last'
-        )(features)
-        features = keras.layers.SpatialDropout2D(self.do/2)(features)
-        features = keras.layers.MaxPool2D((1, 4))(features)
-        features = keras.layers.BatchNormalization()(features)
-
-        rnn = keras.layers.Bidirectional(
-            keras.layers.LSTM(self.temporal, return_sequences=True, dropout=self.do/2, recurrent_dropout=self.do/2,
-                              implementation=2)
-        )(_input)
-        rnn = keras.layers.BatchNormalization()(rnn)
-
-        # Apply single layer softmax to weight input features
-        attn = keras.layers.TimeDistributed(keras.layers.Dense(self.lunits[0], activation='softmax'))(rnn)
-        attn = ExpandLayer(-2)(attn)
-
-        new_in = keras.layers.Multiply()([features, attn])
-        fcnn = keras.layers.Flatten()(new_in)
-
-        for i, layer in enumerate(self.lunits[1:]):
-            fcnn = keras.layers.Dense(layer, activation=activation)(fcnn)
-            fcnn = keras.layers.Dropout(self.do)(fcnn)
-            fcnn = keras.layers.BatchNormalization()(fcnn)
-
-        # self.add(keras.layers.Flatten())
-        _output = keras.layers.Dense(outputshape, activation='softmax', name='OUT')(fcnn)
-        # _output = keras.layers.Dense(outputshape, activation='linear',
-        #                              kernel_regularizer=keras.regularizers.l2(0.1))(fcnn)
-
-        super(Model, self).__init__(_input, _output, name=self.__class__.__name__)
-
-    def compile(self, **kwargs):
-        extra_metrics = kwargs.pop('metrics', [])
-        super(SimpleMLP, self).compile(optimizer=self.opt_param(), loss=keras.losses.categorical_crossentropy,
-                                       metrics=[keras.metrics.categorical_crossentropy,
-                                                keras.metrics.categorical_accuracy, *extra_metrics], **kwargs)
-
-    @staticmethod
-    def search_space():
-        space = FBCSP.search_space()
-        space[Searchable.PARAM_BATCH] = hp.quniform(Searchable.PARAM_BATCH, 2, 256, 2)
-        space[Searchable.PARAM_LAYERS] = hp.choice(Searchable.PARAM_LAYERS, [
-            [hp.quniform('1layer1', 1, 64, 2)],
-            [hp.quniform('2layer1', 1, 64, 2), hp.quniform('2layer2', 16, 512, 2)],
-            [hp.quniform('3layer1', 1, 32, 2), hp.quniform('3layer2', 16, 512, 2), hp.quniform('3layer3', 16, 128, 2)]
-        ])
-        return space
-
-
-class FACNN2(At2DSCNN):
+class FACNN(At2DSCNN):
 
     PARAM_TEMP_POOL = 'temp_pool'
     PARAM_SPAT_POOL = 'spat_pool'
@@ -983,13 +976,13 @@ class FACNN2(At2DSCNN):
         tempconv = ExpandLayer()(_input)
         tempconv = keras.layers.Conv2D(1, (self.temporal, 1), activation=self.activation, data_format='channels_last',
                                        kernel_regularizer=keras.regularizers.l2(self.reg))(tempconv)
-        tempconv = keras.layers.SpatialDropout2D(self.do / 2, data_format='channels_last')(tempconv)
+        tempconv = keras.layers.normalization.BatchNormalization()(tempconv)
         tempconv = keras.layers.MaxPooling2D(pool_size=(temp_pool, 1), data_format='channels_last')(tempconv)
+        features = keras.layers.SpatialDropout2D(self.do / 2, data_format='channels_last')(tempconv)
 
         # features -> spatial convolution
-        features = keras.layers.normalization.BatchNormalization()(tempconv)
         # Temporal convolution is squeezed to be used by attention mechanism
-        tempconv = SqueezeLayer()(tempconv)
+        tempconv = SqueezeLayer()(features)
         # tempconv = keras.layers.Reshape([76, -1])(features)
 
         # Develop CNN Features
@@ -1001,9 +994,9 @@ class FACNN2(At2DSCNN):
                 activation=self.activation, data_format='channels_last',
                 kernel_regularizer=keras.regularizers.l2(self.reg)
             )(features)
-            features = keras.layers.SpatialDropout2D(self.do)(features)
-            features = keras.layers.MaxPooling2D((1, spat_pool))(features)
             features = keras.layers.BatchNormalization()(features)
+            features = keras.layers.MaxPooling2D((1, spat_pool))(features)
+            features = keras.layers.SpatialDropout2D(self.do)(features)
             weight_attention = units
 
         rnn = keras.layers.Bidirectional(
@@ -1026,8 +1019,8 @@ class FACNN2(At2DSCNN):
             fcnn = keras.layers.Dense(units, activation=self.activation,
                                       kernel_initializer=keras.initializers.lecun_normal(),
                                       kernel_regularizer=keras.regularizers.l2(self.reg))(fcnn)
-            fcnn = keras.layers.Dropout(self.do)(fcnn)
             fcnn = keras.layers.BatchNormalization()(fcnn)
+            fcnn = keras.layers.Dropout(self.do)(fcnn)
 
         # self.add(keras.layers.Flatten())
         _output = keras.layers.Dense(outputshape, activation='softmax', name='OUT')(fcnn)
@@ -1039,12 +1032,12 @@ class FACNN2(At2DSCNN):
     @staticmethod
     def search_space():
         space = At2DSCNN.search_space()
-        space[FACNN2.PARAM_SPAT_POOL] = hp.quniform(FACNN2.PARAM_SPAT_POOL, 1, 5, 1)
-        space[FACNN2.PARAM_TEMP_POOL] = hp.quniform(FACNN2.PARAM_TEMP_POOL, 1, 5, 1)
+        space[FACNN.PARAM_SPAT_POOL] = hp.quniform(FACNN.PARAM_SPAT_POOL, 1, 5, 1)
+        space[FACNN.PARAM_TEMP_POOL] = hp.quniform(FACNN.PARAM_TEMP_POOL, 1, 5, 1)
         return space
 
 
-class FACNN3(FACNN2):
+class FACNN3(FACNN):
 
     def __init__(self, inputshape, outputshape, activation=keras.activations.relu, params=None):
         params = self.setupcnnparams(params)
@@ -1113,6 +1106,7 @@ class FACNN3(FACNN2):
 class ASVM(FACNN):
 
     def __init__(self, inputshape, outputshape, activation=keras.activations.relu, params=None):
+        params = params if params else {}
         Searchable.__init__(self, params)
         Sequential.__init__(self)
         self.do = params.get(SimpleMLP.PARAM_DROPOUT, 0.4)
@@ -1161,5 +1155,5 @@ MODELS = [
     # RNN Based
     SimpleLSTM,
     # Attention
-    AttentionLSTM, FACNN, FACNN2, At2DSCNN, ASVM
+    AttentionLSTM, FACNN, At2DSCNN, ASVM
 ]

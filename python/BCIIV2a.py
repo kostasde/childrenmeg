@@ -13,7 +13,7 @@ class BCICompetitionIV2aSingleSubjectRegression:
     NUM_BUCKETS = 1
 
     # Fixme Batchsize here is deprecated, only should be at generators
-    def __init__(self, toplevel, shuffle=True, seed=None, batchsize=-1, subject: int = 1):
+    def __init__(self, toplevel, shuffle=True, seed=None, batchsize=-1, subject: int = 9):
 
         self.file = h5py.File(toplevel, 'r')
         self.group = self.file['raw/A0{0}'.format(subject)]

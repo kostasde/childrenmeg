@@ -8,6 +8,7 @@ from keras.backend import clear_session
 from MEGDataset import *
 from MNISTDataset import *
 from BCIIV2a import *
+from ArtificialDataset import *
 
 from models import *
 # np.random.seed(10)
@@ -130,7 +131,8 @@ DATASETS = {
     'MEGSAugRaw': [None, MEGRawRangesSA],
     'MEGTSA': [None, MEGRawRangesTSA],
     'FusionRaw': [None, FusionRawRanges],
-    'BCI': [BCICompetitionIV2aSingleSubjectRegression, BCICompetitionIV2aSingleSubjectClassification]
+    'BCI': [BCICompetitionIV2aSingleSubjectRegression, BCICompetitionIV2aSingleSubjectClassification],
+    'Constant': [None, ConstantClassification]
 }
 
 if __name__ == '__main__':
