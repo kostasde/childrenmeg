@@ -10,10 +10,10 @@ from MNISTDataset import ArrayFeeder
 
 class BCICompetitionIV2aSingleSubjectRegression:
 
-    NUM_BUCKETS = 1
+    NUM_BUCKETS = 4
 
     # Fixme Batchsize here is deprecated, only should be at generators
-    def __init__(self, toplevel, shuffle=True, seed=None, batchsize=-1, subject: int = 9):
+    def __init__(self, toplevel, shuffle=True, seed=None, batchsize=-1, subject: int = 1):
 
         self.file = h5py.File(toplevel, 'r')
         self.group = self.file['raw/A0{0}'.format(subject)]
@@ -36,9 +36,13 @@ class BCICompetitionIV2aSingleSubjectRegression:
         self.x = self.x[preshuffle, :, :]
         self.y = self.y[preshuffle, :]
 
-        div = int(0.2 * self.x.shape[0])
-        self.x = [self.x[:div, :, :], self.x[div:, :, :]]
-        self.y = [self.y[:div, :], self.y[div:, :]]
+        if self.NUM_BUCKETS == 1:
+            div = int(0.2 * self.x.shape[0])
+            self.x = [self.x[:div, :, :], self.x[div:, :, :]]
+            self.y = [self.y[:div, :], self.y[div:, :]]
+        else:
+            self.x = np.split(self.x, self.NUM_BUCKETS)
+            self.y = np.split(self.y, self.NUM_BUCKETS)
 
         if batchsize < 0:
             batchsize = 128

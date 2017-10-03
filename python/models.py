@@ -158,36 +158,49 @@ class AttentionLSTMIn(keras.layers.LSTM):
     """
 
     """
-    def __init__(self, units, implementation=2, **kwargs):
+    def __init__(self, units, alignment_depth: int = 1, alignment_units=None, implementation=2, **kwargs):
         implementation = implementation if implementation > 0 else 2
+        alignment_depth = max(0, alignment_depth)
+        if isinstance(alignment_units, (list, tuple)):
+            self.alignment_units = [int(x) for x in alignment_units]
+            self.alignment_depth = len(self.alignment_units)
+        else:
+            self.alignment_depth = alignment_depth
+            self.alignment_units = [alignment_units if alignment_units else units for _ in range(alignment_depth)]
         super().__init__(units, implementation=implementation, **kwargs)
 
     def build(self, input_shape):
 
-        # TODO Create a deep multi-layer "alignment-like" function
         # Layer that considers previous state and incoming input, to weight incoming input
-        self.attention_kernel = self.add_weight(shape=(self.units + input_shape[-1], input_shape[-1]),
-                                                name='attention_kernel',
+        units = [self.units + input_shape[-1]] + self.alignment_units + [input_shape[-1]]
+        self.attention_kernels = [self.add_weight(shape=(units[i-1], units[i]),
+                                                name='attention_kernel_{0}'.format(i),
                                                 initializer=self.kernel_initializer,
                                                 regularizer=self.kernel_regularizer,
                                                 trainable=True,
                                                 constraint=self.kernel_constraint)
+                                  for i in range(1, len(units))]
 
-        self.attention_bias = None if not self.use_bias else self.add_weight(shape=(input_shape[-1],),
-                                                                             name='attention_bias',
-                                                                             trainable=True,
-                                                                             initializer=self.bias_initializer,
-                                                                             regularizer=self.bias_regularizer,
-                                                                             constraint=self.bias_constraint)
+        if self.use_bias:
+            self.attention_bias = [self.add_weight(shape=(u,),
+                                                   name='attention_bias',
+                                                   trainable=True,
+                                                   initializer=self.bias_initializer,
+                                                   regularizer=self.bias_regularizer,
+                                                   constraint=self.bias_constraint)
+                                   for u in units[1:]]
+        else:
+            self.attention_bias = None
         super(AttentionLSTMIn, self).build(input_shape)
 
     def step(self, inputs, states):
         h_tm1 = states[0]
 
-        new_in = K.concatenate((inputs, h_tm1))
-        energy = K.dot(new_in, self.attention_kernel)
-        if self.use_bias:
-            energy = K.bias_add(energy, self.attention_bias)
+        energy = K.concatenate((inputs, h_tm1))
+        for i, kernel in enumerate(self.attention_kernels):
+            energy = K.dot(energy, kernel)
+            if self.use_bias:
+                energy = K.bias_add(energy, self.attention_bias[i])
         alpha = K.softmax(energy)
 
         inputs = inputs * alpha
@@ -905,39 +918,58 @@ class AttentionLSTM(Model, Searchable):
             self.lunits = SimpleMLP.parse_layers(params)
             self.do = params[Searchable.PARAM_DROPOUT]
         else:
-            self.lunits = [32, 64]
-            self.do = 0.25
+            self.lunits = [42, 16, 32]
+            self.do = 0.4
+            params = {}
+
+        ret_seq = bool(params.get(SimpleLSTM.PARAM_SEQ, True))
+        att_depth = int(params.get(self.PARAM_ATTEND_DEPTH, 0))
+        steps = int(params.get(self.PARAM_STEPS, 2))
+
+        convs = [inputshape[-1]//steps for _ in range(1, steps)]
+        convs += [inputshape[-1] - sum(convs) + len(convs)]
 
         ins = keras.layers.Input(inputshape)
 
         conv = ExpandLayer()(ins)
-        # conv = keras.layers.Conv2D(self.lunits[0], (25, 1), activation='linear',
-        #                            kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
-        # conv = keras.layers.BatchNormalization()(conv)
-        # conv = keras.layers.SpatialDropout2D(self.do/2)(conv)
+        conv = keras.layers.Conv2D(self.lunits[0], (25, 1), activation='linear',
+                                   kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
+        conv = keras.layers.BatchNormalization()(conv)
+        conv = keras.layers.AveragePooling2D((4, 1))(conv)
+        conv = keras.layers.SpatialDropout2D(self.do)(conv)
 
-        conv = keras.layers.Conv2D(self.lunits[0], (1, 5), activation=activation,
-                                   kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
-        conv = keras.layers.Conv2D(self.lunits[0], (1, 21), activation=activation,
-                                   kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
+        # conv = keras.layers.Conv2D(self.lunits[0], (1, 5), activation=activation,
+        #                            kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
+        # conv = keras.layers.Conv2D(self.lunits[0], (1, 5), activation=activation,
+        #                            kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
+        # conv = keras.layers.Conv2D(self.lunits[0], (1, inputshape[-1]//2), activation=activation,
+        #                            kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
+        # conv = keras.layers.Conv2D(self.lunits[0], (1, inputshape[-1]), activation=activation,
+        #                            kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
         # conv = keras.layers.SpatialDropout2D(self.do/2)(conv)
         # conv = keras.layers.Conv2D(self.lunits[0], (1, 5), activation=activation,
         #                            kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
-        conv = keras.layers.BatchNormalization()(conv)
-        conv = keras.layers.AveragePooling2D((75, 1), 15)(conv)
-        conv = keras.layers.SpatialDropout2D(self.do)(conv)
+        for c in convs:
+            conv = keras.layers.Conv2D(self.lunits[0]//len(convs), (1, c), activation=self.activation,
+                                       kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
+            conv = keras.layers.BatchNormalization()(conv)
+            conv = keras.layers.SpatialDropout2D(self.do)(conv)
         conv = SqueezeLayer(-2)(conv)
 
-        # attn = keras.layers.Bidirectional(AttentionLSTMIn(self.lunits[1], implementation=2, dropout=self.do,
-        #                                                   kernel_regularizer=keras.layers.regularizers.l2(self.reg)))(conv)
-        # attn = keras.layers.BatchNormalization()(attn)
-        #
-        attn = keras.layers.Flatten()(conv)
-        attn = keras.layers.Dense(self.lunits[1], activation=activation,
-                                  kernel_regularizer=keras.layers.regularizers.l2(self.reg))(
-            keras.layers.BatchNormalization()(attn)
-        )
-        outs = keras.layers.Dense(outputshape, activation='softmax')(attn)
+        attn = keras.layers.Bidirectional(AttentionLSTMIn(self.lunits[1], implementation=2, dropout=self.do,
+                                                          return_sequences=ret_seq, alignment_depth=att_depth,
+                                                          kernel_regularizer=keras.layers.regularizers.l2(self.reg)))(conv)
+        attn = keras.layers.BatchNormalization()(attn)
+        # attn = Attention(W_regularizer=keras.layers.regularizers.l2(self.reg))(attn)
+
+        if ret_seq:
+            attn = keras.layers.Flatten()(attn)
+        for units in self.lunits[2:]:
+            outs = keras.layers.Dense(units, activation=self.activation,
+                                      kernel_regularizer=keras.layers.regularizers.l2(self.reg))(attn)
+            outs = keras.layers.BatchNormalization()(outs)
+            outs = keras.layers.Dropout(self.do)(outs)
+        outs = keras.layers.Dense(outputshape, activation='softmax')(outs)
 
         super(Model, self).__init__(ins, outs, name=self.__class__.__name__)
 
@@ -947,13 +979,22 @@ class AttentionLSTM(Model, Searchable):
                         metrics=[keras.metrics.categorical_crossentropy, keras.metrics.categorical_accuracy,
                                  *extra_metrics], **kwargs)
 
+    PARAM_STEPS = 'steps'
+    PARAM_ATTENTION = 'attention'
+    PARAM_ATTEND_DEPTH = 'att_depth'
+
     @staticmethod
     def search_space():
         space = SimpleLSTM.search_space()
+        space[AttentionLSTM.PARAM_ATTEND_DEPTH] = hp.quniform(AttentionLSTM.PARAM_ATTEND_DEPTH, 0, 4, 1)
         space[Searchable.PARAM_LAYERS] = hp.choice(Searchable.PARAM_LAYERS, [
-            [hp.quniform('1layer1', 1, 128, 2)],
-            [hp.quniform('2layer1', 1, 256, 2), hp.quniform('2layer2', 16, 512, 2)],
-            [hp.quniform('3layer1', 1, 256, 2), hp.quniform('3layer2', 16, 256, 2), hp.quniform('3layer3', 16, 512, 2)]
+            [hp.qloguniform('3layer1', 1.5, 5.5, 2), hp.qloguniform('3layer2', 1.5, 5.5, 2),
+             hp.qloguniform('3layer3', 1.5, 5.5, 2)],
+            [hp.qloguniform('4layer1', 1.5, 5.5, 2), hp.qloguniform('4layer2', 1.5, 5.5, 2),
+             hp.qloguniform('4layer3', 1.5, 5.5, 2), hp.qloguniform('4layer4', 4, 6, 10)],
+            [hp.qloguniform('5layer1', 1.5, 5.5, 2), hp.qloguniform('5layer2', 1.5, 5.5, 2),
+             hp.qloguniform('5layer3', 1.5, 5.5, 2), hp.qloguniform('5layer4', 4, 6, 10),
+             hp.qloguniform('5layer5', 4, 6, 10)]
         ])
         return space
 

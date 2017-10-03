@@ -8,6 +8,7 @@ import warnings
 from select import select
 
 from hyperopt import hp, STATUS_OK, STATUS_FAIL, fmin, Trials, tpe
+from keras.backend import clear_session
 
 from MEGDataset import *
 from models import *
@@ -48,8 +49,8 @@ def hp_search(model_constructor, dataset_constructor, args):
     callbacks = [
         keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min', patience=args.patience),
         keras.callbacks.EarlyStopping(min_delta=0.001, verbose=1, mode='min', patience=args.patience//2),
-        keras.callbacks.EarlyStopping(min_delta=0.001, verbose=1, monitor='categorical_accuracy', mode='max',
-                                      patience=args.patience//5),
+        # keras.callbacks.EarlyStopping(min_delta=0.001, verbose=1, monitor='categorical_accuracy', mode='max',
+        #                               patience=args.patience//2),
         keras.callbacks.ReduceLROnPlateau(verbose=1, epsilon=0.05, patience=args.patience//10, factor=0.5),
         keras.callbacks.TerminateOnNaN(),
         SkipOnKeypress(),
@@ -75,34 +76,63 @@ def hp_search(model_constructor, dataset_constructor, args):
         print(hyperparams)
         print('-'*30)
 
+        if trials_file is not None and trials_file.exists():
+            print('Saving progress...')
+            pickle.dump(trials, trials_file.open('wb'))
+
         dataset = dataset_constructor(args.toplevel, batchsize=int(hyperparams[Searchable.PARAM_BATCH]))
+        val_loss = []
+        histories = []
 
         try:
-            model = model_constructor(dataset.inputshape(), dataset.outputshape(), params=hyperparams)
-            model.compile()
-            model.summary()
+            # Loop through folds
+            while True:
+                fold = dataset.current_leaveout()
+                print('-' * 30)
+                print('Training Fold:', fold)
+                print('-' * 30)
 
-            s = dataset.trainingset(flatten=model.NEEDS_FLAT)
-            e = dataset.evaluationset(flatten=model.NEEDS_FLAT)
+                model = model_constructor(dataset.inputshape(), dataset.outputshape(), params=hyperparams)
+                model.compile()
+                model.summary()
 
-            history = model.fit_generator(s, np.ceil(s.n / s.batch_size),
-                                          validation_data=e, validation_steps=np.ceil(e.n / e.batch_size),
-                                          workers=4, epochs=args.epochs, callbacks=callbacks)
-            # metrics = model.evaluate_generator(e, np.ceil(e.n / e.batch_size), workers=4)
-            history = history.history
-            val_loss = -max(history['val_loss']) if args.max else min(history['val_loss'])
+                s = dataset.trainingset(flatten=model.NEEDS_FLAT)
+                e = dataset.evaluationset(flatten=model.NEEDS_FLAT)
 
-            if np.any(np.isnan(history['loss'])) or np.any(np.isinf(history['loss'])):
-                raise ValueError('Loss found of NaN or Inf.')
+                history = model.fit_generator(s, np.ceil(s.n / s.batch_size),
+                                              validation_data=e, validation_steps=np.ceil(e.n / e.batch_size),
+                                              workers=4, epochs=args.epochs, callbacks=callbacks)
+
+                history = history.history
+                if len(history.keys()) == 0:
+                    val_loss += [-max(history['val_loss'])] if args.max else [min(history['val_loss'])]
+                elif 0 <= args.opt_metric < len(model.metrics_names):
+                    l = history['val_' + model.metrics_names[args.opt_metric]]
+                    val_loss += [-max(l)] if args.max else [min(l)]
+
+
+                if np.any(np.isnan(history['loss'])) or np.any(np.isinf(history['loss'])):
+                    raise ValueError('Training Loss found of NaN or Inf.')
+                elif val_loss[-1] == np.nan or val_loss[-1] is np.nan:
+                    raise ValueError('Validation Loss found of NaN or Inf.')
+
+                histories += [history]
+
+                if not args.cross_validation or not dataset.next_leaveout():
+                    break
+                # Ensure GPU is cleared
+                model = None
+                clear_session()
+
         except KeyboardInterrupt:
             print('Training interrupted.')
             while True:
                 l = input("Loss Value (write 'None' to treat as failed trial):")
                 history = {}
                 if l == 'None':
-                    val_loss = np.nan
+                    val_loss += [np.nan]
                 elif re.match("^\d+?\.\d+?$", l):
-                    val_loss = float(l)
+                    val_loss += [float(l)]
                 else:
                     print('Could not parse value...')
                     continue
@@ -111,22 +141,11 @@ def hp_search(model_constructor, dataset_constructor, args):
             print('Training failed with:', _e)
             return {'status': STATUS_FAIL}
 
-        if trials_file is not None and trials_file.exists():
-            print('Saving trial...')
-            pickle.dump(trials, trials_file.open('wb'))
+        l = np.array(val_loss)
 
-        if val_loss == np.nan or val_loss is np.nan:
-            print('NaN loss found, returning failure')
-            return {'status': STATUS_FAIL}
-        elif len(history.keys()) == 0:
-            l = val_loss
-        elif 0 <= args.opt_metric < len(model.metrics_names):
-            l = history['val_' + model.metrics_names[args.opt_metric]]
-            l = -max(l) if args.max else min(l)
+        print('Using optimization metric:', model.metrics_names[args.opt_metric], 'Value:', abs(l.mean()))
 
-        print('Using optimization metric:', model.metrics_names[args.opt_metric], 'Value:', abs(l))
-
-        return {'loss': l, 'attachments': {'history': history}, 'status': STATUS_OK}
+        return {'loss': l.mean(), 'loss_variance': l.std(), 'attachments': {'history': history}, 'status': STATUS_OK}
 
     best_model = fmin(loss, space=model_constructor.search_space(), trials=trials,
                       algo=tpe.suggest, verbose=1, max_evals=args.max_evals)
@@ -170,6 +189,9 @@ if __name__ == '__main__':
                         help='How many epochs of no change from which we determine there is no'
                              'need to proceed and can stop early.', type=int)
     parser.add_argument('--max-evals', default=10, type=int, help='Number of search trials to run')
+    parser.add_argument('--cross-validation', '-x', action='store_true', help='Whether to perform cross validated param'
+                                                                              ' search, provides hyperopt a deviation'
+                                                                              ' term to also be minimized.')
     parser.add_argument('--save-best', '-p', help='File to save the best model parameters to.',
                         type=argparse.FileType('wb'))
     parser.add_argument('--save-trials', help='File to use to load and store previous/future results. This allows the '

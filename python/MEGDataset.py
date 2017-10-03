@@ -227,7 +227,7 @@ class TemporalAugmentation(SubjectFileLoader):
 class BaseDataset:
 
     DATASET_TARGETS = [HEADER_AGE]
-    NUM_BUCKETS = 10
+    NUM_BUCKETS = 5
     LOAD_SUFFIX = '.npy'
 
     # Not sure I like this...
