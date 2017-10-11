@@ -51,7 +51,7 @@ def hp_search(model_constructor, dataset_constructor, args):
         keras.callbacks.EarlyStopping(min_delta=0.001, verbose=1, mode='min', patience=args.patience//2),
         # keras.callbacks.EarlyStopping(min_delta=0.001, verbose=1, monitor='categorical_accuracy', mode='max',
         #                               patience=args.patience//2),
-        keras.callbacks.ReduceLROnPlateau(verbose=1, epsilon=0.05, patience=args.patience//10, factor=0.5),
+        keras.callbacks.ReduceLROnPlateau(verbose=1, epsilon=0.05, patience=args.patience//5, factor=0.5),
         keras.callbacks.TerminateOnNaN(),
         SkipOnKeypress(),
     ]
@@ -110,7 +110,6 @@ def hp_search(model_constructor, dataset_constructor, args):
                     l = history['val_' + model.metrics_names[args.opt_metric]]
                     val_loss += [-max(l)] if args.max else [min(l)]
 
-
                 if np.any(np.isnan(history['loss'])) or np.any(np.isinf(history['loss'])):
                     raise ValueError('Training Loss found of NaN or Inf.')
                 elif val_loss[-1] == np.nan or val_loss[-1] is np.nan:
@@ -118,7 +117,7 @@ def hp_search(model_constructor, dataset_constructor, args):
 
                 histories += [history]
 
-                if not args.cross_validation or not dataset.next_leaveout():
+                if not args.cross_validation or val_loss[-1] > args.xval_thresh or not dataset.next_leaveout():
                     break
                 # Ensure GPU is cleared
                 model = None
@@ -192,6 +191,8 @@ if __name__ == '__main__':
     parser.add_argument('--cross-validation', '-x', action='store_true', help='Whether to perform cross validated param'
                                                                               ' search, provides hyperopt a deviation'
                                                                               ' term to also be minimized.')
+    parser.add_argument('--xval-thresh', default=np.inf, help='This is the required threshold to perform '
+                                                              'cross-validated trial.')
     parser.add_argument('--save-best', '-p', help='File to save the best model parameters to.',
                         type=argparse.FileType('wb'))
     parser.add_argument('--save-trials', help='File to use to load and store previous/future results. This allows the '
@@ -199,6 +200,8 @@ if __name__ == '__main__':
                                               'hyperparameters performed.', type=str)
 
     args = parser.parse_args()
+
+    args.xval_thresh = -float(args.xval_thresh) if args.max else float(args.xval_thresh)
 
     model_constructor = MODELS[args.model]
     dataset_constructor = DATASETS[args.dataset][MODELS[args.model].TYPE]

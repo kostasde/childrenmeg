@@ -223,7 +223,7 @@ class Searchable:
     PARAM_ACTIVATION = 'activation'
 
     OPTIMIZERS = [keras.optimizers.sgd, keras.optimizers.adam]
-    ACTIVATIONS = [keras.activations.relu, keras.activations.elu, keras.layers.LeakyReLU]
+    ACTIVATIONS = [keras.activations.relu, keras.activations.elu, keras.activations.selu]
 
     NEEDS_FLAT = True
 
@@ -301,7 +301,7 @@ class LinearRegression(Sequential, Searchable):
             Searchable.PARAM_OPT: hp.choice(Searchable.PARAM_OPT, Searchable.OPTIMIZERS),
             Searchable.PARAM_MOMENTUM: hp.loguniform(Searchable.PARAM_MOMENTUM, -7, 0),
             Searchable.PARAM_BATCH: hp.quniform(Searchable.PARAM_BATCH, 10, 200, 10),
-            Searchable.PARAM_REG: hp.loguniform(Searchable.PARAM_REG, -4, -1)
+            Searchable.PARAM_REG: hp.loguniform(Searchable.PARAM_REG, -6, 0)
         }
 
 
@@ -408,6 +408,7 @@ class SimpleMLP(Sequential, Searchable):
     def search_space():
         return {
             Searchable.PARAM_LR: hp.loguniform(Searchable.PARAM_LR, -12, 0),
+            Searchable.PARAM_ACTIVATION: hp.choice(Searchable.PARAM_ACTIVATION, Searchable.ACTIVATIONS),
             Searchable.PARAM_OPT: hp.choice(Searchable.PARAM_OPT, Searchable.OPTIMIZERS),
             Searchable.PARAM_MOMENTUM: hp.loguniform(Searchable.PARAM_MOMENTUM, -7, 0),
             Searchable.PARAM_BATCH: hp.quniform(Searchable.PARAM_BATCH, 1, 100, 5),
@@ -669,29 +670,86 @@ class TCNN(ShallowFBCSP):
 
 
 # Probably not used for testing
-class LinearSCNN(ShallowFBCSP):
+class SCNN(Model, Searchable):
+
+    TYPE = TYPE_CLASSIFICATION
+    NEEDS_FLAT = False
 
     def __init__(self, inputshape, outputshape, activation=keras.activations.elu, params=None):
-        params = self.setupcnnparams(params)
+        Searchable.__init__(self, params=params)
+        if params is not None:
+            if isinstance(params[SimpleMLP.PARAM_LAYERS], int):
+                params[SimpleMLP.PARAM_LAYERS] += 1
+            self.lunits = SimpleMLP.parse_layers(params)
+            self.do = params[Searchable.PARAM_DROPOUT]
+        else:
+            self.lunits = [64, 32, 32]
+            self.do = 0.4
+            params = {}
 
-        # Add dummy channel dimension
-        self.add(ExpandLayer(axis=-1, input_shape=inputshape))
-        # Temporal without using entire channels vector
-        self.add(keras.layers.Conv2D(
-            self.lunits[0], (1, self.spatial),
-            activation=activation, data_format='channels_last'
-        ))
-        self.add(keras.layers.SpatialDropout2D(0.2))
-        self.add(keras.layers.BatchNormalization())
-        # self.add(keras.layers.MaxPool2D((1, 2)))
+        temp_layers = int(params.get(self.PARAM_TEMP_LAYERS, 0))
+        steps = int(params.get(AttentionLSTM.PARAM_STEPS, 3))
+        temporal = int(params.get(FBCSP.PARAM_FILTER_TEMPORAL, 25))
+        temp_pool = int(params.get(FACNN.PARAM_TEMP_POOL, 4))
 
-        # Classify after temporal filtering
-        self.add(keras.layers.Flatten())
-        # self.add(keras.layers.Dense(self.lunits[1], activation=activation))
-        # self.add(keras.layers.Dropout(self.do))
-        self.add(keras.layers.Dense(outputshape, activation='linear',
-                                    kernel_regularizer=keras.regularizers.l2(self.reg)))
-        # self.add(keras.layers.Dense(outputshape, activation='softmax'))
+        convs = [inputshape[-1] // steps for _ in range(1, steps)]
+        convs += [inputshape[-1] - sum(convs) + len(convs)]
+
+        ins = keras.layers.Input(inputshape)
+
+        conv = ExpandLayer()(ins)
+
+        for c in convs:
+            conv = keras.layers.Conv2D(self.lunits[0] // len(convs), (1, c), activation=self.activation,
+                                       kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
+        conv = keras.layers.BatchNormalization()(conv)
+        conv = keras.layers.SpatialDropout2D(self.do)(conv)
+
+        for _ in range(temp_layers):
+            conv = keras.layers.Conv2D(self.lunits[1], (temporal, 1), activation='linear',
+                                       kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
+        conv = keras.layers.BatchNormalization()(conv)
+        conv = keras.layers.AveragePooling2D((temp_pool, 1))(conv)
+        conv = keras.layers.SpatialDropout2D(self.do)(conv)
+
+        outs = keras.layers.Flatten()(conv)
+
+        for units in self.lunits[2:]:
+            outs = keras.layers.Dense(units, activation=self.activation,
+                                      kernel_regularizer=keras.layers.regularizers.l2(self.reg))(outs)
+            outs = keras.layers.BatchNormalization()(outs)
+            outs = keras.layers.Dropout(self.do*2)(outs)
+        outs = keras.layers.Dense(outputshape, activation='softmax')(outs)
+
+        super(Model, self).__init__(ins, outs, name=self.__class__.__name__)
+
+    def compile(self, **kwargs):
+        extra_metrics = kwargs.pop('metrics', [])
+        super().compile(optimizer=self.opt_param(), loss=keras.losses.categorical_crossentropy,
+                        metrics=[keras.metrics.categorical_crossentropy, keras.metrics.categorical_accuracy,
+                                 *extra_metrics], **kwargs)
+
+    PARAM_TEMP_LAYERS = 'temp_layers'
+    PARAM_SPATIAL_COLLAPSE = 'spatial_collapse'
+
+    @staticmethod
+    def search_space():
+        space = SimpleLSTM.search_space()
+        space[AttentionLSTM.PARAM_STEPS] = hp.quniform(AttentionLSTM.PARAM_STEPS, 1, 5, 1)
+        space[SCNN.PARAM_TEMP_LAYERS] = hp.quniform(SCNN.PARAM_TEMP_LAYERS, 0, 4, 1)
+        space[FACNN.PARAM_TEMP_POOL] = hp.quniform(FACNN.PARAM_TEMP_POOL, 5, 100, 5)
+        space[ShallowFBCSP.PARAM_FILTER_TEMPORAL] = hp.qloguniform('_t', 1, 6, 2)
+        space[Searchable.PARAM_LAYERS] = hp.choice(Searchable.PARAM_LAYERS, [
+            [hp.qloguniform('2layer1', 1.5, 5.5, 2), hp.qloguniform('2layer2', 1.5, 5.5, 2)],
+            [hp.qloguniform('3layer1', 1.5, 5.5, 2), hp.qloguniform('3layer2', 1.5, 5.5, 2),
+             hp.qloguniform('3layer3', 1.5, 5.5, 2)],
+            [hp.qloguniform('4layer1', 1.5, 5.5, 2), hp.qloguniform('4layer2', 1.5, 5.5, 2),
+             hp.qloguniform('4layer3', 1.5, 5.5, 2), hp.qloguniform('4layer4', 4, 6, 10)],
+            [hp.qloguniform('5layer1', 1.5, 5.5, 2), hp.qloguniform('5layer2', 1.5, 5.5, 2),
+             hp.qloguniform('5layer3', 1.5, 5.5, 2), hp.qloguniform('5layer4', 4, 6, 10),
+             hp.qloguniform('5layer5', 4, 6, 10)]
+        ])
+        return space
 
 
 # Inspired by PAPER
@@ -893,7 +951,7 @@ class SimpleLSTM(SimpleMLP):
     def search_space():
         rnn_space = SimpleMLP.search_space()
         rnn_space[SimpleLSTM.PARAM_SEQ] = hp.choice(SimpleLSTM.PARAM_SEQ, [0, 1])
-        rnn_space[Searchable.PARAM_BATCH] = hp.quniform(Searchable.PARAM_BATCH, 1, 512, 2)
+        rnn_space[Searchable.PARAM_BATCH] = hp.qloguniform(Searchable.PARAM_BATCH, 0, 7, 20)
         rnn_space[Searchable.PARAM_LAYERS] = hp.choice(Searchable.PARAM_LAYERS, [
             [hp.quniform('1layer1', 1, 512, 8)],
             [hp.quniform('2layer1', 1, 512, 8), hp.qloguniform('2layer2', 3, 7, 5)]
@@ -924,7 +982,9 @@ class AttentionLSTM(Model, Searchable):
 
         ret_seq = bool(params.get(SimpleLSTM.PARAM_SEQ, True))
         att_depth = int(params.get(self.PARAM_ATTEND_DEPTH, 0))
-        steps = int(params.get(self.PARAM_STEPS, 2))
+        steps = int(params.get(self.PARAM_STEPS, 1))
+        temporal = int(params.get(FBCSP.PARAM_FILTER_TEMPORAL, 25))
+        temp_pool = int(params.get(FACNN.PARAM_TEMP_POOL, 4))
 
         convs = [inputshape[-1]//steps for _ in range(1, steps)]
         convs += [inputshape[-1] - sum(convs) + len(convs)]
@@ -932,10 +992,10 @@ class AttentionLSTM(Model, Searchable):
         ins = keras.layers.Input(inputshape)
 
         conv = ExpandLayer()(ins)
-        conv = keras.layers.Conv2D(self.lunits[0], (25, 1), activation='linear',
+        conv = keras.layers.Conv2D(self.lunits[0], (temporal, 1), activation='linear',
                                    kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
         conv = keras.layers.BatchNormalization()(conv)
-        conv = keras.layers.AveragePooling2D((4, 1))(conv)
+        conv = keras.layers.AveragePooling2D((temp_pool, 1))(conv)
         conv = keras.layers.SpatialDropout2D(self.do)(conv)
 
         # conv = keras.layers.Conv2D(self.lunits[0], (1, 5), activation=activation,
@@ -964,9 +1024,10 @@ class AttentionLSTM(Model, Searchable):
 
         if ret_seq:
             attn = keras.layers.Flatten()(attn)
+        outs = attn
         for units in self.lunits[2:]:
             outs = keras.layers.Dense(units, activation=self.activation,
-                                      kernel_regularizer=keras.layers.regularizers.l2(self.reg))(attn)
+                                      kernel_regularizer=keras.layers.regularizers.l2(self.reg))(outs)
             outs = keras.layers.BatchNormalization()(outs)
             outs = keras.layers.Dropout(self.do)(outs)
         outs = keras.layers.Dense(outputshape, activation='softmax')(outs)
@@ -987,7 +1048,12 @@ class AttentionLSTM(Model, Searchable):
     def search_space():
         space = SimpleLSTM.search_space()
         space[AttentionLSTM.PARAM_ATTEND_DEPTH] = hp.quniform(AttentionLSTM.PARAM_ATTEND_DEPTH, 0, 4, 1)
+        space[AttentionLSTM.PARAM_STEPS] = hp.quniform(AttentionLSTM.PARAM_STEPS, 1, 5, 1)
+        space[FACNN.PARAM_TEMP_POOL] = hp.quniform(FACNN.PARAM_TEMP_POOL, 2, 20, 2)
+        space[ShallowFBCSP.PARAM_FILTER_TEMPORAL] = hp.qloguniform('_t', 1, 6, 2)
+        space[SimpleLSTM.PARAM_SEQ] = hp.choice(SimpleLSTM.PARAM_SEQ, [0, 1])
         space[Searchable.PARAM_LAYERS] = hp.choice(Searchable.PARAM_LAYERS, [
+            [hp.qloguniform('2layer1', 1.5, 5.5, 2), hp.qloguniform('2layer2', 1.5, 5.5, 2)],
             [hp.qloguniform('3layer1', 1.5, 5.5, 2), hp.qloguniform('3layer2', 1.5, 5.5, 2),
              hp.qloguniform('3layer3', 1.5, 5.5, 2)],
             [hp.qloguniform('4layer1', 1.5, 5.5, 2), hp.qloguniform('4layer2', 1.5, 5.5, 2),
@@ -1192,7 +1258,7 @@ MODELS = [
     # Basic Classification
     LogisticRegression, LinearSVM, SimpleMLP, StackedAutoEncoder,
     # CNN Based
-    ShallowFBCSP, TCNN, LinearSCNN, FBCSP, SpatialCNN,
+    ShallowFBCSP, TCNN, SCNN, FBCSP, SpatialCNN,
     # RNN Based
     SimpleLSTM,
     # Attention
