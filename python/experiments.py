@@ -132,6 +132,7 @@ DATASETS = {
     'MEGTSA': [None, MEGRawRangesTSA],
     'FusionRaw': [None, FusionRawRanges],
     'BCI': [BCICompetitionIV2aSingleSubjectRegression, BCICompetitionIV2aSingleSubjectClassification],
+    'BCITAug': [None, BCISSTAug],
     'Constant': [None, ConstantClassification]
 }
 

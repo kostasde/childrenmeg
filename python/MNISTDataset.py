@@ -9,9 +9,10 @@ from models import TYPE_CLASSIFICATION, TYPE_REGRESSION
 
 class ArrayFeeder(KerasDataloader):
 
-    def __init__(self, x, y, batchsize, shuffle=True, seed=None, flatten=True):
+    def __init__(self, x, y, batchsize, shuffle=True, seed=None, flatten=True, evaluate=False):
         self.x, self.y = x, y
         self.flatten = flatten
+        self.evaluate = evaluate
         super().__init__(n=x.shape[0], batch_size=batchsize, shuffle=shuffle, seed=seed)
 
     def __next__(self):
@@ -21,6 +22,9 @@ class ArrayFeeder(KerasDataloader):
         if self.flatten:
             return np.reshape(self.x[index_array], [self.x[index_array].shape[0], -1]), self.y[index_array]
 
+        return self._load(index_array, current_batch_size)
+
+    def _load(self, index_array, batch_size, **kwargs):
         return self.x[index_array], self.y[index_array]
 
 

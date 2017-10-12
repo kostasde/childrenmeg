@@ -162,28 +162,42 @@ class SubjectFileLoader(KerasDataloader):
 
 
 class TemporalAugmentation(SubjectFileLoader):
-    # TODO Replace this with a keras layer so that this is implemented in GPU
+    """
+    This class wraps another dataloader, and feeds in temporally augmented versions of the data. This consists of taking
+    slices of the first dimension (excluding the initial batchsize dimension).
 
-    DATASET_SAMPLE_RATE = 200
+    Temporal augmentation implies the inflation of datapoints by selecting different temporal crops of the data.
+    """
+    SUPPORTED_CROPS = ['uniform']
 
-    def __init__(self, loader: SubjectFileLoader, croplen=2.0, limits=(-0.5, 3.0),
-                 inflate=True, cropstyle='uniform',):
+    # TODO Replace this with a keras layer so that this is implemented in GPU for speedup and consistency
+    def __init__(self, loader: SubjectFileLoader, fs: int, window=(-0.5, 1.5), event_t: float=0.5, cropstyle='uniform'):
         self.__class__ = type(loader.__class__.__name__, (self.__class__, loader.__class__), {})
         self.__dict__ = loader.__dict__
 
+        if not (isinstance(window, (tuple, list)) and len(window) == 2):
+            if isinstance(window, (int, float)):
+                window = [-window/2, window/2]
+            else:
+                raise TypeError('Could not use window value')
+        self.window = window
+        self.fs = fs
         self.loader = loader
-        self.croplen = croplen
-        self.cropstyle = cropstyle
-        self.inflate = 1
+        self.croplen = int(fs * (window[1] - window[0]))
+        self.event_t = event_t if event_t > 0 else 0
+        if cropstyle in self.SUPPORTED_CROPS:
+            self.cropstyle = cropstyle
+        else:
+            raise TypeError('Unsupported crop type ' + cropstyle)
 
-        # If we are inflating the size of an epoch, modify the loader's size
-        if inflate:
-            # crops, time should always be first dimension, ensure croplen is less than time slices
-            f = loader.f_loader((loader.x[0][1],))
-            self.crops = (f.shape[0] - croplen*self.DATASET_SAMPLE_RATE)
-
-            if self.crops > 0:
-                self.inflate *= self.crops
+        # Evaluation is performed with a crop of window size around the event
+        self.eval_start, self.eval_end = [int(self.fs * (self.event_t + x)) for x in self.window]
+        # if the window is looking behind the event, just shift the window appropriately and warn
+        if self.eval_start < 0:
+            print('Warning: using window: {0} with event time: {1}, results in invalid start time = {2}'.format(
+                self.window, self.event_t, self.eval_start))
+            self.eval_end -= self.eval_start
+            self.eval_start = 0
 
     def _load(self, index_array, batch_size, **kwargs):
         ins, y = self.loader._load(index_array, batch_size)
@@ -198,20 +212,20 @@ class TemporalAugmentation(SubjectFileLoader):
             # TODO see if this redundant operation can be removed
             x = x.reshape((x.shape[0], -1, self.slice_length))
 
-        x_new = np.zeros((x.shape[0], int(self.croplen*self.DATASET_SAMPLE_RATE), *x.shape[2:]))
+        x_new = np.zeros((x.shape[0], int(self.croplen), *x.shape[2:]))
 
         # select resampling offset and starting point
         if not self.evaluate:
             if self.cropstyle == 'uniform':
-                starts = np.random.choice(np.arange(self.crops), size=x.shape[0]).astype(int)
+                crops = int(x.shape[1] - self.croplen)
+                starts = np.random.choice(np.arange(crops), size=x.shape[0]).astype(int)
             else:
                 starts = np.zeros(x.shape[0])
             for i, s in enumerate(starts):
                 x_new[i, :] = \
-                    x[i, s:s+int(self.croplen*self.DATASET_SAMPLE_RATE), :]
+                    x[i, s:s+self.croplen, :]
         else:
-            # Just do the first croplen length for evaulation, should consider interpolated version
-            x_new = x[:, :x_new.shape[1], :]
+            x_new = x[:, self.eval_start:self.eval_end, :]
 
         if self.loader.flatten:
             x = x_new.reshape((x.shape[0], -1))
@@ -676,9 +690,11 @@ class FusionRawRanges(FusionAgeRangesDataset):
 
 class MEGRawRangesTA(MEGRawRanges):
 
+    SAMPLE_FREQ = 200
+
     @staticmethod
     def GENERATOR(*args, **kwargs):
-        return TemporalAugmentation(BaseDatasetAgeRanges.GENERATOR(*args, **kwargs))
+        return TemporalAugmentation(BaseDatasetAgeRanges.GENERATOR(*args, **kwargs), MEGRawRangesTA.SAMPLE_FREQ)
 
     def inputshape(self):
         # FIXME should not have magic number, comes from assumed sample rate of 200
@@ -745,9 +761,11 @@ class MEGRawRangesSA(MEGRawRanges):
 
 class MEGRawRangesTSA(MEGRawRangesSA):
 
+    SAMPLE_FREQ = 200
+
     @staticmethod
     def GENERATOR(*args, **kwargs):
-        return TemporalAugmentation(MEGRawRangesSA.GENERATOR(*args, **kwargs))
+        return TemporalAugmentation(MEGRawRangesSA.GENERATOR(*args, **kwargs), MEGRawRangesTSA.SAMPLE_FREQ)
 
     def inputshape(self):
         return 400, self.slice_length

@@ -6,6 +6,7 @@ from keras.preprocessing.image import Iterator as KerasDataloader
 
 from models import TYPE_CLASSIFICATION, TYPE_REGRESSION
 from MNISTDataset import ArrayFeeder
+from MEGDataset import TemporalAugmentation
 
 
 class BCICompetitionIV2aSingleSubjectRegression:
@@ -82,6 +83,8 @@ class BCICompetitionIV2aSingleSubjectRegression:
     def current_leaveout(self):
         return self.leaveout
 
+    GENERATOR = ArrayFeeder
+
     def trainingset(self, batchsize=None, flatten=True):
         """
         Provides a generator object with the current training set
@@ -94,7 +97,7 @@ class BCICompetitionIV2aSingleSubjectRegression:
         if self.x_train is None:
             raise AttributeError('No fold initialized... Try calling next_leaveout')
 
-        return ArrayFeeder(self.x_train, self.y_train, batchsize, flatten=flatten)
+        return self.GENERATOR(self.x_train, self.y_train, batchsize, flatten=flatten, evaluate=False)
 
     def evaluationset(self, batchsize=None, flatten=True):
         """
@@ -105,7 +108,7 @@ class BCICompetitionIV2aSingleSubjectRegression:
         if batchsize is None:
             batchsize = self.batchsize
 
-        return ArrayFeeder(self.x_eval, self.y_eval, batchsize, flatten=flatten)
+        return self.GENERATOR(self.x_eval, self.y_eval, batchsize, flatten=flatten, evaluate=True)
 
     def testset(self, batchsize=None, flatten=True):
         """
@@ -116,7 +119,7 @@ class BCICompetitionIV2aSingleSubjectRegression:
         if batchsize is None:
             batchsize = self.batchsize
 
-        return ArrayFeeder(self.x_test, self.y_test, batchsize, flatten=flatten)
+        return self.GENERATOR(self.x_test, self.y_test, batchsize, flatten=flatten, evaluate=True)
 
     def inputshape(self):
         return self.x_train.shape[1:]
@@ -140,3 +143,19 @@ class BCICompetitionIV2aSingleSubjectClassification(BCICompetitionIV2aSingleSubj
 
     def outputshape(self):
         return self.y_train.shape[-1]
+
+
+class BCISSTAug(BCICompetitionIV2aSingleSubjectClassification):
+
+    SAMPLE_FREQ = 250
+    WINDOW = (-0.5, 1.5)
+
+    @staticmethod
+    def GENERATOR(*args, **kwargs):
+        return TemporalAugmentation(BCICompetitionIV2aSingleSubjectClassification.GENERATOR(*args, **kwargs),
+                                    BCISSTAug.SAMPLE_FREQ,
+                                    event_t=BCISSTAug.WINDOW[1]-BCISSTAug.WINDOW[0],
+                                    window=BCISSTAug.WINDOW)
+
+    def inputshape(self):
+        return int(self.SAMPLE_FREQ*(self.WINDOW[1]-self.WINDOW[0])), self.x_train.shape[-1]
