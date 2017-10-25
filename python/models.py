@@ -259,11 +259,11 @@ class Searchable:
 
         self.lr = self.params.get(Searchable.PARAM_LR, 1e-3)
         self.momentum = self.params.get(Searchable.PARAM_MOMENTUM, 0.05)
-        self.reg = self.params.get(Searchable.PARAM_REG, 0.05)
+        self.reg = self.params.get(Searchable.PARAM_REG, 0.001)
         self.batchsize = self.params.get(Searchable.PARAM_BATCH, 128)
 
         self.optimizer = Searchable.parse_choice(self.params.get(Searchable.PARAM_OPT, 1), Searchable.OPTIMIZERS)
-        self.activation = Searchable.parse_choice(self.params.get(Searchable.PARAM_ACTIVATION, 1), Searchable.ACTIVATIONS)
+        self.activation = Searchable.parse_choice(self.params.get(Searchable.PARAM_ACTIVATION, 0), Searchable.ACTIVATIONS)
 
 
 class LinearRegression(Sequential, Searchable):
@@ -606,7 +606,7 @@ class ShallowFBCSP(SimpleMLP):
 
         # Output convolution
         self.add(keras.layers.Conv2D(
-            10, (30, 1), activation='linear', data_format='channels_last',
+            10, (27, 1), activation='linear', data_format='channels_last',
         ))
         self.add(keras.layers.BatchNormalization())
 
@@ -683,14 +683,14 @@ class SCNN(Model, Searchable):
             self.lunits = SimpleMLP.parse_layers(params)
             self.do = params[Searchable.PARAM_DROPOUT]
         else:
-            self.lunits = [64, 32, 32]
-            self.do = 0.4
+            self.lunits = [36, 128, 64, 256, 128]
+            self.do = 0.5
             params = {}
 
-        temp_layers = int(params.get(self.PARAM_TEMP_LAYERS, 0))
-        steps = int(params.get(AttentionLSTM.PARAM_STEPS, 3))
-        temporal = int(params.get(FBCSP.PARAM_FILTER_TEMPORAL, 25))
-        temp_pool = int(params.get(FACNN.PARAM_TEMP_POOL, 4))
+        temp_layers = int(params.get(self.PARAM_TEMP_LAYERS, 4))
+        steps = int(params.get(AttentionLSTM.PARAM_STEPS, 2))
+        temporal = int(params.get(FBCSP.PARAM_FILTER_TEMPORAL, 82))
+        temp_pool = int(params.get(FACNN.PARAM_TEMP_POOL, 75))
 
         convs = [inputshape[-1] // steps for _ in range(1, steps)]
         convs += [inputshape[-1] - sum(convs) + len(convs)]
@@ -701,15 +701,17 @@ class SCNN(Model, Searchable):
 
         for c in convs:
             conv = keras.layers.Conv2D(self.lunits[0] // len(convs), (1, c), activation=self.activation,
+                                       use_bias=False,
                                        kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
         conv = keras.layers.BatchNormalization()(conv)
         conv = keras.layers.SpatialDropout2D(self.do)(conv)
 
         for _ in range(temp_layers):
-            conv = keras.layers.Conv2D(self.lunits[1], (temporal, 1), activation='linear',
+            conv = keras.layers.Conv2D(self.lunits[1], (temporal, 1), activation=self.activation,
+                                       use_bias=False,
                                        kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
         conv = keras.layers.BatchNormalization()(conv)
-        conv = keras.layers.AveragePooling2D((temp_pool, 1))(conv)
+        conv = keras.layers.AveragePooling2D((temp_pool, 1,))(conv)
         conv = keras.layers.SpatialDropout2D(self.do)(conv)
 
         outs = keras.layers.Flatten()(conv)
@@ -951,7 +953,7 @@ class SimpleLSTM(SimpleMLP):
     def search_space():
         rnn_space = SimpleMLP.search_space()
         rnn_space[SimpleLSTM.PARAM_SEQ] = hp.choice(SimpleLSTM.PARAM_SEQ, [0, 1])
-        rnn_space[Searchable.PARAM_BATCH] = hp.qloguniform(Searchable.PARAM_BATCH, 0, 7, 20)
+        rnn_space[Searchable.PARAM_BATCH] = hp.qloguniform(Searchable.PARAM_BATCH, 0, 5.6, 20)
         rnn_space[Searchable.PARAM_LAYERS] = hp.choice(Searchable.PARAM_LAYERS, [
             [hp.quniform('1layer1', 1, 512, 8)],
             [hp.quniform('2layer1', 1, 512, 8), hp.qloguniform('2layer2', 3, 7, 5)]
@@ -976,7 +978,7 @@ class AttentionLSTM(Model, Searchable):
             self.lunits = SimpleMLP.parse_layers(params)
             self.do = params[Searchable.PARAM_DROPOUT]
         else:
-            self.lunits = [42, 16, 32]
+            self.lunits = [64*2, 128]
             self.do = 0.4
             params = {}
 
@@ -984,7 +986,7 @@ class AttentionLSTM(Model, Searchable):
         att_depth = int(params.get(self.PARAM_ATTEND_DEPTH, 0))
         steps = int(params.get(self.PARAM_STEPS, 1))
         temporal = int(params.get(FBCSP.PARAM_FILTER_TEMPORAL, 25))
-        temp_pool = int(params.get(FACNN.PARAM_TEMP_POOL, 4))
+        temp_pool = int(params.get(FACNN.PARAM_TEMP_POOL, 5))
 
         convs = [inputshape[-1]//steps for _ in range(1, steps)]
         convs += [inputshape[-1] - sum(convs) + len(convs)]
@@ -992,33 +994,23 @@ class AttentionLSTM(Model, Searchable):
         ins = keras.layers.Input(inputshape)
 
         conv = ExpandLayer()(ins)
-        conv = keras.layers.Conv2D(self.lunits[0], (temporal, 1), activation='linear',
-                                   kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
-        conv = keras.layers.BatchNormalization()(conv)
-        conv = keras.layers.AveragePooling2D((temp_pool, 1))(conv)
-        conv = keras.layers.SpatialDropout2D(self.do)(conv)
 
-        # conv = keras.layers.Conv2D(self.lunits[0], (1, 5), activation=activation,
-        #                            kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
-        # conv = keras.layers.Conv2D(self.lunits[0], (1, 5), activation=activation,
-        #                            kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
-        # conv = keras.layers.Conv2D(self.lunits[0], (1, inputshape[-1]//2), activation=activation,
-        #                            kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
-        # conv = keras.layers.Conv2D(self.lunits[0], (1, inputshape[-1]), activation=activation,
-        #                            kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
-        # conv = keras.layers.SpatialDropout2D(self.do/2)(conv)
-        # conv = keras.layers.Conv2D(self.lunits[0], (1, 5), activation=activation,
-        #                            kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
         for c in convs:
             conv = keras.layers.Conv2D(self.lunits[0]//len(convs), (1, c), activation=self.activation,
                                        kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
-            conv = keras.layers.BatchNormalization()(conv)
-            conv = keras.layers.SpatialDropout2D(self.do)(conv)
+        conv = keras.layers.AveragePooling2D((temp_pool, 1))(conv)
+        conv = keras.layers.BatchNormalization()(conv)
+        conv = keras.layers.SpatialDropout2D(self.do)(conv)
         conv = SqueezeLayer(-2)(conv)
 
-        attn = keras.layers.Bidirectional(AttentionLSTMIn(self.lunits[1], implementation=2, dropout=self.do,
-                                                          return_sequences=ret_seq, alignment_depth=att_depth,
-                                                          kernel_regularizer=keras.layers.regularizers.l2(self.reg)))(conv)
+        attn = keras.layers.Bidirectional(AttentionLSTMIn(self.lunits[1],
+                                                          implementation=2,
+                                                          # dropout=self.do,
+                                                          return_sequences=ret_seq,
+                                                          alignment_depth=att_depth,
+                                                          # kernel_regularizer=keras.layers.regularizers.l2(self.reg),
+                                                          ))(conv)
+        attn = keras.layers.AlphaDropout(self.do)(attn)
         attn = keras.layers.BatchNormalization()(attn)
         # attn = Attention(W_regularizer=keras.layers.regularizers.l2(self.reg))(attn)
 

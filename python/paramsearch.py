@@ -129,7 +129,8 @@ def hp_search(model_constructor, dataset_constructor, args):
                 l = input("Loss Value (write 'None' to treat as failed trial):")
                 history = {}
                 if l == 'None':
-                    val_loss += [np.nan]
+                    print('Indicating that training has failed...')
+                    return {'status': STATUS_FAIL}
                 elif re.match("^\d+?\.\d+?$", l):
                     val_loss += [float(l)]
                 else:

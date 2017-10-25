@@ -13,7 +13,10 @@ class BCICompetitionIV2aSingleSubjectRegression:
 
     NUM_BUCKETS = 4
 
-    # Fixme Batchsize here is deprecated, only should be at generators
+    @staticmethod
+    def zscore(data: np.ndarray):
+        return (data - data.mean(1, keepdims=True)) / (data.std(1, keepdims=True) + 1e-12)
+
     def __init__(self, toplevel, shuffle=True, seed=None, batchsize=-1, subject: int = 1):
 
         self.file = h5py.File(toplevel, 'r')
@@ -26,11 +29,11 @@ class BCICompetitionIV2aSingleSubjectRegression:
         self.x = np.array(self.train['X'])
         self.y = np.array(self.train['Y']) - 1
 
-        self.x_test = np.array(self.test['X'])
+        self.x_test = self.zscore(np.array(self.test['X']))
         self.y_test = np.array(self.test['Y']) - 1
 
         # Whitened/z-scored
-        self.x = (self.x - self.x.mean(1, keepdims=True)) / self.x.std(1, keepdims=True)
+        self.x = self.zscore(self.x)
 
         preshuffle = np.arange(self.x.shape[0])
         np.random.shuffle(preshuffle)
@@ -128,6 +131,42 @@ class BCICompetitionIV2aSingleSubjectRegression:
         return 1
 
 
+class BCIIVMultiSubjectRegression(BCICompetitionIV2aSingleSubjectRegression):
+
+    NUM_SUBJECTS = 9
+    NUM_BUCKETS = 3
+
+    def __init__(self, toplevel, batchsize=-1, shuffle=True, seed=None):
+        # super().__init__(toplevel, shuffle, seed, batchsize)
+        if batchsize < 0:
+            batchsize = 128
+        self.batchsize = batchsize
+
+        self.file = h5py.File(toplevel, 'r')
+        self.x = []
+        self.y = []
+
+        for subject in self.file['raw']:
+            print('Loading subject: ', subject)
+            data = self.file['raw'][subject]
+            x = np.vstack((np.array(data['T/X']), np.array(data['E/X'])))
+            y = np.vstack((np.array(data['T/Y']), np.array(data['E/Y']))) - 1
+            self.x.append(self.zscore(x))
+            self.y.append(y)
+
+        self.x_test = np.vstack(self.x[-3:])
+        self.y_test = np.vstack(self.y[-3:])
+
+        self.x = self.x[:-3]
+        self.y = self.y[:-3]
+
+        # Group into three cross-validation groups
+        self.x = [np.vstack(self.x[i*2:i*2+2]) for i in range(self.NUM_BUCKETS)]
+        self.y = [np.vstack(self.y[i*2:i*2+2]) for i in range(self.NUM_BUCKETS)]
+
+        self.next_leaveout(force=0)
+
+
 class BCICompetitionIV2aSingleSubjectClassification(BCICompetitionIV2aSingleSubjectRegression):
 
     TYPE = TYPE_CLASSIFICATION
@@ -145,17 +184,52 @@ class BCICompetitionIV2aSingleSubjectClassification(BCICompetitionIV2aSingleSubj
         return self.y_train.shape[-1]
 
 
+class BCIIVMultiSubjectClassification(BCIIVMultiSubjectRegression):
+    TYPE = TYPE_CLASSIFICATION
+    NUM_CLASSES = 4
+
+    def __init__(self, toplevel, batchsize=-1, shuffle=True, seed=None):
+        BCIIVMultiSubjectRegression.__init__(self, toplevel, batchsize, shuffle, seed)
+
+        self.y_test = keras.utils.to_categorical(self.y_test, self.NUM_CLASSES)
+        self.y_eval = keras.utils.to_categorical(self.y_eval, self.NUM_CLASSES)
+        self.y_train = keras.utils.to_categorical(self.y_train, self.NUM_CLASSES)
+        self.y = [keras.utils.to_categorical(y, self.NUM_CLASSES) for y in self.y]
+
+    def outputshape(self):
+        return self.y_train.shape[-1]
+
+
 class BCISSTAug(BCICompetitionIV2aSingleSubjectClassification):
 
     SAMPLE_FREQ = 250
     WINDOW = (-0.5, 1.5)
+    EVENT_T = 2.0
 
     @staticmethod
     def GENERATOR(*args, **kwargs):
         return TemporalAugmentation(BCICompetitionIV2aSingleSubjectClassification.GENERATOR(*args, **kwargs),
                                     BCISSTAug.SAMPLE_FREQ,
-                                    event_t=BCISSTAug.WINDOW[1]-BCISSTAug.WINDOW[0],
+                                    event_t=BCISSTAug.EVENT_T,
                                     window=BCISSTAug.WINDOW)
 
     def inputshape(self):
         return int(self.SAMPLE_FREQ*(self.WINDOW[1]-self.WINDOW[0])), self.x_train.shape[-1]
+
+
+class BCIMSTAug(BCIIVMultiSubjectClassification):
+
+    SAMPLE_FREQ = 250
+    WINDOW = (-2, 2)
+    EVENT_T = 2.0
+
+    @staticmethod
+    def GENERATOR(*args, **kwargs):
+        return TemporalAugmentation(BCIIVMultiSubjectClassification.GENERATOR(*args, **kwargs),
+                                    BCIMSTAug.SAMPLE_FREQ,
+                                    event_t=BCISSTAug.EVENT_T,
+                                    window=BCIMSTAug.WINDOW)
+
+    def inputshape(self):
+        return int(self.SAMPLE_FREQ*(self.WINDOW[1]-self.WINDOW[0])), self.x_train.shape[-1]
+

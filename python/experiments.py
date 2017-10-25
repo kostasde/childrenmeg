@@ -124,16 +124,21 @@ DATASETS = {
     'MEG': [MEGDataset, MEGAgeRangesDataset],
     'Audio': [AcousticDataset, AcousticAgeRangeDataset],
     'Fusion': [FusionDataset, FusionAgeRangesDataset],
-    'MNIST': [MNISTRegression, MNISTClassification],
-    'MNISTNoise': [MNISTNoisyRegression, MNISTNoisyClassification],
+
     'MEGraw': [None, MEGRawRanges],
+    'FusionRaw': [None, FusionRawRanges],
     'MEGTAugRaw': [None, MEGRawRangesTA],
     'MEGSAugRaw': [None, MEGRawRangesSA],
     'MEGTSA': [None, MEGRawRangesTSA],
-    'FusionRaw': [None, FusionRawRanges],
-    'BCI': [BCICompetitionIV2aSingleSubjectRegression, BCICompetitionIV2aSingleSubjectClassification],
-    'BCITAug': [None, BCISSTAug],
-    'Constant': [None, ConstantClassification]
+
+    'BCISS': [BCICompetitionIV2aSingleSubjectRegression, BCICompetitionIV2aSingleSubjectClassification],
+    'BCIMS': [BCIIVMultiSubjectRegression, BCIIVMultiSubjectClassification],
+    'BCISSTAug': [None, BCISSTAug],
+    'BCIMSTAug': [None, BCIMSTAug],
+
+    'Constant': [None, ConstantClassification],
+    'MNIST': [MNISTRegression, MNISTClassification],
+    'MNISTNoise': [MNISTNoisyRegression, MNISTNoisyClassification],
 }
 
 if __name__ == '__main__':
@@ -174,6 +179,9 @@ if __name__ == '__main__':
     parser.add_argument('--workers', '-w', default=WORKERS, type=int, help='The number of threads to use to load data.')
     parser.add_argument('--fold', default=1, type=int, help='When not performing cross validation, selects which fold '
                                                             'to be used as evaluation set.')
+    parser.add_argument('--tensorboard', '-tb', action='store_true', help='Enable the tensorboard graphing callback.')
+    parser.add_argument('--no-early-stopping', action='store_true', help='Disable early stopping while preserving the '
+                                                                         'patience measure for LR reduction.')
     parser.add_argument('--null-hyp', action='store_true', help='Run a test with initial state weights')
     args = parser.parse_args()
 
@@ -181,11 +189,14 @@ if __name__ == '__main__':
     dataset = DATASETS[args.dataset][MODELS[args.model].TYPE](args.toplevel, batchsize=args.batch_size)
 
     # Callbacks
-    callbacks = [keras.callbacks.ReduceLROnPlateau(verbose=1, patience=args.patience//5, factor=0.5, epsilon=0.05),
-                 keras.callbacks.EarlyStopping(min_delta=0.005, verbose=1, mode='min', patience=args.patience//2),
-                 keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min', patience=args.patience),
-                 # keras.callbacks.TensorBoard(histogram_freq=1, write_grads=True, write_images=True,),
-                 ]
+    callbacks = [keras.callbacks.ReduceLROnPlateau(verbose=1, patience=args.patience//5, factor=0.5, epsilon=0.05), ]
+    if args.tensorboard:
+        callbacks += [keras.callbacks.TensorBoard(log_dir='./logs/f1', write_images=True)]
+    if not args.no_early_stopping:
+        callbacks += [
+            keras.callbacks.EarlyStopping(min_delta=0.005, verbose=1, mode='min', patience=args.patience//2),
+            keras.callbacks.EarlyStopping(min_delta=0.05, verbose=1, mode='min', patience=args.patience),
+        ]
     more_metrics = []
     # TODO support for more metrics
     if args.save_model_params is not None:
@@ -282,6 +293,9 @@ if __name__ == '__main__':
             break
         # Ensure GPU is cleared
         clear_session()
+
+        if args.tensorboard:
+            callbacks[1] = keras.callbacks.TensorBoard(log_dir='./logs/f{0}'.format(fold+1), write_images=True)
 
     print('\n\nComplete.')
     print_metrics(metrics, [], args)
