@@ -738,7 +738,7 @@ class SCNN(Model, Searchable):
     def search_space():
         space = SimpleLSTM.search_space()
         space[AttentionLSTM.PARAM_STEPS] = hp.quniform(AttentionLSTM.PARAM_STEPS, 1, 5, 1)
-        space[SCNN.PARAM_TEMP_LAYERS] = hp.quniform(SCNN.PARAM_TEMP_LAYERS, 0, 4, 1)
+        space[SCNN.PARAM_TEMP_LAYERS] = hp.quniform(SCNN.PARAM_TEMP_LAYERS, 0, 10, 1)
         space[FACNN.PARAM_TEMP_POOL] = hp.quniform(FACNN.PARAM_TEMP_POOL, 5, 100, 5)
         space[ShallowFBCSP.PARAM_FILTER_TEMPORAL] = hp.qloguniform('_t', 1, 6, 2)
         space[Searchable.PARAM_LAYERS] = hp.choice(Searchable.PARAM_LAYERS, [
@@ -749,7 +749,7 @@ class SCNN(Model, Searchable):
              hp.qloguniform('4layer3', 1.5, 5.5, 2), hp.qloguniform('4layer4', 4, 6, 10)],
             [hp.qloguniform('5layer1', 1.5, 5.5, 2), hp.qloguniform('5layer2', 1.5, 5.5, 2),
              hp.qloguniform('5layer3', 1.5, 5.5, 2), hp.qloguniform('5layer4', 4, 6, 10),
-             hp.qloguniform('5layer5', 4, 6, 10)]
+             hp.qloguniform('5layer5', 4, 6, 10)],
         ])
         return space
 

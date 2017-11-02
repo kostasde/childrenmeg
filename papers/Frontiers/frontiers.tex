@@ -13,6 +13,7 @@
 
 \usepackage{booktabs}
 \usepackage{multirow}
+\usepackage{soul}
 
 \linenumbers
 
@@ -102,6 +103,8 @@ Previous work with electroencephalpgraphic (EEG) experiments use common spectral
 
 \section{Data}
 
+\subsection{Primary Dataset: Synchronized MEG and Speech Recordings}
+
 These data were originally recorded for work on age- and sex-related developmental language differences by Doesburg \emph{et al.} and Yu \emph{et al.} \cite{Doesburg2016, Yu2014}. Table \ref{tab:subjects} summarizes some participant demographics. Each participant spoke English as their first language and had no known or suspected histories of speech, language, hearing, or developmental disorders, according to their parents. Prior to the experiment, children received two standardized clinical tests: the Peabody Picture Vocabulary Test (PPVT) \cite{Dunn97} and the Expressive Vocabulary Test (EVT) \cite{EVT}. All children's scores were at or above expected scores for their ages on the PPVT and EVT, and their speech showed neither signs of articulatory difficulties nor any significant effect of age, as visualized in Figure \ref{fig:ppvtevt}. In total, 80 participants were right-handed, 5 were left-handed, and 7 were ambidextrous, according to the Edinburgh assessment; there is no significant variation of handedness with age.
 
 %% \begin{figure}
@@ -113,6 +116,12 @@ These data were originally recorded for work on age- and sex-related development
 Three distinct speech-elicitation stimuli were used. The first two were of the monosyllable /{\em pah}/ and the multisyllabic sequence /{\em pah tah kah}/, respectively. These were simple enough for young children and are part of the diadochokinetic rate (DDK) test, which can be used to evaluate neuromuscular control in motor speech disorders. The incisive nature of these stimuli for measuring speech production make them ideal for this study. Prior to acquisition, the experimenter demonstrated the productions of each stimuli, without word-like prosodic patterns. The third experiment was an overt verb generation (VG) task in English, where subjects are presented with an image they are familiar with, and are asked to produce a verb associated with the object \cite{Doesburg2016}.
 
 Recordings were made in a sound-proof room, with each participant lying supine in a magnetically shielded room in the Neuromagnetic Lab of the Hospital for Sick Children in Toronto, using a CTF whole-head MEG system (MEG International Services Ltd., Coquitlam, BC, Canada). The system recorded all 151 MEG channels, and a single audio channel, with a sampling rate of 4 kHz.
+
+\subsection{Supplementary Dataset: BCI Competition IV, Dataset 2a}
+
+In an effort to compare the potential success of any end-to-end model developed to previous work, we also trained our applicable end-to-end models using the BCI Competition IV EEG Dataset \cite{Tangermann2012}. This dataset has featured.
+
+There are several disadvantage to using this dataset as a benchmark of sorts. It is of a different task entirely and is a set of EEG rather than MEG recordings. Furthermore there are much fewer EEG channels than the number of MEG channels from our primary dataset and the subject set is a completely different population than the children and adolescents of our primary data. However there has been significant work in using this dataset and various neural-network approaches in recent years. Given these caveats, the comparison is
 
 \section{Methods}
 
@@ -154,11 +163,12 @@ To help facilitate end-to-end learning, we employed three techniqes that would p
 
 \subsubsection{Cropping}
 
-Here fixed length crops of the entire recording are taken such that the event of a trial is localized in a different place for each augmented data point. Effectively, rather than one training datapoint for each trial performed, a sliding window smaller than the length of the trial is used to crop many individual points. The premise behind this augmentation is that with the event localized in different places, an architecture like a CNN learns temporal filters that are agnostic of any specific point in time. Although ideally when using gradient based training, the training points are independent and identically distributed (I.I.D) \cite{}, augmentation such as this 
+Here fixed length crops of the entire recording are taken such that the event of a trial is localized in a different place for each augmented data point. Effectively, rather than one training datapoint for each trial performed, a sliding window smaller than the length of the trial is used to crop many individual points. The premise behind this augmentation is that with the event localized in different places, an architecture like a CNN learns temporal filters that are agnostic of any specific point in time. 
+
 
 \subsubsection{Subsampling}
 
-We take advantage of the high sampling rate of the recordings ($4kHz$) being used with respect to the frequency ranges that that we keep  for analysis and examine whether different sub-sampling of the data is a viable augmentation strategy. Filtering is still applied as before to minimize aliasing artifacts, and then we augment the number of samples by re-sampling at a frequency of $200 Hz$
+\st{We take advantage of the high sampling rate of the recordings ($4kHz$) being used with respect to the frequency ranges that that we keep  for analysis and examine whether different sub-sampling of the data is a viable augmentation strategy. Filtering is still applied as before to minimize aliasing artifacts, and then we augment the number of samples by re-sampling at a frequency of $200 Hz$}
 
 \subsubsection{Noisy Sensors}
 
@@ -175,27 +185,31 @@ All regression and classification models are evaluated using the same held out t
 
 We used standard Pearson correlation between the extracted MEG and audio features, for each experiment set separately. We set significance for $p$-values at $\alpha = 10^{-4}$ and the coefficient $r$'s absolute value $\text{abs}(r) > 0.2$. For each experiment, we then examined the independent component that had the highest correlations of its features with respect to audio features, to determine if there were any noticeably consistent brain locations that were being emphasized. These are plotted in figure \ref{fig:components}. Furthermore, we compute correlation of MEG and audio features, with respect to age, over the entire data set, to identify features with a potentially stronger predictive capability for regression.
 
-\subsection{Trained Models}
+\subsection{Training Procedure of ML Models}
 
-\subsubsection{Multilinear regression}
+All ML models were trained using back-propagation 
+
+\section{Models}
+
+\subsection{Multilinear regression}
 
 We train multilinear regression models to predict age using each of the \textit{Audio}, \textit{MEG}, and the fused \textit{Audio+MEG} datasets respectively. We use 10-fold cross-validation within each dataset. The test and training sets are selected to have a similar mean and standard deviation over the ages of participants. We perform Bayesian parameter optimization using Hyperopt \cite{Bergstra2013} on the first fold of data to determine an appropriate learning rate and regularization factor for all training.
 
 Since the number of features multiplied by the number of time windows exceeds the total number of data points available to train, we reduce the dimensionality of the MEG data (i.e., {\em MEG (red.)}) by selecting only those features from that set that have significant correlations, as defined above.
 
-\subsubsection{Logistic Regression and Linear Support Vector Machine}
+\subsection{Logistic Regression and Linear Support Vector Machine}
 
 These are commonly used classifiers that learn linear (although they can be modified to create non-linear) separatations between the points of output classes. The main difference between the two is that logistic regression (or softmax classifier) maximizes the confidence of the prediction by..., whereas as a linear support vector machine, or SVM . Here in particular we use an L2 regularized SVM or L2-SVM
 
-\subsubsection{Multi-Layer Perceptron}
+\subsection{Fully-Connected Feed-Forward Neural Network}
 
-This is the most straight-forward implementation of a neural-network classifier. It is also known as a feed-forward neual network. It consists of a number of layers of neurons, where typically less than three layers are considered shallow, but with three or more the literature starts to call them \textit{deep}. Each neuron recieves input from each of the neurons of the previous layers, with the first layer recieving the entire input. These incoming ``connections'' are weighted, and these weights are trained to fit the dataset using gradient descent (in addition to other optimization techniques like \cite{adam, rmsprop, etc}). Crucially the output of each neuron has a non-linear operation applied to the weighted sum of all incoming connections. This applies for the most part all neural network implementations, and allows them to learn arbitrary functions that seperate output labels.
+This is the most straight-forward implementation of a neural-network classifier. It is also sometimes referred to as a \emph{multi-layer perceptron} (although this can be seen as a misnomer). It consists of a number of layers of neurons, where typically less than three layers are considered shallow, but with three or more the convention in the literature is to call them \textit{deep}. Each neuron recieves input from each of the neurons of the previous layers, with the first layer recieving the entire input. These incoming ``connections'' are weighted versions of the previous layer outputs, and these weights are trained to fit using the ubiquitous back-propagation algorithm, \cite{Lecunn_phd} the dataset using gradient descent (in addition to other optimization techniques like \cite{adam, rmsprop, etc}). Crucially the output of each neuron has a non-linear operation applied to the weighted sum of all incoming connections. This applies for the most part all neural network implementations, and allows them to learn arbitrary functions that seperate output labels.
 
-\subsubsection{Convolutional Neural Network}
+\subsection{Convolutional Neural Networks}
 
-A convolutional neural network is a variation on the feed-forward neural network that employs the sharing of incoming weights for the purpose of both reducing the number of parameters, and learning convolution-like operations, rather than the feed-forward networks masking based operations.
+A convolutional neural network \cite{} is a variation on the feed-forward neural network that employs the sharing of incoming weights for the purpose of reducing the number of parameters and inherrently developing translation-invariant features that are swept like a convolution operation over a datapoint, rather than the feed-forward network's operations that are more akin to mask-like operations.
 
-\subsubsection{Recurrent Neural Network}
+\subsection{Recurrent Neural Networks}
 
 \section{Results}
 
@@ -248,7 +262,7 @@ The correlation of a single computed component has correlation coefficients $\te
 
         \bottomrule
   \end{tabular}
-  \caption{Root mean squared error (RMSE), in years, of 10-fold cross validation for each of the feature sets. Audio features combined with reduced MEG features show the best prediction capability. Bold indicates best performance.}
+  \caption{Root mean squared error (RMSE), in years, of 10-fold cross validation for each of the featurkappe sets. Audio features combined with reduced MEG features show the best prediction capability. Bold indicates best performance.}
 \end{table}
 
 The regression performance across the 10 folds seems to suggest that a multilinear regression model trained using both audio and the reduced (i.e., highly correlated) MEG feature sets performs better than either Audio or MEG feature sets alone. Without  reducing the MEG feature set, regression performance is no better than that for Audio alone. Models trained using some MEG features also  perform more consistently (i.e., with lower variance) than with Audio features exclusively.
@@ -334,6 +348,6 @@ We thank Rui Janson for his help performing automated EOG removal.
 
 \bibliographystyle{frontiersinSCNS_ENG_HUMS} % for Science, Engineering and Humanities and Social Sciences articles, for Humanities and Social Sciences articles please include page numbers in the in-text citations
 %\bibliographystyle{frontiersinHLTH&FPHY} % for Health, Physics and Mathematics articles
-\bibliography{test}
+\bibliography{frontiers}
 
 \end{document}
