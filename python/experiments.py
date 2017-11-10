@@ -191,7 +191,8 @@ if __name__ == '__main__':
     # Callbacks
     callbacks = [keras.callbacks.ReduceLROnPlateau(verbose=1, patience=args.patience//5, factor=0.5, epsilon=0.05), ]
     if args.tensorboard:
-        callbacks += [keras.callbacks.TensorBoard(log_dir='./logs/f1', write_images=True)]
+        callbacks += [keras.callbacks.TensorBoard(log_dir='./logs/{0}/{1}/f1'.format(args.model, args.dataset),
+                                                  write_images=True)]
     if not args.no_early_stopping:
         callbacks += [
             keras.callbacks.EarlyStopping(min_delta=0.005, verbose=1, mode='min', patience=args.patience//2),
@@ -295,7 +296,8 @@ if __name__ == '__main__':
         clear_session()
 
         if args.tensorboard:
-            callbacks[1] = keras.callbacks.TensorBoard(log_dir='./logs/f{0}'.format(fold+1), write_images=True)
+            callbacks[1] = keras.callbacks.TensorBoard(
+                log_dir='./logs/{0}/{1}/f{2}'.format(args.model, args.dataset, fold+1), write_images=True)
 
     print('\n\nComplete.')
     print_metrics(metrics, [], args)

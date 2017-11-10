@@ -2,6 +2,9 @@ import numpy as np
 import h5py
 
 import keras
+from scipy.signal import butter, lfilter
+from scipy.ndimage import convolve1d
+from pandas import ewma
 from keras.preprocessing.image import Iterator as KerasDataloader
 
 from models import TYPE_CLASSIFICATION, TYPE_REGRESSION
@@ -12,39 +15,42 @@ from MEGDataset import TemporalAugmentation
 class BCICompetitionIV2aSingleSubjectRegression:
 
     NUM_BUCKETS = 4
+    SAMPLE_FREQ = 250
 
     @staticmethod
-    def zscore(data: np.ndarray):
-        return (data - data.mean(1, keepdims=True)) / (data.std(1, keepdims=True) + 1e-12)
+    def zscore(data: np.ndarray, axis=1):
+        return (data - data.mean(axis, keepdims=True)) / (data.std(axis, keepdims=True) + 1e-12)
 
-    def __init__(self, toplevel, shuffle=True, seed=None, batchsize=-1, subject: int = 1):
+    @staticmethod
+    def ewma(data: np.ndarray, axis=1):
+        weights = np.power(-0.999, data.shape[axis] - np.arange(data.shape[axis]))
+        ma = convolve1d(data, weights, axis=axis, mode='constant')
+        return (data - ma) / (1e-12 + np.power(data - ma, 2))
 
+    @staticmethod
+    def butter_bandpass(lowcut, highcut, fs, order=3):
+        nyq = 0.5 * fs
+        low = lowcut / nyq
+        high = highcut / nyq
+        b, a = butter(order, [low, high], btype='band')
+        return b, a
+
+    @staticmethod
+    def butter_bandpass_filter(data, lowcut, highcut, fs, order=3, axis=1):
+        b, a = BCICompetitionIV2aSingleSubjectRegression.butter_bandpass(lowcut, highcut, fs, order=order)
+        y = lfilter(b, a, data, axis=axis)
+        return y
+
+    def __init__(self, toplevel, shuffle=True, seed=None, batchsize=-1, subject: int = -1, filtrange:tuple = tuple([])):
         self.file = h5py.File(toplevel, 'r')
-        self.group = self.file['raw/A0{0}'.format(subject)]
-
-        # Just loading it all into memory from the hdf5 for now...
-        self.train = self.group['T']
-        self.test = self.group['E']
-
-        self.x = np.array(self.train['X'])
-        self.y = np.array(self.train['Y']) - 1
-
-        self.x_test = self.zscore(np.array(self.test['X']))
-        self.y_test = np.array(self.test['Y']) - 1
-
-        # Whitened/z-scored
-        self.x = self.zscore(self.x)
-
-        preshuffle = np.arange(self.x.shape[0])
-        np.random.shuffle(preshuffle)
-        self.x = self.x[preshuffle, :, :]
-        self.y = self.y[preshuffle, :]
-
-        if self.NUM_BUCKETS == 1:
-            div = int(0.2 * self.x.shape[0])
-            self.x = [self.x[:div, :, :], self.x[div:, :, :]]
-            self.y = [self.y[:div, :], self.y[div:, :]]
+        self.all_subjects = subject not in range(1, 10)
+        if self.all_subjects:
+            print('Training all subjects sequentially.')
+            self.subject = 1
         else:
+            print('Training subject: ', subject)
+            self.subject = subject
+            self.load_subject(self.subject)
             self.x = np.split(self.x, self.NUM_BUCKETS)
             self.y = np.split(self.y, self.NUM_BUCKETS)
 
@@ -54,6 +60,29 @@ class BCICompetitionIV2aSingleSubjectRegression:
 
         self.next_leaveout(force=0)
 
+    def load_subject(self, subject: int):
+        self.group = self.file['raw/A0{0}'.format(subject)]
+
+        self.train = self.group['T']
+        self.test = self.group['E']
+
+        self.x = np.array(self.train['X'])
+        self.y = np.array(self.train['Y']) - 1
+
+        self.x_test = np.array(self.test['X'])
+        self.x_test = self.zscore(self.x_test)
+        # self.x_test = self.butter_bandpass_filter(self.x_test, 0, 38, self.SAMPLE_FREQ)
+        self.y_test = np.array(self.test['Y']) - 1
+
+        # Whitened/z-scored
+        self.x = self.zscore(self.x)
+        # self.x = self.butter_bandpass_filter(self.x, 0, 38, self.SAMPLE_FREQ)
+
+        preshuffle = np.arange(self.x.shape[0])
+        np.random.shuffle(preshuffle)
+        self.x = self.x[preshuffle, :, :]
+        self.y = self.y[preshuffle, :]
+
     def next_leaveout(self, force=None):
         """
         Moves on to the next group to leaveout.
@@ -62,22 +91,35 @@ class BCICompetitionIV2aSingleSubjectRegression:
         if force is not None:
             self.leaveout = force
 
-        if self.leaveout == self.NUM_BUCKETS:
+        if self.leaveout == self.NUM_BUCKETS and not self.all_subjects:
             print('Have completed cross-validation')
             # raise CrossValidationComplete
             return None
+        if self.all_subjects and self.leaveout == 9:
+            print('Completed all subjects')
+            return None
 
-        # Select next bucket to leave out as evaluation
-        self.x_eval = self.eval_points = self.x[self.leaveout]
-        self.y_eval = self.y[self.leaveout]
+        if self.all_subjects:
+            print('Training subject: ', self.leaveout+1)
+            self.load_subject(self.leaveout+1)
+            n = int(0.2 * self.x.shape[0])
+            self.x_eval = self.x[:n, :, :]
+            self.y_eval = self.y[:n, :]
 
-        # Convert the remaining buckets into one list
-        self.x_train = self.traindata = np.concatenate(
-            [arr for i, arr in enumerate(self.x) if i != self.leaveout]
-        )
-        self.y_train = np.concatenate(
-            [arr for i, arr in enumerate(self.y) if i != self.leaveout]
-        )
+            self.x_train = self.x[n:, :, :]
+            self.y_train = self.y[n:, :]
+        else:
+            # Select next bucket to leave out as evaluation
+            self.x_eval = self.eval_points = self.x[self.leaveout]
+            self.y_eval = self.y[self.leaveout]
+
+            # Convert the remaining buckets into one list
+            self.x_train = self.traindata = np.concatenate(
+                [arr for i, arr in enumerate(self.x) if i != self.leaveout]
+            )
+            self.y_train = np.concatenate(
+                [arr for i, arr in enumerate(self.y) if i != self.leaveout]
+            )
 
         self.leaveout += 1
 
@@ -138,6 +180,7 @@ class BCIIVMultiSubjectRegression(BCICompetitionIV2aSingleSubjectRegression):
 
     def __init__(self, toplevel, batchsize=-1, shuffle=True, seed=None):
         # super().__init__(toplevel, shuffle, seed, batchsize)
+        self.all_subjects = False
         if batchsize < 0:
             batchsize = 128
         self.batchsize = batchsize
@@ -172,13 +215,14 @@ class BCICompetitionIV2aSingleSubjectClassification(BCICompetitionIV2aSingleSubj
     TYPE = TYPE_CLASSIFICATION
     NUM_CLASSES = 4
 
-    def __init__(self, toplevel, batchsize=-1, shuffle=True, seed=None, subject: int = 1):
-        super().__init__(toplevel, shuffle, seed, batchsize, subject)
+    def load_subject(self, subject: int):
+        super(BCICompetitionIV2aSingleSubjectClassification, self).load_subject(subject)
 
         self.y_test = keras.utils.to_categorical(self.y_test, self.NUM_CLASSES)
-        self.y_eval = keras.utils.to_categorical(self.y_eval, self.NUM_CLASSES)
-        self.y_train = keras.utils.to_categorical(self.y_train, self.NUM_CLASSES)
-        self.y = [keras.utils.to_categorical(y, self.NUM_CLASSES) for y in self.y]
+        if self.all_subjects:
+            self.y = keras.utils.to_categorical(self.y, self.NUM_CLASSES)
+        else:
+            self.y = [keras.utils.to_categorical(y, self.NUM_CLASSES) for y in self.y]
 
     def outputshape(self):
         return self.y_train.shape[-1]
@@ -202,9 +246,8 @@ class BCIIVMultiSubjectClassification(BCIIVMultiSubjectRegression):
 
 class BCISSTAug(BCICompetitionIV2aSingleSubjectClassification):
 
-    SAMPLE_FREQ = 250
     WINDOW = (-0.5, 1.5)
-    EVENT_T = 2.0
+    EVENT_T = 0.5
 
     @staticmethod
     def GENERATOR(*args, **kwargs):

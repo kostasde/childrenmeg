@@ -158,7 +158,10 @@ class AttentionLSTMIn(keras.layers.LSTM):
     """
 
     """
-    def __init__(self, units, alignment_depth: int = 1, alignment_units=None, implementation=2, **kwargs):
+    ATT_STYLES = ['local', 'global']
+
+    def __init__(self, units, alignment_depth: int = 1, style='local', alignment_units=None, implementation=2,
+                 **kwargs):
         implementation = implementation if implementation > 0 else 2
         alignment_depth = max(0, alignment_depth)
         if isinstance(alignment_units, (list, tuple)):
@@ -167,12 +170,24 @@ class AttentionLSTMIn(keras.layers.LSTM):
         else:
             self.alignment_depth = alignment_depth
             self.alignment_units = [alignment_units if alignment_units else units for _ in range(alignment_depth)]
+        if style not in self.ATT_STYLES:
+            raise TypeError('Could not understand style: ' + style)
+        else:
+            self.style = style
         super().__init__(units, implementation=implementation, **kwargs)
 
     def build(self, input_shape):
+        assert len(input_shape) > 2
+        self.samples = input_shape[1]
+        self.channels = input_shape[2]
 
-        # Layer that considers previous state and incoming input, to weight incoming input
-        units = [self.units + input_shape[-1]] + self.alignment_units + [input_shape[-1]]
+        # Alignment function
+        if self.style is self.ATT_STYLES[0]:
+            # local attends over input vector
+            units = [self.units + input_shape[-1]] + self.alignment_units + [self.channels]
+        else:
+            # global attends over the whole sequence for each feature
+            units = [self.units + input_shape[1]] + self.alignment_units + [self.samples]
         self.attention_kernels = [self.add_weight(shape=(units[i-1], units[i]),
                                                 name='attention_kernel_{0}'.format(i),
                                                 initializer=self.kernel_initializer,
@@ -193,17 +208,36 @@ class AttentionLSTMIn(keras.layers.LSTM):
             self.attention_bias = None
         super(AttentionLSTMIn, self).build(input_shape)
 
+    def preprocess_input(self, inputs, training=None):
+        self.input_tensor_hack = inputs
+        return inputs
+
     def step(self, inputs, states):
         h_tm1 = states[0]
 
-        energy = K.concatenate((inputs, h_tm1))
+        if self.style is self.ATT_STYLES[0]:
+            energy = K.concatenate((inputs, h_tm1))
+        elif self.style is self.ATT_STYLES[1]:
+            h_tm1 = K.repeat_elements(K.expand_dims(h_tm1), self.channels, -1)
+            energy = K.concatenate((self.input_tensor_hack, h_tm1), 1)
+            energy = K.permute_dimensions(energy, (0, 2, 1))
+        else:
+            raise NotImplementedError('{0}: not implemented'.format(self.style))
+
         for i, kernel in enumerate(self.attention_kernels):
             energy = K.dot(energy, kernel)
             if self.use_bias:
                 energy = K.bias_add(energy, self.attention_bias[i])
+            energy = self.activation(energy)
+
         alpha = K.softmax(energy)
 
-        inputs = inputs * alpha
+        if self.style is self.ATT_STYLES[0]:
+            inputs = inputs * alpha
+        elif self.style is self.ATT_STYLES[1]:
+            alpha = K.permute_dimensions(alpha, (0, 2, 1))
+            weighted = self.input_tensor_hack * alpha
+            inputs = K.sum(weighted, 1)
 
         return super(AttentionLSTMIn, self).step(inputs, states)
 
@@ -547,6 +581,42 @@ class StackedAutoEncoder(SimpleMLP):
                                   validation_steps=validation_steps, class_weight=class_weight,
                                   max_q_size=max_q_size, workers=workers,
                                   pickle_safe=pickle_safe, initial_epoch=initial_epoch)
+
+
+class AttentionFFN(SimpleMLP):
+
+    NEEDS_FLAT = False
+    PARAM_ATTENTION_PLACEMENT = 'attn_placement'
+
+    def __init__(self, inputshape, outputlength, params=None):
+        Searchable.__init__(self, params=params)
+        Sequential.__init__(self, name=self.__class__.__name__)
+
+        if params is not None:
+            self.lunits = self.parse_layers(params)
+            self.do = params[Searchable.PARAM_DROPOUT]
+            # self.do = 0.4
+        else:
+            params = {}
+            self.lunits = [1024, 512, 128]
+            self.do = 0.4
+
+        placement = params.get(self.PARAM_ATTENTION_PLACEMENT, 0)
+
+        self.add(keras.layers.InputLayer(inputshape))
+        for i, units in enumerate(self.lunits):
+            if placement == i:
+                self.add(Attention())
+            self.add(keras.layers.Dense(units, activation=self.activation))
+            self.add(keras.layers.Dropout(self.do))
+            self.add(keras.layers.BatchNormalization())
+        self.add(keras.layers.Dense(outputlength, activation='softmax'))
+
+    @staticmethod
+    def search_space():
+        space = SimpleMLP.search_space()
+        space[AttentionFFN.PARAM_ATTENTION_PLACEMENT] = hp.quniform(AttentionFFN.PARAM_ATTENTION_PLACEMENT, 0, 3, 1)
+        return space
 
 
 class ShallowFBCSP(SimpleMLP):
@@ -978,13 +1048,15 @@ class AttentionLSTM(Model, Searchable):
             self.lunits = SimpleMLP.parse_layers(params)
             self.do = params[Searchable.PARAM_DROPOUT]
         else:
-            self.lunits = [64*2, 128]
+            self.lunits = [32, 32, 16]
             self.do = 0.4
             params = {}
 
         ret_seq = bool(params.get(SimpleLSTM.PARAM_SEQ, True))
-        att_depth = int(params.get(self.PARAM_ATTEND_DEPTH, 0))
-        steps = int(params.get(self.PARAM_STEPS, 1))
+        temp_layers = int(params.get(SCNN.PARAM_TEMP_LAYERS, 4))
+        att_depth = int(params.get(self.PARAM_ATTEND_DEPTH, 1))
+        attention = int(params.get(self.PARAM_ATTENTION, 32))
+        steps = int(params.get(self.PARAM_STEPS, 2))
         temporal = int(params.get(FBCSP.PARAM_FILTER_TEMPORAL, 25))
         temp_pool = int(params.get(FACNN.PARAM_TEMP_POOL, 5))
 
@@ -998,25 +1070,31 @@ class AttentionLSTM(Model, Searchable):
         for c in convs:
             conv = keras.layers.Conv2D(self.lunits[0]//len(convs), (1, c), activation=self.activation,
                                        kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
-        conv = keras.layers.AveragePooling2D((temp_pool, 1))(conv)
         conv = keras.layers.BatchNormalization()(conv)
+        conv = keras.layers.SpatialDropout2D(self.do)(conv)
+
+        for _ in range(temp_layers):
+            conv = keras.layers.Conv2D(self.lunits[1], (temporal, 1), activation=self.activation,
+                                       use_bias=False,
+                                       kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
+        conv = keras.layers.BatchNormalization()(conv)
+        conv = keras.layers.AveragePooling2D((temp_pool, 1,))(conv)
         conv = keras.layers.SpatialDropout2D(self.do)(conv)
         conv = SqueezeLayer(-2)(conv)
 
-        attn = keras.layers.Bidirectional(AttentionLSTMIn(self.lunits[1],
+        attn = keras.layers.Bidirectional(AttentionLSTMIn(attention,
                                                           implementation=2,
                                                           # dropout=self.do,
                                                           return_sequences=ret_seq,
                                                           alignment_depth=att_depth,
+                                                          style='global',
                                                           # kernel_regularizer=keras.layers.regularizers.l2(self.reg),
                                                           ))(conv)
-        attn = keras.layers.AlphaDropout(self.do)(attn)
-        attn = keras.layers.BatchNormalization()(attn)
-        # attn = Attention(W_regularizer=keras.layers.regularizers.l2(self.reg))(attn)
+        conv = keras.layers.BatchNormalization()(attn)
 
         if ret_seq:
-            attn = keras.layers.Flatten()(attn)
-        outs = attn
+            conv = keras.layers.Flatten()(conv)
+        outs = conv
         for units in self.lunits[2:]:
             outs = keras.layers.Dense(units, activation=self.activation,
                                       kernel_regularizer=keras.layers.regularizers.l2(self.reg))(outs)
@@ -1039,9 +1117,11 @@ class AttentionLSTM(Model, Searchable):
     @staticmethod
     def search_space():
         space = SimpleLSTM.search_space()
+        space[AttentionLSTM.PARAM_ATTENTION] = hp.qloguniform(AttentionLSTM.PARAM_ATTENTION, 1.5, 5.5, 2)
         space[AttentionLSTM.PARAM_ATTEND_DEPTH] = hp.quniform(AttentionLSTM.PARAM_ATTEND_DEPTH, 0, 4, 1)
         space[AttentionLSTM.PARAM_STEPS] = hp.quniform(AttentionLSTM.PARAM_STEPS, 1, 5, 1)
         space[FACNN.PARAM_TEMP_POOL] = hp.quniform(FACNN.PARAM_TEMP_POOL, 2, 20, 2)
+        space[SCNN.PARAM_TEMP_LAYERS] = hp.quniform(SCNN.PARAM_TEMP_LAYERS, 0, 10, 1)
         space[ShallowFBCSP.PARAM_FILTER_TEMPORAL] = hp.qloguniform('_t', 1, 6, 2)
         space[SimpleLSTM.PARAM_SEQ] = hp.choice(SimpleLSTM.PARAM_SEQ, [0, 1])
         space[Searchable.PARAM_LAYERS] = hp.choice(Searchable.PARAM_LAYERS, [
@@ -1254,5 +1334,5 @@ MODELS = [
     # RNN Based
     SimpleLSTM,
     # Attention
-    AttentionLSTM, FACNN, At2DSCNN, ASVM
+    AttentionLSTM, FACNN, At2DSCNN, ASVM, AttentionFFN
 ]
