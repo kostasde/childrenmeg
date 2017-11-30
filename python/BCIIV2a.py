@@ -3,8 +3,7 @@ import h5py
 
 import keras
 from scipy.signal import butter, lfilter
-from scipy.ndimage import convolve1d
-from pandas import ewma
+import pandas as pd
 from keras.preprocessing.image import Iterator as KerasDataloader
 
 from models import TYPE_CLASSIFICATION, TYPE_REGRESSION
@@ -22,10 +21,35 @@ class BCICompetitionIV2aSingleSubjectRegression:
         return (data - data.mean(axis, keepdims=True)) / (data.std(axis, keepdims=True) + 1e-12)
 
     @staticmethod
-    def ewma(data: np.ndarray, axis=1):
-        weights = np.power(-0.999, data.shape[axis] - np.arange(data.shape[axis]))
-        ma = convolve1d(data, weights, axis=axis, mode='constant')
-        return (data - ma) / (1e-12 + np.power(data - ma, 2))
+    def exp_moving_whiten(data: np.ndarray, factor_new=0.001, init_block_size=1000):
+        """
+        This is very inefficent, but need this to properly reproduce previous work.
+
+        Most code in this function taken from:
+        https://github.com/robintibor/braindecode/blob/master/braindecode/datautil/signalproc.py
+        :param data:
+        :param factor_new:
+        :return:
+        """
+        for i in range(data.shape[0]):
+            df = pd.DataFrame(data[i, :, :])
+            meaned = df.ewm(alpha=factor_new).mean()
+            demeaned = df - meaned
+            squared = demeaned * demeaned
+            square_ewmed = squared.ewm(alpha=factor_new).mean()
+            standardized = demeaned / np.maximum(1e-4, np.sqrt(np.array(square_ewmed)))
+            standardized = np.array(standardized)
+            if init_block_size is not None:
+                other_axis = -1
+                init_mean = np.mean(data[i, 0:init_block_size], axis=other_axis,
+                                    keepdims=True)
+                init_std = np.std(data[i, 0:init_block_size], axis=other_axis,
+                                  keepdims=True)
+                init_block_standardized = (data[i, 0:init_block_size] - init_mean) / \
+                                          np.maximum(1e-4, init_std)
+                standardized[0:init_block_size] = init_block_standardized
+                data[i, :, :] = standardized
+        return data
 
     @staticmethod
     def butter_bandpass(lowcut, highcut, fs, order=3):
@@ -60,22 +84,28 @@ class BCICompetitionIV2aSingleSubjectRegression:
 
         self.next_leaveout(force=0)
 
-    def load_subject(self, subject: int):
+    def load_subject(self, subject: int, skip_artifacts=True):
         self.group = self.file['raw/A0{0}'.format(subject)]
 
         self.train = self.group['T']
         self.test = self.group['E']
 
         self.x = np.array(self.train['X'])
+        if skip_artifacts:
+            self.x = self.x[np.logical_not(np.array(self.train.attrs['artifacts']))]
         self.y = np.array(self.train['Y']) - 1
 
         self.x_test = np.array(self.test['X'])
-        self.x_test = self.zscore(self.x_test)
+        if skip_artifacts:
+            self.x_test = self.x_test[np.logical_not(np.array(self.test.attrs['artifacts'])),]
+        # self.x_test = self.zscore(self.x_test)
+        self.x_test = self.exp_moving_whiten(self.x_test)[:, 250:1375, :25]
         # self.x_test = self.butter_bandpass_filter(self.x_test, 0, 38, self.SAMPLE_FREQ)
         self.y_test = np.array(self.test['Y']) - 1
 
         # Whitened/z-scored
-        self.x = self.zscore(self.x)
+        # self.x = self.zscore(self.x)
+        self.x = self.exp_moving_whiten(self.x)[:, 250:1375, :25]
         # self.x = self.butter_bandpass_filter(self.x, 0, 38, self.SAMPLE_FREQ)
 
         preshuffle = np.arange(self.x.shape[0])

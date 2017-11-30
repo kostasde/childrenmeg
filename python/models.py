@@ -457,6 +457,64 @@ class SimpleMLP(Sequential, Searchable):
         }
 
 
+class SlicedFFNN(Searchable, Model):
+
+    TYPE = TYPE_CLASSIFICATION
+    NEEDS_FLAT = False
+
+    def __init__(self, inputlength, outputlength, params=None):
+        Searchable.__init__(self, params=params)
+        # inputlength = np.prod(inputlength)
+        assert len(inputlength) == 2
+
+        if params is not None:
+            self.lunits = SimpleMLP.parse_layers(params)
+            self.do = params[Searchable.PARAM_DROPOUT]
+        else:
+            params = {}
+            self.lunits = [512, 256, 32]
+            self.do = 0.4
+
+        t_pool = int(params.get(FACNN.PARAM_TEMP_POOL, 1))
+        num_layers = len(self.lunits)
+
+        ins = keras.layers.Input(inputlength)
+        td = ins
+
+        for i in range(num_layers//2 + 1):
+            td = keras.layers.TimeDistributed(keras.layers.Dense(self.lunits[i], activation=self.activation,
+                                       kernel_regularizer=keras.regularizers.l2(self.reg)))(td)
+            td = keras.layers.TimeDistributed(keras.layers.Dropout(self.do))(td)
+            td = keras.layers.TimeDistributed(keras.layers.BatchNormalization())(td)
+
+        outs = ExpandLayer()(td)
+        outs = keras.layers.MaxPool2D((t_pool, 1))(outs)
+        outs = keras.layers.Flatten()(outs)
+        # outs = td
+
+        for i in range(num_layers//2 + 1, num_layers):
+            outs = keras.layers.Dense(self.lunits[i], activation=self.activation,
+                                       kernel_regularizer=keras.regularizers.l2(self.reg))(outs)
+            outs = keras.layers.Dropout(self.do)(outs)
+            outs = keras.layers.BatchNormalization()(outs)
+
+        outs = keras.layers.Dense(outputlength, activation='softmax', name='OUT')(outs)
+
+        super(Model, self).__init__(ins, outs, name=self.__class__.__name__)
+
+    def compile(self, **kwargs):
+        extra_metrics = kwargs.pop('metrics', [])
+        super().compile(optimizer=self.opt_param(), loss=keras.losses.categorical_crossentropy,
+                        metrics=[keras.metrics.categorical_crossentropy, keras.metrics.categorical_accuracy,
+                                 *extra_metrics], **kwargs)
+
+    @staticmethod
+    def search_space():
+        space = SimpleMLP.search_space()
+        space[FACNN.PARAM_TEMP_POOL] = hp.quniform(FACNN.PARAM_TEMP_POOL, 1, 10, 1)
+        return space
+
+
 class StackedAutoEncoder(SimpleMLP):
     """
     This encoder trains layer-wise by using Stacked Autoencoders.
@@ -644,7 +702,7 @@ class ShallowFBCSP(SimpleMLP):
             params = {}
             self.temporal = 25
             self.spatial = 25
-            self.lunits = [16, 32]
+            self.lunits = [40, 40]
             self.do = 0.5
         self.filters = int(params.get(self.PARAM_FILTER_LAYERS, 1))
         return params
@@ -759,7 +817,7 @@ class SCNN(Model, Searchable):
 
         temp_layers = int(params.get(self.PARAM_TEMP_LAYERS, 4))
         steps = int(params.get(AttentionLSTM.PARAM_STEPS, 2))
-        temporal = int(params.get(FBCSP.PARAM_FILTER_TEMPORAL, 82))
+        temporal = int(params.get(MyFBCSP.PARAM_FILTER_TEMPORAL, 82))
         temp_pool = int(params.get(FACNN.PARAM_TEMP_POOL, 75))
 
         convs = [inputshape[-1] // steps for _ in range(1, steps)]
@@ -825,38 +883,42 @@ class SCNN(Model, Searchable):
 
 
 # Inspired by PAPER
-class FBCSP(ShallowFBCSP):
+class MyFBCSP(ShallowFBCSP):
 
     def __init__(self, inputshape, outputshape, activation=keras.activations.elu, params=None):
         params = self.setupcnnparams(params)
 
-        # Add dummy channel dimension
-        self.add(ExpandLayer(axis=-1, input_shape=inputshape))
-        # Temporal without using entire channels vector
+        # Build layers
+        # Temporal Filtering
+        self.add(ExpandLayer(input_shape=inputshape))
         self.add(keras.layers.Conv2D(
-            self.lunits[0], (self.temporal, 1),
-            activation=activation, data_format='channels_last'
+            self.lunits[0], (self.temporal, 1), activation='linear', data_format='channels_last',
+            # activity_regularizer=keras.regularizers.l2(self.reg)
         ))
-        self.add(keras.layers.SpatialDropout2D(self.do/2))
-        self.add(keras.layers.MaxPool2D((2, 1)))
+        # self.add(keras.layers.BatchNormalization())
+        # self.add(keras.layers.Dropout(self.do/2,))
+
+        # Spatial Filtering
+        self.add(keras.layers.Conv2D(
+            self.lunits[1], (1, self.spatial), activation='linear', use_bias=False, data_format='channels_last',
+            # activity_regularizer=keras.regularizers.l2(self.reg)
+        ))
+
+        self.add(keras.layers.BatchNormalization())
+        self.add(keras.layers.Activation(K.square))
+        self.add(keras.layers.AveragePooling2D((75, 1), 15))
+        self.add(keras.layers.Activation(lambda x: K.log(K.maximum(x, K.constant(1e-6)))))
+        self.add(keras.layers.Dropout(self.do))
+
+        # Output convolution
+        self.add(keras.layers.Conv2D(
+            10, (27, 1), activation='linear', data_format='channels_last',
+        ))
         self.add(keras.layers.BatchNormalization())
 
-        # Temporal without using entire channels vector
-        self.add(keras.layers.Conv2D(
-            self.lunits[1], (1, self.spatial),
-            activation=activation, data_format='channels_last'
-        ))
-        self.add(keras.layers.SpatialDropout2D(self.do/2))
-        # self.add(keras.layers.MaxPool2D((1, 2)))
-        self.add(keras.layers.BatchNormalization())
-
-        # Classify after temporal filtering
+        # Classifier
         self.add(keras.layers.Flatten())
-        # self.add(keras.layers.Dense(self.lunits[2], activation=activation))
-        # self.add(keras.layers.Dropout(self.do))
-        self.add(keras.layers.Dense(outputshape, activation='linear',
-                                    kernel_regularizer=keras.regularizers.l2(self.reg)))
-        # self.add(keras.layers.Dense(outputshape, activation='softmax'))
+        self.add(keras.layers.Dense(outputshape, activation='softmax', name='OUT'))
 
 
 class SpatialCNN(ShallowFBCSP):
@@ -1057,7 +1119,7 @@ class AttentionLSTM(Model, Searchable):
         att_depth = int(params.get(self.PARAM_ATTEND_DEPTH, 1))
         attention = int(params.get(self.PARAM_ATTENTION, 32))
         steps = int(params.get(self.PARAM_STEPS, 2))
-        temporal = int(params.get(FBCSP.PARAM_FILTER_TEMPORAL, 25))
+        temporal = int(params.get(MyFBCSP.PARAM_FILTER_TEMPORAL, 25))
         temp_pool = int(params.get(FACNN.PARAM_TEMP_POOL, 5))
 
         convs = [inputshape[-1]//steps for _ in range(1, steps)]
@@ -1328,9 +1390,9 @@ MODELS = [
     # Basic Regression
     LinearRegression,
     # Basic Classification
-    LogisticRegression, LinearSVM, SimpleMLP, StackedAutoEncoder,
+    LogisticRegression, LinearSVM, SimpleMLP, StackedAutoEncoder, SlicedFFNN,
     # CNN Based
-    ShallowFBCSP, TCNN, SCNN, FBCSP, SpatialCNN,
+    ShallowFBCSP, TCNN, SCNN, MyFBCSP, SpatialCNN,
     # RNN Based
     SimpleLSTM,
     # Attention
