@@ -84,7 +84,7 @@ class BCICompetitionIV2aSingleSubjectRegression:
 
         self.next_leaveout(force=0)
 
-    def load_subject(self, subject: int, skip_artifacts=True):
+    def load_subject(self, subject: int, skip_artifacts=False):
         self.group = self.file['raw/A0{0}'.format(subject)]
 
         self.train = self.group['T']
@@ -99,13 +99,13 @@ class BCICompetitionIV2aSingleSubjectRegression:
         if skip_artifacts:
             self.x_test = self.x_test[np.logical_not(np.array(self.test.attrs['artifacts'])),]
         # self.x_test = self.zscore(self.x_test)
-        self.x_test = self.exp_moving_whiten(self.x_test)[:, 250:1375, :25]
+        self.x_test = self.exp_moving_whiten(self.x_test)[:, 150:1375, :25]
         # self.x_test = self.butter_bandpass_filter(self.x_test, 0, 38, self.SAMPLE_FREQ)
         self.y_test = np.array(self.test['Y']) - 1
 
         # Whitened/z-scored
         # self.x = self.zscore(self.x)
-        self.x = self.exp_moving_whiten(self.x)[:, 250:1375, :25]
+        self.x = self.exp_moving_whiten(self.x)[:, 150:1375, :25]
         # self.x = self.butter_bandpass_filter(self.x, 0, 38, self.SAMPLE_FREQ)
 
         preshuffle = np.arange(self.x.shape[0])
@@ -185,7 +185,7 @@ class BCICompetitionIV2aSingleSubjectRegression:
 
         return self.GENERATOR(self.x_eval, self.y_eval, batchsize, flatten=flatten, evaluate=True)
 
-    def testset(self, batchsize=None, flatten=True):
+    def testset(self, batchsize=None, flatten=True, shuffle=False):
         """
         Provides a generator object with the current training set
         :param batchsize:
@@ -194,7 +194,8 @@ class BCICompetitionIV2aSingleSubjectRegression:
         if batchsize is None:
             batchsize = self.batchsize
 
-        return self.GENERATOR(self.x_test, self.y_test, batchsize, flatten=flatten, evaluate=True)
+        return self.GENERATOR(self.x_test, self.y_test, batchsize, flatten=flatten, shuffle=shuffle,
+                              evaluate=False, test=True)
 
     def inputshape(self):
         return self.x_train.shape[1:]
@@ -277,7 +278,8 @@ class BCIIVMultiSubjectClassification(BCIIVMultiSubjectRegression):
 class BCISSTAug(BCICompetitionIV2aSingleSubjectClassification):
 
     WINDOW = (-0.5, 1.5)
-    EVENT_T = 0.5
+    EVENT_T = 1.0
+    CROP_VOTE = True
 
     @staticmethod
     def GENERATOR(*args, **kwargs):
@@ -288,6 +290,11 @@ class BCISSTAug(BCICompetitionIV2aSingleSubjectClassification):
 
     def inputshape(self):
         return int(self.SAMPLE_FREQ*(self.WINDOW[1]-self.WINDOW[0])), self.x_train.shape[-1]
+
+    def testset(self, batchsize=None, flatten=True, shuffle=False):
+        return super(BCICompetitionIV2aSingleSubjectClassification, self).testset(
+            batchsize=1, flatten=flatten, shuffle=shuffle
+        )
 
 
 class BCIMSTAug(BCIIVMultiSubjectClassification):

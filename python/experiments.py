@@ -1,8 +1,9 @@
 import argparse
 
-import time
 from sklearn.metrics import confusion_matrix
+from scipy.stats import mode
 from keras.backend import clear_session
+from keras import backend as K
 
 # from models import MODELS
 from MEGDataset import *
@@ -58,7 +59,12 @@ def test(model, dataset, args):
     """
     batchsize = args.batch_size if args.batch_size > 0 else int(model.batchsize)
     ts = dataset.testset(flatten=model.NEEDS_FLAT, batchsize=batchsize)
-    return model.evaluate_generator(ts, np.ceil(ts.n/ts.batch_size), workers=args.workers)
+    iterations = np.ceil(ts.n/ts.batch_size)
+    metrics = []
+    for i in range(int(iterations)):
+        x, y = next(ts)
+        metrics.append(model.evaluate(x, y, batch_size=batchsize))
+    return np.array(metrics).mean(axis=0)
 
 
 def predict(model, dataset, args):
@@ -73,10 +79,36 @@ def predict(model, dataset, args):
     ts = dataset.testset(flatten=model.NEEDS_FLAT, batchsize=batchsize)
     iterations = np.ceil(ts.n/ts.batch_size)
     y_true = []
+    y_pred = []
     for i in range(int(iterations)):
-        _, y = next(ts)
+        x, y = next(ts)
+        y_p = model.predict(x, batch_size=batchsize)
+        if hasattr(dataset, 'CROP_VOTE'):
+            y_p = y_p.mean(axis=0)
+            y = y[0, :]
         y_true.append(y)
-    return np.argmax(model.predict_generator(ts, iterations, workers=args.workers), -1), np.argmax(np.vstack(y_true), -1)
+        y_pred.append(y_p)
+    y_true = np.vstack(y_true).squeeze()
+    y_pred = np.vstack(y_pred).squeeze()
+    assert len(y_pred.shape) == 2 and len(y_true.shape) == 2
+    return np.argmax(y_pred, -1), np.argmax(y_true, -1)
+
+
+def train_filter_visualization(model, args):
+    """
+    This will use gradient ascent to develop inputs that maximize the output of the convolutional filters in the
+    provided model.
+
+    Some of this code taken from: https://blog.keras.io/how-convolutional-neural-networks-see-the-world.html
+    :param model:
+    :param args:
+    :return:
+    """
+    location = args.visualization
+    layer_dict = dict([(layer.name, layer) for layer in model.layers])
+
+    conv_dict = dict([(layer.name, layer) for layer in layer_dict if 'conv' in layer])
+    print("Calculating max-activations for layers:", conv_dict.keys())
 
 
 def print_metrics(metrics, predictions, args):
@@ -94,6 +126,7 @@ def print_metrics(metrics, predictions, args):
     mean = np.mean(metrics, axis=0)
     stddev = np.std(metrics, axis=0)
     cm = []
+    acc_true = []
     for i, m in enumerate([model.loss, *model.metrics]):
         if hasattr(m, '__name__'):
             print(m.__name__)
@@ -113,11 +146,16 @@ def print_metrics(metrics, predictions, args):
                 y_true = y_true[:min((len(y_true), len(y_pred)))]
             c = confusion_matrix(y_true, y_pred)
             cm.append(c)
+            acc_true.append(np.mean(y_pred == y_true))
             print(c)
             print('-' * 100)
         print('-' * 100)
         print('Mean:')
         print(np.array(cm).mean(axis=0))
+        print('=' * 100)
+        print('True Accuracy:')
+        print(acc_true)
+        print('=' * 100)
     print('=' * 100)
 
 DATASETS = {
@@ -191,8 +229,8 @@ if __name__ == '__main__':
     # Callbacks
     callbacks = [keras.callbacks.ReduceLROnPlateau(verbose=1, patience=args.patience//5, factor=0.5, epsilon=0.05), ]
     if args.tensorboard:
-        callbacks += [keras.callbacks.TensorBoard(log_dir='./logs/{0}/{1}/f1'.format(args.model, args.dataset),
-                                                  write_images=True)]
+        callbacks += [keras.callbacks.TensorBoard(log_dir='./logs/{0}/{1}/f{2}'.format(args.model, args.dataset,
+                                                                                       args.fold), write_images=True)]
     if not args.no_early_stopping:
         callbacks += [
             keras.callbacks.EarlyStopping(min_delta=0.005, verbose=1, mode='min', patience=args.patience//2),

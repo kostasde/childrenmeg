@@ -126,9 +126,13 @@ class SqueezeLayer(ExpandLayer):
 
 class ProjectionLayer(keras.layers.Layer):
 
-    def __init__(self, gridsize=100, **kwargs):
+    def __init__(self, gridsize=50, dev=None, **kwargs):
         super().__init__(**kwargs)
         self.gridsize = gridsize
+        if dev is None or dev <= 0:
+            self.dev = None
+        else:
+            self.dev = dev
 
     def build(self, input_shape):
         # Placeholder and constant tensors
@@ -146,6 +150,13 @@ class ProjectionLayer(keras.layers.Layer):
         assert len(inputs) == 2
         data = inputs[0]
         locs = inputs[1]
+
+        # Stretch locations to fit grid
+        locs *= self.gridsize / 2
+        locs += self.gridsize / 2
+        # Apply sensor noise if specified
+        if self.dev is not None:
+            locs += K.truncated_normal(locs.get_shape()[1].value, stddev=self.dev)
 
         distance = K.sqrt(K.sum(K.pow(K.expand_dims(locs, 1) - K.expand_dims(self.gridpoints, 1), 2), axis=-1))
         loc_mask = K.one_hot(K.argmin(distance), locs.get_shape()[1].value)
@@ -921,45 +932,75 @@ class MyFBCSP(ShallowFBCSP):
         self.add(keras.layers.Dense(outputshape, activation='softmax', name='OUT'))
 
 
-class SpatialCNN(ShallowFBCSP):
+class SpatialCNN(SCNN):
     PARAM_GRIDLEN = 'grid_length'
 
     def __init__(self, inputshape, outputshape, activation=keras.activations.relu, params=None):
-        params = self.setupcnnparams(params)
+        Searchable.__init__(self, params=params)
+        if params is not None:
+            if isinstance(params[SimpleMLP.PARAM_LAYERS], int):
+                params[SimpleMLP.PARAM_LAYERS] += 1
+            self.lunits = SimpleMLP.parse_layers(params)
+            self.do = params[Searchable.PARAM_DROPOUT]
+        else:
+            self.lunits = [36, 128, 64, 256, 128]
+            self.do = 0.5
+            params = {}
+
+        temp_layers = int(params.get(self.PARAM_TEMP_LAYERS, 4))
+        steps = int(params.get(AttentionLSTM.PARAM_STEPS, 2))
+        temporal = int(params.get(MyFBCSP.PARAM_FILTER_TEMPORAL, 82))
+        temp_pool = int(params.get(FACNN.PARAM_TEMP_POOL, 75))
+        grid = int(params.get(self.PARAM_GRIDLEN, 20))
+
+        convs = [grid // steps for _ in range(1, steps)]
+        convs += [grid - sum(convs) + len(convs)]
 
         # Make the interpolated image
         signal_in = keras.layers.Input(shape=inputshape)
         # 2 comes from 2D locations
         locs_in = keras.layers.Input(shape=(inputshape[-1], 2))
-        tempconv = ExpandLayer()(signal_in)
+        # conv = ExpandLayer()(signal_in)
+        conv = signal_in
+
+        # 2D Spatial filtering
+        conv = ExpandLayer()(ProjectionLayer(gridsize=grid)([conv, locs_in]))
+        for c in convs:
+            conv = keras.layers.Conv3D(self.lunits[0] // len(convs), (1, c, c), activation=self.activation,
+                                       use_bias=False,
+                                       kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
+        conv = keras.layers.BatchNormalization()(conv)
+        conv = keras.layers.SpatialDropout3D(self.do)(conv)
+        conv = SqueezeLayer(-2)(conv)
+        conv = SqueezeLayer(-2)(conv)
+        conv = ExpandLayer()(conv)
 
         # Temporal Convolution
-        tempconv = keras.layers.Conv2D(1, (self.temporal, 1), activation=activation, data_format='channels_last', )(tempconv)
-        tempconv = keras.layers.normalization.BatchNormalization()(tempconv)
-        tempconv = keras.layers.MaxPool2D(pool_size=(4, 1), data_format='channels_last')(tempconv)
-        tempconv = keras.layers.SpatialDropout2D(self.do/2, data_format='channels_last')(tempconv)
-        tempconv = SqueezeLayer()(tempconv)
+        for _ in range(temp_layers):
+            conv = keras.layers.Conv2D(self.lunits[0], (temporal, 1), activation=self.activation,
+                                       use_bias=False,
+                                       kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
+        conv = keras.layers.BatchNormalization()(conv)
+        conv = keras.layers.AveragePooling2D((temp_pool, 1,))(conv)
+        conv = keras.layers.SpatialDropout2D(self.do)(conv)
 
-        # Start with 2D Spatial filtering, up to a possible 3 layers
-        conv = ExpandLayer()(ProjectionLayer(gridsize=50)([tempconv, locs_in]))
-        for units in self.lunits[:self.filters]:
-            conv = keras.layers.Conv3D(units, (1, self.spatial, self.spatial), activation=activation, data_format='channels_last',)(conv)
-            conv = keras.layers.normalization.BatchNormalization()(conv)
-            conv = keras.layers.MaxPool3D(pool_size=(1, 2, 2), data_format='channels_last')(conv)
-            conv = keras.layers.SpatialDropout3D(self.do, data_format='channels_last')(conv)
+        outs = keras.layers.Flatten()(conv)
 
         # Classifier
-        output = keras.layers.Flatten()(conv)
-        for units in self.lunits[self.filters:]:
-            output = keras.layers.Dense(units, activation=activation)(output)
-            output = keras.layers.BatchNormalization()(output)
-            output = keras.layers.Dropout(self.do)(output)
-
-        output = keras.layers.Dense(outputshape, activation='softmax', name='OUT')(output)
-        # output = keras.layers.Dense(outputshape, activation='linear',
-        #                              kernel_regularizer=keras.regularizers.l2(self.reg))(output)
+        for units in self.lunits[2:]:
+            outs = keras.layers.Dense(units, activation=self.activation,
+                                      kernel_regularizer=keras.layers.regularizers.l2(self.reg))(outs)
+            outs = keras.layers.BatchNormalization()(outs)
+            outs = keras.layers.Dropout(self.do*2)(outs)
+        output = keras.layers.Dense(outputshape, activation='softmax')(outs)
 
         super(Model, self).__init__([signal_in, locs_in], [output])
+        
+    @staticmethod
+    def search_space():
+        space = SCNN.search_space()
+        space[SpatialCNN.PARAM_GRIDLEN] = hp.quniform(SpatialCNN.PARAM_GRIDLEN, 10, 50, 5)
+        return space
 
 
 class At2DSCNN(ShallowFBCSP):
@@ -1019,17 +1060,6 @@ class At2DSCNN(ShallowFBCSP):
         #                              kernel_regularizer=keras.regularizers.l2(self.reg))(output)
 
         super(Model, self).__init__([signal_in, locs_in], [output])
-
-    def compile(self, **kwargs):
-        extra_metrics = kwargs.pop('metrics', [])
-        def next_2(y_true, y_pred):
-            return K.mean(K.abs(K.argmax(y_true) - K.argmax(y_pred)) <= 1)
-        super(SimpleMLP, self).compile(optimizer=self.opt_param(), loss=keras.losses.categorical_crossentropy,
-                                       metrics=[keras.metrics.categorical_crossentropy,
-                                                keras.metrics.categorical_accuracy,
-                                                next_2,
-                                                *extra_metrics], **kwargs)
-
 
     @staticmethod
     def search_space():

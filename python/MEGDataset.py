@@ -11,7 +11,7 @@ from keras.preprocessing.image import Iterator as KerasDataloader
 from cachetools import cached, RRCache
 from abc import ABCMeta, abstractmethod
 from scipy.io import loadmat
-from scipy import interpolate
+from scipy.stats import truncnorm
 from pathlib import Path
 
 PREV_EVAL_FILE = 'preprocessed.pkl'
@@ -102,7 +102,7 @@ class SubjectFileLoader(KerasDataloader):
     """
 
     def __init__(self, x, toplevel, longest_vector, subject_hash, target_cols, slice_length, f_loader, batchsize=-1,
-                 flatten=True, shuffle=True, seed=None, evaluate=False):
+                 flatten=True, shuffle=True, seed=None, evaluate=False, test=False):
 
         self.x = np.asarray(x)
         self.toplevel = toplevel
@@ -113,6 +113,7 @@ class SubjectFileLoader(KerasDataloader):
         self.f_loader = f_loader
         self.flatten = flatten
         self.evaluate = evaluate
+        self.test = test
 
         if batchsize < 0:
             batchsize = x.shape[0]
@@ -168,7 +169,7 @@ class TemporalAugmentation(SubjectFileLoader):
 
     Temporal augmentation implies the inflation of datapoints by selecting different temporal crops of the data.
     """
-    SUPPORTED_CROPS = ['uniform']
+    SUPPORTED_CROPS = ['uniform', 'normal']
 
     # TODO Replace this with a keras layer so that this is implemented in GPU for speedup and consistency
     def __init__(self, loader: SubjectFileLoader, fs: int, window=(-0.5, 1.5), event_t: float=0.5, cropstyle='uniform'):
@@ -212,20 +213,30 @@ class TemporalAugmentation(SubjectFileLoader):
             # TODO see if this redundant operation can be removed
             x = x.reshape((x.shape[0], -1, self.slice_length))
 
-        x_new = np.zeros((x.shape[0], int(self.croplen), *x.shape[2:]))
+        crops = int(x.shape[1] - self.croplen)
 
         # select resampling offset and starting point
-        if not self.evaluate:
-            if self.cropstyle == 'uniform':
-                crops = int(x.shape[1] - self.croplen)
-                starts = np.random.choice(np.arange(crops), size=x.shape[0]).astype(int)
+        if not self.test:
+            x_new = np.zeros((x.shape[0], int(self.croplen), *x.shape[2:]))
+            if not self.evaluate:
+                if self.cropstyle == 'uniform':
+                    starts = np.random.choice(np.arange(crops), size=x.shape[0]).astype(int)
+                elif self.cropstyle == 'normal':
+                    a, b = (0 - self.eval_start) / self.croplen/2, (x.shape[1]-self.croplen-1 - self.eval_start) / self.croplen/2
+                    starts = truncnorm.rvs(a, b, loc=self.eval_start, scale=self.croplen/2, size=x.shape[0]).astype(int)
+                else:
+                    starts = np.zeros(x.shape[0])
+                for i, s in enumerate(starts):
+                    x_new[i, :] = x[i, s:s+self.croplen, :]
             else:
-                starts = np.zeros(x.shape[0])
-            for i, s in enumerate(starts):
-                x_new[i, :] = \
-                    x[i, s:s+self.croplen, :]
+                x_new = x[:, self.eval_start:self.eval_end, :]
         else:
-            x_new = x[:, self.eval_start:self.eval_end, :]
+            # Testing should be done by inflating the number of crops, so output can be voted/averaged
+            x_new = np.zeros((x.shape[0]*crops, self.croplen, *x.shape[2:]))
+            for i in range(x.shape[0]):
+                for j in range(crops):
+                    x_new[i*crops + j, :, :] = x[i, j:j+self.croplen, :]
+            y = np.repeat(y, crops, axis=0)
 
         if self.loader.flatten:
             x = x_new.reshape((x.shape[0], -1))
@@ -460,7 +471,7 @@ class BaseDataset:
         return self.GENERATOR(self.eval_points, self.toplevel, self.longest_vector, self.subject_hash, self.DATASET_TARGETS,
                               self.slice_length, self.get_features, batchsize=batchsize, flatten=flatten, evaluate=True)
 
-    def testset(self, batchsize=None, flatten=True):
+    def testset(self, batchsize=None, flatten=True, shuffle=False):
         """
         Provides a generator object with the current training set
         :param batchsize:
@@ -469,8 +480,9 @@ class BaseDataset:
         if batchsize is None:
             batchsize = self.batchsize
 
-        return self.GENERATOR(self.testpoints, self.toplevel, self.longest_vector, self.subject_hash, self.DATASET_TARGETS,
-                              self.slice_length, self.get_features, batchsize=batchsize, flatten=flatten, evaluate=True)
+        return self.GENERATOR(self.testpoints, self.toplevel, self.longest_vector, self.subject_hash,
+                              self.DATASET_TARGETS, self.slice_length, self.get_features, batchsize=batchsize,
+                              flatten=flatten, evaluate=False, test=True, shuffle=shuffle)
 
     def inputshape(self):
         return int(self.longest_vector // self.slice_length), self.slice_length
@@ -695,6 +707,7 @@ class FusionRawRanges(FusionAgeRangesDataset):
 class MEGRawRangesTA(MEGRawRanges):
 
     SAMPLE_FREQ = 200
+    CROP_VOTE = True
 
     @staticmethod
     def GENERATOR(*args, **kwargs):
@@ -714,7 +727,7 @@ class MEGRawRangesSA(MEGRawRanges):
         CHAN_LOCS_FILE = 'chanlocs.csv'
 
         @staticmethod
-        def chan_locations(toplevel, subject, grid):
+        def chan_locations(toplevel, subject):
             cls = MEGRawRangesSA.SpatialChannelAugmentationLoader
             if subject in cls.LOCATION_LOOKUP.keys():
                 return cls.LOCATION_LOOKUP[subject]
@@ -729,16 +742,8 @@ class MEGRawRangesSA(MEGRawRanges):
                         print(5 * ' ', i)
                     print('Using, ', l[0])
 
-                cls.LOCATION_LOOKUP[subject] = utils.chan2spatial((l[0] / cls.CHAN_LOCS_FILE), grid=grid)
+                cls.LOCATION_LOOKUP[subject] = utils.chan2spatial((l[0] / cls.CHAN_LOCS_FILE))
                 return cls.LOCATION_LOOKUP[subject]
-
-        def __init__(self, x, toplevel, longest_vector, subject_hash, target_cols, slice_length, f_loader,
-                     cov=1e-2 * np.eye(2), gridsize=GRID_SIZE, **kwargs):
-            super(BaseDatasetAgeRanges.AgeSubjectLoader, self).__init__(
-                x, toplevel, longest_vector, subject_hash, target_cols, slice_length, f_loader, **kwargs
-            )
-            self.cov = cov
-            self.gridsize = gridsize
 
         def _load(self, index_array, batch_size, **kwargs):
             x, y = super(MEGRawRangesSA.SpatialChannelAugmentationLoader, self)._load(index_array, batch_size)
@@ -748,15 +753,7 @@ class MEGRawRangesSA(MEGRawRanges):
             locs = np.zeros((batch_size, x.shape[-1], 2))
 
             for i, subject in enumerate(subject_labels):
-                l = MEGRawRangesSA.SpatialChannelAugmentationLoader.chan_locations(
-                    self.toplevel, subject, grid=self.gridsize
-                )
-
-                # apply the noise to it if not evaluation
-                if not self.evaluate:
-                    l += np.random.multivariate_normal([0, 0], self.cov, l.shape[0])
-
-                locs[i] = l
+                locs[i] = MEGRawRangesSA.SpatialChannelAugmentationLoader.chan_locations(self.toplevel, subject)
 
             return [x, locs], y
 

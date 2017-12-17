@@ -9,10 +9,11 @@ from models import TYPE_CLASSIFICATION, TYPE_REGRESSION
 
 class ArrayFeeder(KerasDataloader):
 
-    def __init__(self, x, y, batchsize, shuffle=True, seed=None, flatten=True, evaluate=False):
+    def __init__(self, x, y, batchsize, shuffle=True, seed=None, flatten=True, evaluate=False, test=False):
         self.x, self.y = x, y
         self.flatten = flatten
         self.evaluate = evaluate
+        self.test = test
         super().__init__(n=x.shape[0], batch_size=batchsize, shuffle=shuffle, seed=seed)
 
     def __next__(self):
