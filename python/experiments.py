@@ -316,9 +316,9 @@ if __name__ == '__main__':
                 print('Loading model from', str(f))
                 model.load_weights(f)
                 print('Loaded previous weights!')
-                # metrics.append(test(model, dataset, args))
-                # if args.confusion_matrix:
-                #     predictions.append(predict(model, dataset, args))
+                metrics.append(test(model, dataset, args))
+                if args.confusion_matrix:
+                    predictions.append(predict(model, dataset, args))
                 if args.activ_vis:
                     train_filter_visualization(model, args)
                 if dataset.next_leaveout() is None:
