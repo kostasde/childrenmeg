@@ -1,4 +1,5 @@
 import argparse
+import utils
 
 from sklearn.metrics import confusion_matrix
 from scipy.stats import mode
@@ -104,11 +105,46 @@ def train_filter_visualization(model, args):
     :param args:
     :return:
     """
-    location = args.visualization
+    location = Path(args.activ_vis)
+    max_activations = {}
     layer_dict = dict([(layer.name, layer) for layer in model.layers])
 
-    conv_dict = dict([(layer.name, layer) for layer in layer_dict if 'conv' in layer])
+    conv_dict = dict([(layer, layer_dict[layer]) for layer in layer_dict if 'conv' in layer])
     print("Calculating max-activations for layers:", conv_dict.keys())
+    for layer in sorted(conv_dict.keys()):
+        print("Looking at layer:", layer)
+        max_activations[layer] = []
+        # K.set_learning_phase(0)
+        layer_output = conv_dict[layer].output
+        for filter_index in range(layer_output._keras_shape[-1]):
+            print('Filter: {0}/{1}'.format(filter_index+1, layer_output._keras_shape[-1]))
+            loss = K.mean(layer_output[..., filter_index]) - 0.05*K.mean(K.square(model.input))
+            grads = K.gradients(loss, model.input)[0]
+            grads /= (K.sqrt(K.mean(K.square(grads))) + K.constant(1e-5))
+
+            # this function returns the loss and grads given the input picture
+            iterate = K.function([model.input, K.learning_phase()], [loss, grads])
+
+            # Create a noise input signal
+            in_data = utils.pink_noise(model.input._keras_shape[1:])[np.newaxis, :]
+
+            print('Maximizing Activation')
+            patience = 5
+            best = -np.inf
+            while patience > 0:
+                loss_value, grads_value = iterate([in_data, 0])
+                # print('Loss:', loss_value)
+                in_data += grads_value * 0.2
+                if loss_value > best:
+                    best = loss_value
+                    patience = 5
+                else:
+                    patience -= 1
+            else:
+                print('Best Loss:', best)
+            max_activations[layer].append(in_data.squeeze())
+        print('Saving to ', str(location))
+        pickle.dump(max_activations, location.open('wb'))
 
 
 def print_metrics(metrics, predictions, args):
@@ -221,6 +257,8 @@ if __name__ == '__main__':
     parser.add_argument('--no-early-stopping', action='store_true', help='Disable early stopping while preserving the '
                                                                          'patience measure for LR reduction.')
     parser.add_argument('--null-hyp', action='store_true', help='Run a test with initial state weights')
+    parser.add_argument('--activ-vis', default=None, help='Location to save the inputs for maximal activations for '
+                                                          'each convolution layer.')
     args = parser.parse_args()
 
     # Load the appropriate dataset, considering whether it is regression or classification
@@ -278,9 +316,11 @@ if __name__ == '__main__':
                 print('Loading model from', str(f))
                 model.load_weights(f)
                 print('Loaded previous weights!')
-                metrics.append(test(model, dataset, args))
-                if args.confusion_matrix:
-                    predictions.append(predict(model, dataset, args))
+                # metrics.append(test(model, dataset, args))
+                # if args.confusion_matrix:
+                #     predictions.append(predict(model, dataset, args))
+                if args.activ_vis:
+                    train_filter_visualization(model, args)
                 if dataset.next_leaveout() is None:
                     break
                 # Ensure GPU removes current model
@@ -324,8 +364,8 @@ if __name__ == '__main__':
         if args.save_model_params is not None:
             callbacks[-1] = keras.callbacks.ModelCheckpoint(str(args.save_model_params /
                                                                 'Fold-{0}-weights.hdf5'.format(fold)),
-                                                            verbose=1, save_best_only=True,
-                                                            monitor='val_categorical_crossentropy')
+                                                            verbose=1, save_best_only=True,)
+                                                            # monitor='val_categorical_crossentropy')
         metrics.append(train_and_test(model_maker, dataset, args, callbacks=callbacks))
 
         if not args.cross_validation or not dataset.next_leaveout():

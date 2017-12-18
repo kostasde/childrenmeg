@@ -238,6 +238,23 @@ def chan2spatial(chanlocfile, coordsystem='sphere', channels=(range(36, 187))):
     return locs
 
 
+def pink_noise(shape, cutoff_f=None):
+    """
+    Create noise that has spectral activity decrease with 1/f
+    :param shape:
+    :param cutoff_f: enforce a cut-off frequency
+    :return:
+    """
+    uneven = shape[0] % 2
+    x = np.random.randn(shape[0]//2 + 1 + uneven, *shape[1:]) + 1j*np.random.rand(shape[0]//2 + 1 + uneven, *shape[1:])
+    S = np.sqrt(np.arange(x.shape[0]) + 1.)[:, np.newaxis]
+    x[0, :] = 0.0
+    y = np.real(np.fft.irfft(x/S, axis=0))
+    if uneven:
+        y = y[:-1]
+    return y
+
+
 # def animated(x, samplefreq=200):
 #     """
 #     Provides an animated plot of the data provided in x

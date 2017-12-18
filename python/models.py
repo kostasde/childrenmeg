@@ -291,7 +291,7 @@ class Searchable:
 
     def opt_param(self):
         if self.optimizer is keras.optimizers.adam:
-            return keras.optimizers.Adam(self.lr)
+            return keras.optimizers.Adam()
         elif self.optimizer is keras.optimizers.sgd:
             return keras.optimizers.SGD(self.lr, self.momentum, nesterov=True)
         elif callable(self.optimizer) and isinstance(self.optimizer(), keras.optimizers.Optimizer):
@@ -325,9 +325,7 @@ class LinearRegression(Sequential, Searchable):
         ], 'Linear Regression')
 
     def compile(self, **kwargs):
-        extra_metrics = []
-        if 'metrics' in kwargs.keys():
-            extra_metrics = kwargs['metrics']
+        extra_metrics = kwargs.pop('metrics', [])
         super().compile(optimizer=self.opt_param(), loss=keras.losses.mean_squared_error,
                         metrics=[keras.metrics.mse, keras.metrics.mae, *extra_metrics], **kwargs)
 
