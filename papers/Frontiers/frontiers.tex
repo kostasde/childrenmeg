@@ -291,16 +291,16 @@ The correlation of a single ICA component has correlation coefficients $\text{ab
   \label{tab:reg_results}
   \begin{tabular}{| l | c | c | c | c |}
     \toprule
-    \multicolumn{1}{l}{\textbf{Feature set}} & \multicolumn{1}{c}{\textbf{RMSE Mean}} & \multicolumn{1}{c}{\textbf{RMSE Variance} & \multicolumn{1}{c}{\textbf{MAE Mean}} & \multicolumn{1}{c}{\textbf{MAE Variance}} \\
+    \textbf{Feature set} & \textbf{RMSE Mean} & \textbf{RMSE Variance} & \textbf{MAE Mean} & \textbf{MAE Variance}       \\
     \toprule
         Audio~~~                             & ~~~$4.59$         &     $0.45$     & ~~~$3.34$         &     $0.37$       \\
-        MEG~~~                               & ~~~$4.896$         &     $0.234$     & ~~~$4.103$         &     $0.473$       \\
-        Audio+MEG~~~                         & ~~~$4.109$         &     $0.244$     & ~~~$4.103$         &     $0.473$       \\
+        MEG~~~                               & ~~~$19.0$         &     $16.5$     & ~~~$9.96$         &     $7.86$       \\
+        Audio+MEG~~~                         & ~~~$63.7$         &     $61.0$     & ~~~$63.7$         &     $61.0$       \\
 
         \midrule
        
-        MEG (red.)~~~                        & ~~~$5.081$         &     0.142        & ~~~$4.103$         &     $0.473$      \\
-        Audio+MEG (red.)~~~                  & ~~~\textbf{3.370}  &     $0.248$      & ~~~$4.103$         &     $0.473$      \\
+        MEG (red.)~~~                        & ~~~$5.51$         &     $2.12$    & ~~~$3.28$          &     $0.30$       \\
+        Audio+MEG (red.)~~~                  & ~~~\textbf{2.97}  &     $2.05$    & ~~~\textbf{2.97}         &     $2.05$      \\
 
     \hline
   \end{tabular}
@@ -361,6 +361,10 @@ Table \ref{tab:reg_results} shows the means and variances of root mean squared e
                          & LSTM + Attention    & 26.3 & 2.07  \\ 
                          & SCNN                & 26.7 & 5.76  \\
     \midrule
+    \multirow{3}{*}{Spatial Projection}
+                         & LSTM + Attention    & NaN & NaN  \\ 
+                         & SCNN                & 21.9 & 2.20  \\
+    \midrule
     \multirow{3}{*}{Spatial Augmentation}
                          & LSTM + Attention    & NaN & NaN  \\ 
                          & SCNN                & NaN & NaN  \\
@@ -388,7 +392,7 @@ Table \ref{tab:reg_results} shows the means and variances of root mean squared e
     \midrule
     \multirow{3}{*}{Temporal Augmentation}
                          & FBCSP-CNN           & 65.6 & 12.2  \\
-                         & SCNN                & NaN & NaN  \\
+                         & SCNN                & 35.1 & 14.2  \\
                          & LSTM + Attention    & 66.6 & 17.1  \\ 
     \bottomrule
   \end{tabular}

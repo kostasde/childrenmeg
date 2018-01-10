@@ -39,6 +39,7 @@ if MEG_COLUMNS.exists():
     megind = np.load(str(MEG_COLUMNS))
 else:
     megind = None
+megind = None
 
 
 def random_slices(dataset: np.ndarray, sizeofslices=(0.1, 0.9)):
@@ -272,8 +273,8 @@ class BaseDataset:
         # return loadmat(path_to_file, squeeze_me=True)['features'].ravel()
         l = np.load(path_to_file[0])
         #
-        # if megind is not None:
-        #     l = l[:, megind].squeeze()
+        if megind is not None:
+            l = l[:, megind].squeeze()
 
         # l = zscore(l)
         return l
@@ -350,6 +351,9 @@ class BaseDataset:
                 # ind = np.random.choice(ind, replace=False, size=int(0.2*numpoints)
             self.print_folds(self.buckets)
 
+        if megind is not None:
+            self.slice_length = len(megind)
+            self.longest_vector = len(megind)*79
         self.next_leaveout(force=0)
 
 
@@ -502,11 +506,11 @@ class BaseDatasetAgeRanges(BaseDataset, metaclass=ABCMeta):
     AGE_12_13 = (12, 14)
     AGE_14_15 = (14, 16)
     AGE_16_18 = (16, 19)
-    # AGE_RANGES = [AGE_4_5, AGE_6_7, AGE_8_9, AGE_10_11, AGE_12_13, AGE_14_15, AGE_16_18]
+    AGE_RANGES = [AGE_4_5, AGE_6_7, AGE_8_9, AGE_10_11, AGE_12_13, AGE_14_15, AGE_16_18]
 
     AGE_4_9 = (4, 10)
     AGE_10_18 = (10, 19)
-    AGE_RANGES = [AGE_4_9, AGE_10_18]
+    # AGE_RANGES = [AGE_4_9, AGE_10_18]
 
     AGE_DISTRIBUTION = False
 

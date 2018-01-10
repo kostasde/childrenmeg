@@ -99,13 +99,13 @@ class BCICompetitionIV2aSingleSubjectRegression:
         if skip_artifacts:
             self.x_test = self.x_test[np.logical_not(np.array(self.test.attrs['artifacts'])),]
         # self.x_test = self.zscore(self.x_test)
-        self.x_test = self.exp_moving_whiten(self.x_test)[:, 150:1375, :25]
+        self.x_test = self.exp_moving_whiten(self.x_test)[:, 200:1375, :25]
         # self.x_test = self.butter_bandpass_filter(self.x_test, 0, 38, self.SAMPLE_FREQ)
         self.y_test = np.array(self.test['Y']) - 1
 
         # Whitened/z-scored
         # self.x = self.zscore(self.x)
-        self.x = self.exp_moving_whiten(self.x)[:, 150:1375, :25]
+        self.x = self.exp_moving_whiten(self.x)[:, 200:1375, :25]
         # self.x = self.butter_bandpass_filter(self.x, 0, 38, self.SAMPLE_FREQ)
 
         preshuffle = np.arange(self.x.shape[0])
@@ -278,7 +278,7 @@ class BCIIVMultiSubjectClassification(BCIIVMultiSubjectRegression):
 class BCISSTAug(BCICompetitionIV2aSingleSubjectClassification):
 
     WINDOW = (-0.5, 1.5)
-    EVENT_T = 1.0
+    EVENT_T = 0.75
     CROP_VOTE = True
 
     @staticmethod

@@ -8,7 +8,10 @@ import shutil
 from pathlib import Path
 import numpy as np
 import pandas as pd
+
+from mne.viz import plot_topomap
 from plumbum import cli, local, colors, TEE, FG, ProcessExecutionError, ProcessTimedOut
+
 #import matlab.engine as mtlb
 #from wavelets import extractwaveletcoef
 
@@ -254,6 +257,10 @@ def pink_noise(shape, cutoff_f=None):
         y = y[:-1]
     return y
 
+
+# def interpolated_image(weights, layout='../CTF151.npy', gridsize=100):
+#
+#
 
 # def animated(x, samplefreq=200):
 #     """

@@ -291,7 +291,7 @@ class Searchable:
 
     def opt_param(self):
         if self.optimizer is keras.optimizers.adam:
-            return keras.optimizers.Adam()
+            return keras.optimizers.Adam(self.lr)
         elif self.optimizer is keras.optimizers.sgd:
             return keras.optimizers.SGD(self.lr, self.momentum, nesterov=True)
         elif callable(self.optimizer) and isinstance(self.optimizer(), keras.optimizers.Optimizer):
@@ -349,9 +349,6 @@ class LinearRegression(Sequential, Searchable):
 
 
 class LogisticRegression(Sequential, Searchable):
-    """
-        Simple Linear Regression model
-        """
 
     TYPE = TYPE_CLASSIFICATION
 
@@ -806,7 +803,6 @@ class TCNN(ShallowFBCSP):
         self.add(keras.layers.Dense(outputshape, activation='softmax'))
 
 
-# Probably not used for testing
 class SCNN(Model, Searchable):
 
     TYPE = TYPE_CLASSIFICATION
