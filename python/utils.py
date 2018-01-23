@@ -248,6 +248,10 @@ def pink_noise(shape, cutoff_f=None):
     :param cutoff_f: enforce a cut-off frequency
     :return:
     """
+    single_dims = tuple(i for i, n in enumerate(shape) if n == 1)
+    shape = list(shape)
+    for d in single_dims:
+        shape.pop(d)
     uneven = shape[0] % 2
     x = np.random.randn(shape[0]//2 + 1 + uneven, *shape[1:]) + 1j*np.random.rand(shape[0]//2 + 1 + uneven, *shape[1:])
     S = np.sqrt(np.arange(x.shape[0]) + 1.)[:, np.newaxis]
@@ -255,6 +259,8 @@ def pink_noise(shape, cutoff_f=None):
     y = np.real(np.fft.irfft(x/S, axis=0))
     if uneven:
         y = y[:-1]
+    for d in single_dims:
+        y = np.expand_dims(y, axis=d)
     return y
 
 

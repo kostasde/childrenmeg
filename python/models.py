@@ -125,14 +125,16 @@ class SqueezeLayer(ExpandLayer):
 
 
 class ProjectionLayer(keras.layers.Layer):
+    """
+    Layer that projects N values, with N (x, y) coordinates across a square grid of a provided size.
+    If deviation is provided, it should be as a proportion of gridsize. So a deviation of 0.1, will mean the locations
+    will have guassian noise with 0.1*gridsize (10% deviation in location).
+    """
 
     def __init__(self, gridsize=50, dev=None, **kwargs):
         super().__init__(**kwargs)
         self.gridsize = gridsize
-        if dev is None or dev <= 0:
-            self.dev = None
-        else:
-            self.dev = dev
+        self.dev = abs(dev) if dev is not None else None
 
     def build(self, input_shape):
         # Placeholder and constant tensors
@@ -156,7 +158,7 @@ class ProjectionLayer(keras.layers.Layer):
         locs += self.gridsize / 2
         # Apply sensor noise if specified
         if self.dev is not None:
-            locs += K.truncated_normal(locs.get_shape()[1].value, stddev=self.dev)
+            locs += K.truncated_normal(locs.get_shape()[1:], stddev=self.dev*self.gridsize)
 
         distance = K.sqrt(K.sum(K.pow(K.expand_dims(locs, 1) - K.expand_dims(self.gridpoints, 1), 2), axis=-1))
         loc_mask = K.one_hot(K.argmin(distance), locs.get_shape()[1].value)
@@ -832,16 +834,16 @@ class SCNN(Model, Searchable):
 
         conv = ExpandLayer()(ins)
 
-        for c in convs:
+        for i, c in enumerate(convs):
             conv = keras.layers.Conv2D(self.lunits[0] // len(convs), (1, c), activation=self.activation,
-                                       use_bias=False,
+                                       use_bias=False, name='spatial_conv_{0}'.format(i),
                                        kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
         conv = keras.layers.BatchNormalization()(conv)
         conv = keras.layers.SpatialDropout2D(self.do)(conv)
 
-        for _ in range(temp_layers):
+        for i in range(temp_layers):
             conv = keras.layers.Conv2D(self.lunits[1], (temporal, 1), activation=self.activation,
-                                       use_bias=False,
+                                       use_bias=False, name='temporal_conv_{0}'.format(i),
                                        kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
         conv = keras.layers.BatchNormalization()(conv)
         conv = keras.layers.AveragePooling2D((temp_pool, 1,))(conv)
@@ -854,7 +856,7 @@ class SCNN(Model, Searchable):
                                       kernel_regularizer=keras.layers.regularizers.l2(self.reg))(outs)
             outs = keras.layers.BatchNormalization()(outs)
             outs = keras.layers.Dropout(self.do*2)(outs)
-        outs = keras.layers.Dense(outputshape, activation='softmax')(outs)
+        outs = keras.layers.Dense(outputshape, activation='softmax', name='OUT')(outs)
 
         super(Model, self).__init__(ins, outs, name=self.__class__.__name__)
 
@@ -928,6 +930,7 @@ class MyFBCSP(ShallowFBCSP):
 
 class SpatialCNN(SCNN):
     PARAM_GRIDLEN = 'grid_length'
+    PARAM_GRIDDEV = 'grid_dev'
 
     def __init__(self, inputshape, outputshape, activation=keras.activations.relu, params=None):
         Searchable.__init__(self, params=params)
@@ -946,6 +949,9 @@ class SpatialCNN(SCNN):
         temporal = int(params.get(MyFBCSP.PARAM_FILTER_TEMPORAL, 82))
         temp_pool = int(params.get(FACNN.PARAM_TEMP_POOL, 75))
         grid = int(params.get(self.PARAM_GRIDLEN, 20))
+        dev = params.get(self.PARAM_GRIDDEV, None)
+        if dev is not None:
+            dev = float(dev)
 
         convs = [grid // steps for _ in range(1, steps)]
         convs += [grid - sum(convs) + len(convs)]
@@ -958,7 +964,7 @@ class SpatialCNN(SCNN):
         conv = signal_in
 
         # 2D Spatial filtering
-        conv = ExpandLayer()(ProjectionLayer(gridsize=grid)([conv, locs_in]))
+        conv = ExpandLayer()(ProjectionLayer(gridsize=grid, dev=dev)([conv, locs_in]))
         for c in convs:
             conv = keras.layers.Conv3D(self.lunits[0] // len(convs), (1, c, c), activation=self.activation,
                                        use_bias=False,
@@ -994,6 +1000,35 @@ class SpatialCNN(SCNN):
     def search_space():
         space = SCNN.search_space()
         space[SpatialCNN.PARAM_GRIDLEN] = hp.quniform(SpatialCNN.PARAM_GRIDLEN, 10, 50, 5)
+        return space
+
+
+class NoisySpatialCNN(SpatialCNN):
+
+    PARAM_COV = 'covariance'
+
+    def __init__(self, inputshape, outputshape, params=None):
+        START_PARAMS = {
+            SpatialCNN.PARAM_LAYERS: (36, 24, 60, 80),
+            SpatialCNN.PARAM_TEMP_LAYERS: 1.0,
+            ShallowFBCSP.PARAM_FILTER_TEMPORAL: 72.0,
+            AttentionLSTM.PARAM_STEPS: 5,
+            FACNN.PARAM_TEMP_POOL: 50,
+            SCNN.PARAM_ACTIVATION: 0,
+            SpatialCNN.PARAM_GRIDLEN: 35.,
+        }
+        # Force params
+        for p in START_PARAMS:
+            params[p] = START_PARAMS[p]
+
+        print('Forced params:', params)
+
+        super().__init__(inputshape, outputshape, params=params)
+
+    @staticmethod
+    def search_space():
+        space = SpatialCNN.search_space()
+        space[SpatialCNN.PARAM_GRIDDEV] = hp.normal(NoisySpatialCNN.PARAM_COV, 0.05, 0.01)
         return space
 
 
@@ -1153,15 +1188,16 @@ class AttentionLSTM(Model, Searchable):
 
         conv = ExpandLayer()(ins)
 
-        for c in convs:
+        for i, c in enumerate(convs):
             conv = keras.layers.Conv2D(self.lunits[0]//len(convs), (1, c), activation=self.activation,
+                                       name='spatial_conv_{0}'.format(i),
                                        kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
         conv = keras.layers.BatchNormalization()(conv)
         conv = keras.layers.SpatialDropout2D(self.do)(conv)
 
-        for _ in range(temp_layers):
+        for i in range(temp_layers):
             conv = keras.layers.Conv2D(self.lunits[1], (temporal, 1), activation=self.activation,
-                                       use_bias=False,
+                                       use_bias=False, name='temporal_conv_{0}'.format(i),
                                        kernel_regularizer=keras.layers.regularizers.l2(self.reg))(conv)
         conv = keras.layers.BatchNormalization()(conv)
         conv = keras.layers.AveragePooling2D((temp_pool, 1,))(conv)
@@ -1416,7 +1452,7 @@ MODELS = [
     # Basic Classification
     LogisticRegression, LinearSVM, SimpleMLP, StackedAutoEncoder, SlicedFFNN,
     # CNN Based
-    ShallowFBCSP, TCNN, SCNN, MyFBCSP, SpatialCNN,
+    ShallowFBCSP, TCNN, SCNN, MyFBCSP, SpatialCNN, NoisySpatialCNN,
     # RNN Based
     SimpleLSTM,
     # Attention

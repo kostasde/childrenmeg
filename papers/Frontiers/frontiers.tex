@@ -244,7 +244,7 @@ Our implementation uses bi-directional LSTMs (optionally with an attention mecha
 
 % Definitely want figure for this section
 
-Attention mechanisms have been applied to information retrieval \cite{Moritz}, machine translation \cite{machine_translation}, and speech recognition \cite{Bahdanau}. They are also regularly employed in transduction tasks like image captioning \cite{XuKELVINXU, etc.} and visual question answering \cite{}. The general principle remains mostly the same across all of these implementations, i.e., to focus a network's current machinations over a sequence of features by relatively weighting each feature over the entire sequence given the current scenario. The formulation that tends to be easiest to integrate is a `soft-attention' model \cite{XuKELVINXU}, as it is trained along with the rest of the model using back-propagation. Considering a sequence of features to which we would like to attend, denoted here as $\{f_0, ..., f_{T-1}\}$, and a sequence of current states $\{h_0,...,h_{T-1}\}$, we calculate \emph{soft-attention} $\alpha_t$: 
+Attention mechanisms have been applied to information retrieval \cite{Moritz}, machine translation \cite{machine_translation}, and speech recognition \cite{Bahdanau}. They are also regularly employed in transduction tasks like image captioning \cite{XuKELVINXU, etc.} and visual question answering \cite{}. The general principle remains mostly the same across all of these implementations, i.e., to focus a network's current machinations over a sequence of features by relatively weighting each feature over the entire sequence given the current scenario. The formulation that tends to be easiest to integrate is a `soft-attention' model \cite{XuKELVINXU}, as it is trained along with the rest of the model using back-propagation. Considering a sequence of features to which we would like to attend, denoted here as $\{f_0, ..., f_{T-1}\}$, and a sequence of current states $H = \{h_0,...,h_{T-1}\}$, we calculate \emph{soft-attention} $\alpha_t$: 
 
 \begin{equation} \label{eq:attn_nrg}
   e_{t} = a(f_{t}, H) , \alpha_t =  \frac{\exp(x_{t})}{\sum_{j=0}^{T-1}exp(x_{j})}
@@ -261,8 +261,9 @@ In our experiments, we employ an architecture that is very similar to the encodi
 
 In contrast, our implementation does not use a pre-trained CNN, but trains convolutional layers at the same time as the rest of the model. The attention serves as a mechanism to fuse the spatial summary architecture and the LSTM architectures together. The attention provides an average weighting of the features after spatial mapping and filtering (described in Section \ref{sec:scnn}) over time.
 
-\subsection{Model examination}
+\subsection{Model analysis and visualizations}
 
+Explaining \em{what} a trained neural network has learned is an on-going area of research, and a particularly important one. For many of these methods to be significantly useful beyond their successes as classifier tools, understanding what they are doing is crucial. There are currently two directions of work that address this, one in which (optionally modified) selections from datasets are fed into a model and the sensitivity of specific layers or neurons are examined, and a second in which artificial data is developed from the structure of the model itself (with no reliance on datapoints in particular). We take the latter approach along the lines of \cite{Yosinski2015} to develop artificial inputs that \em{maximally activate} key points in our models. This involves performing regularized gradient-ascent using the fully trained models.
 
 
 \section{Results}
@@ -326,13 +327,13 @@ Table \ref{tab:reg_results} shows the means and variances of root mean squared e
                      & Logistic Regression & 17.5 & 4.42  \\
                      & Linear SVM          & 17.2 & 5.15  \\
                      & Shallow NN          & 18.9 & 6.00  \\
-                     & LSTM + Attention    & NaN & NaN  \\
+                     & LSTM + Attention    & 23.8 & 7.08  \\
                      & SCNN                & 15.6 & 4.00  \\
     \midrule
     \multirow{3}{*}{MEG}
                      & Logistic Regression & 16.5 & 6.84  \\
                      & Linear SVM          & 19.2 & 6.07  \\
-                     & Shallow NN          & NaN & NaN  \\
+                     & Shallow NN          & 27.1 & 0.80  \\
                      & LSTM + Attention    & 26.0 & 0.80  \\
                      & SCNN                & 24.8 & 8.78  \\
     \bottomrule
@@ -354,19 +355,17 @@ Table \ref{tab:reg_results} shows the means and variances of root mean squared e
     \textbf{Feature set} & \textbf{Model} & \textbf{Mean \%} & \textbf{Variance \%} \\
     \toprule
     \multirow{3}{*}{Raw Data}
-                         & LSTM + Attention    & NaN & NaN  \\ 
+                         & LSTM + Attention    & 28.1 & 5.00  \\ 
                          & SCNN                & 28.6 & 7.91  \\
     \midrule
     \multirow{3}{*}{Temporal Augmentation}
                          & LSTM + Attention    & 26.3 & 2.07  \\ 
-                         & SCNN                & 26.7 & 5.76  \\
+                         & SCNN                & 32.4 & 10.9  \\
     \midrule
     \multirow{3}{*}{Spatial Projection}
-                         & LSTM + Attention    & NaN & NaN  \\ 
                          & SCNN                & 21.9 & 2.20  \\
     \midrule
     \multirow{3}{*}{Spatial Augmentation}
-                         & LSTM + Attention    & NaN & NaN  \\ 
                          & SCNN                & NaN & NaN  \\
     
     \bottomrule
@@ -409,7 +408,7 @@ This work combines and compares aligned audio and MEG data, in a few speech prod
 
 To compare with the `optimal' reduced set of features, according to absolute correlation and their $p$-values, we also randomly extract a subset of 172 features. Performing multilinear regression on this random selection of features remains insignificantly different than using all features. Finally, we also consider a set of the 172 most correlated MEG features among those with $p \geq 0.0001$, which accounts for high, but potentially quite variable, correlations. Surprisingly, this improves accuracy slightly on average over using all features, but with a much larger variance (i.e., $\geq 0.9$). The optimum solution remains to force $p<0.0001$ for each correlation. These {\em ad hoc} analyses seem to suggest that increases in performance depend not on merely reducing dimensionality blindly, but on selecting {\em consistently} correlating features. % FR this is a cool result that doesn't often come up
 
-Performing ICA separately for each stimulus results in different components, naturally. In other words, component $c_i$ with respect to the /{\em pah}/ data is different than component $c_i'$ with respect to the VG data. Future work should consider the sensitivity of any analysis to the stimulus, and be able to generalize ICA analyses that were performed on different data sets.
+Performing ICA separately for each stimulus results in different components, naturally. In other words, component $c_i$ with respect to the /{\em pah}/ data is different than component $c_i'$ with respect to the VG data. Future work should consider the sensitivity of any analysis to the stimulus, and be able to generalize ICA analyses that were performed on different data sets, particularly since our approach to end-to-end spatial mixing is done with no consideration for stimuli.
 
 Audio frequencies just below 400 Hz often correlate with MEG features. For the /{\em pah}/ and /{\em pah tah kah}/ stimuli, our initial hypothesis was that these would relate to F0, or the formant structure of the phone /{\em ah}/. However, whether this is the case remains to be determined.
 
@@ -424,6 +423,8 @@ Although some models succeed in classifying the examples in the primary dataset,
 %We spent some time exploring CNN architectures that developed features using data across time and space, but found very little success with these methods, (these experiments were very preliminary and consisted of a few heuristic selections of parameters). Typically the failure was not the result of over-fitting
 
 {\em Might spend some more time experimenting with the following observation:} When experimenting with crop strategies using the supplementary dataset in particular, it seemed apparent that taking crops from significantly before the onset of the experiment event the model became difficult to train. This may have been noticeable here because the recording are quite long (relative to the primary dataset). This may at first glance somewhat obvious, but it further suggests that the model genuinely is learning to distinguish input due to the event itself, rather than some other distinctiveness that may separate the trials, and thus it is a good sanity check.
+
+Our approach to maximal activations at their best behave much as they do in their equivalent context . As we mentioned before, previous success such as in \cite{Yosinski2015} employ a heuristic combination of regularization methods that encourage the input data to behave according to patterns the data that will be provided to the network takes. For example \cite{Yosinski2015} use a Guassian blur penalization to penalize the production of images with high spatial frequency. We notice that in fact in our work, the spectrograms we calculate in fact do demonstrate a lot of high frequency activity. It may be practical to not just begin with data that has $1\f$ spectral density, but to penalize deviations.
 
 \begin{itemize}
 \item future work: seq2seq model that predicts phonemes/connects to some other pre-canned speech generation
