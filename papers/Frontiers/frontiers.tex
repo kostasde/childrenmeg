@@ -133,7 +133,7 @@ Recordings were made in a sound-proof room, with each participant lying supine i
 
 \subsection{Supplementary dataset: BCI Competition IV, Dataset 2a}
 
-In an effort to compare the potential success of any end-to-end model developed to previous work, we also trained some of our end-to-end models using the BCI Competition IV EEG Dataset \cite{Tangermann2012}. This dataset has featured in several other attempts to apply deep learning. The dataset is freely available online \footnote{http://bnci-horizon-2020.eu/database/data-sets}.
+In an effort to compare the potential success of any end-to-end model developed to previous work, we also trained some of our end-to-end models using the BCI Competition IV EEG Dataset \cite{Tangermann2012}. This dataset has featured in several other attempts to apply deep learning and is freely available online \footnote{http://bnci-horizon-2020.eu/database/data-sets}.
 
 These data consist of EEG recordings of 9 subjects performing 4 different imagined motor tasks: left hand, right hand, both feet, and tongue. These recordings were broken up into two separate sessions for each subject recorded on different days. Each of these sessions consisted of 6 sets of 48 trials separated by a short break, where the 48 trials were 12 executions of each of the 4 tasks. Thus a total of 288 trials were recorded per session. One session is considered training data, and the second is used as evaluation requiring some carry-over performance between days. The recordings consist of 22 EEG electrodes, and 3 monopolar EOG electrodes, all recorded at 250 Hz and bandpass filtered between 0.5 and 100 Hz. Additionally, a 50 Hz notch-filter was used to minimize line noise. The trials themselves are available as 6 second recordings, where the first two seconds consist of presenting each subject a fixation point. At 2s through 3.25s a task stimuli was presented to the subjects. There is additionally some EOG only trials per session that we discard. %\hl{this is probably a weakness of our approach as we might be learning some characteristic blinks, but we are basically comparing against other people who ignored this, not certain I like this...} \FR{It's ok. In the future, we could make use of it, or at least elegantly subtract it}
 
@@ -155,7 +155,7 @@ We extract 156 acoustic features and 4681 MEG features from each epoch using ope
 
 \subsubsection{Audio features}
 
-Features to represent spectral activity are calculated, for each window, using both a 128-point fast Fourier transform and linear predictive coding coefficients. Additionally, the statistical moments, mean (also absolute mean, quadratic mean, and aforementioned means calculated using only non-zero values), variance, skewness and kurtosis are calculated. Finally, the root-mean-squared and log of the signal energy are also calculated for each window.
+Features to represent spectral activity are calculated, for each window, using both a 128-point fast Fourier transform and linear predictive coding coefficients. Additionally, the statistical moments: mean (also absolute mean, quadratic mean, and aforementioned means calculated using only non-zero values), variance, skewness and kurtosis are calculated. Finally, the root-mean-squared and log of the signal energy are also calculated for each window.
 
 \subsubsection{MEG features}
 
@@ -263,8 +263,19 @@ In contrast, our implementation does not use a pre-trained CNN, but trains convo
 
 \subsection{Model analysis and visualizations}
 
-Explaining \em{what} a trained neural network has learned is an on-going area of research, and a particularly important one. For many of these methods to be significantly useful beyond their successes as classifier tools, understanding what they are doing is crucial. There are currently two directions of work that address this, one in which (optionally modified) selections from datasets are fed into a model and the sensitivity of specific layers or neurons are examined, and a second in which artificial data is developed from the structure of the model itself (with no reliance on datapoints in particular). We take the latter approach along the lines of \cite{Yosinski2015} to develop artificial inputs that \em{maximally activate} key points in our models. This involves performing regularized gradient-ascent using the fully trained models.
+Explaining \em{what} a trained neural network has learned is an on-going area of research, and a particularly important one. For neural-network based models to be significantly useful beyond their successes as classifier tools, understanding what they are doing is crucial. There are currently two directions of work that address this, one in which (optionally modified) selections from datasets are fed into an already trained model and the sensitivity of specific layers or neurons are examined, and a second in which artificial data is developed by maximizing the outputs of a trained model with respect to artificial data (with no reliance on training points in particular). We take the latter approach along the lines of \cite{Yosinski2015} to develop artificial inputs that \em{maximally activate} key points in our models. This involves performing regularized gradient-ascent of an output $f_o$ within the fully trained model with respect to the input $x$. So that we produce an artificial datapoint $x_{max}$ where:
 
+\begin{equation} \label{eq:max_act}
+  x_{max} = arg_xmax(f_o - R(x))
+\end{equation}
+
+Here we summarize any regularization penalties as $R(x)$. \cite{Yosinski2015} show that crucial to the success of this technique is to ensure good prior distributions on the artificial data, so in this spirit we begin with random data with spectral content that decreases with $1/f$, so that it conforms to general encephalographic recordings. We also use L2 regularization on our data-points which helps prevent unbounded growth during the ascent. So we develop an update rule:
+
+\begin{equation} \label{eq:max_act_update}
+  x \leftarrow \eta \big(x + \frac{\partial }{\partial x}(f_o - \sum_ix_i^2) \big)
+\end{equation}
+
+We construct maximal inputs for two sets of input-output pairs in the trained (primary dataset) end-to-end models. The first is between the model's normal input, and the end of the final-most spatial convolution layers. This is to construct a set of spatial filters that can be examined much like our ICA spatial filters. The second input-output pair is between the input to the first temporal convolution (the output of the last spatial) and the final model output (classification stage). This is to generate data that highlights temporal features of the patterns of mixed senors, which we do by performing calculating a spectrogram for each component and output class.
 
 \section{Results}
 
@@ -292,7 +303,7 @@ The correlation of a single ICA component has correlation coefficients $\text{ab
   \label{tab:reg_results}
   \begin{tabular}{| l | c | c | c | c |}
     \toprule
-    \textbf{Feature set} & \textbf{RMSE Mean} & \textbf{RMSE Variance} & \textbf{MAE Mean} & \textbf{MAE Variance}       \\
+    \textbf{Feature set} & \textbf{RMSE Mean} & \textbf{RMSE Deviation} & \textbf{MAE Mean} & \textbf{MAE Deviation}       \\
     \toprule
         Audio~~~                             & ~~~$4.59$         &     $0.45$     & ~~~$3.34$         &     $0.37$       \\
         MEG~~~                               & ~~~$19.0$         &     $16.5$     & ~~~$9.96$         &     $7.86$       \\
@@ -305,14 +316,14 @@ The correlation of a single ICA component has correlation coefficients $\text{ab
 
     \hline
   \end{tabular}
-  \caption{Root mean squared error (RMSE) and mean absolute error (MAE), in years, of 10-fold cross validation for each of the feature sets. Audio features combined with reduced MEG features show the best prediction capability. Bold indicates the best RMSE.}
+  \caption{Root mean squared error (RMSE) and mean absolute error (MAE), in years, of 5-fold cross validation for each of the feature sets. Audio features combined with reduced MEG features show the best prediction capability. Bold indicates the best RMSE.}
 \end{table}
 
-Regressions across the 10 folds suggest that a multilinear regression model trained using both audio and the reduced (i.e., highly correlated) MEG feature sets performs better than either audio or MEG feature sets alone. Without  reducing the MEG feature set, regression performance is no better than that for audio alone. Models trained using some MEG features also  perform more consistently (i.e., with lower variance) than with audio features exclusively.
+Regressions across the 5 folds suggest that a multilinear regression model trained using both audio and the reduced (i.e., highly correlated) MEG feature sets performs better than either audio or MEG feature sets alone. Without reducing the MEG feature set, regression performance is quite poor.
 
-When trained using the highly correlated MEG features, regression performance is nearly equivalent to its exhaustive counterpart. There is a fairly marked reduction \FR{can you show this with a statistical test? Kruskal-Wallis?} in variance, but performance does not increase until audio and MEG features are combined. This may be surprising, considering that the MEG features are relatively correlated with age. This could suggest somewhat complementary information between data sets. % FR: in future, a measure of mutual information should be computed.
+hl{When trained using the highly correlated MEG features, regression performance is nearly equivalent to its exhaustive counterpart. There is a fairly marked reduction \FR{can you show this with a statistical test? Kruskal-Wallis?} in variance, but performance does not increase until audio and MEG features are combined. This may be surprising, considering that the MEG features are relatively correlated with age. This could suggest somewhat complementary information between data sets. % FR: in future, a measure of mutual information should be computed.
 
-Table \ref{tab:reg_results} shows the means and variances of root mean squared error (RMSE) values on regression, given various combinations of feature sets. Clearly, combining audio features with a reduced set of MEG features result in the best accuracy on average. An $n$-way ANOVA confirms a significant effect of the feature type on regression accuracy ($F_{4,49} = 51.05$, $p<0.001$), with the combined audio + reduced MEG features being significantly more accurate than {\em each} of the other combinations, according to right-tailed $t$-tests, after correcting $\alpha$, with Bonferroni, for multiple comparisons.
+Table \ref{tab:reg_results} shows the means and variances of root mean squared error (RMSE) values on regression, given various combinations of feature sets. Clearly, combining audio features with a reduced set of MEG features result in the best accuracy on average. An $n$-way ANOVA confirms a significant effect of the feature type on regression accuracy ($F_{4,49} = 51.05$, $p<0.001$), with the combined audio + reduced MEG features being significantly more accurate than {\em each} of the other combinations, according to right-tailed $t$-tests, after correcting $\alpha$, with Bonferroni, for multiple comparisons.}
 
 \subsection{Feature-based classification}
 
@@ -387,18 +398,18 @@ Table \ref{tab:reg_results} shows the means and variances of root mean squared e
     \multirow{3}{*}{No Augmentation}
                          & FBCSP-CNN           & 70.9 & 12.6  \\
                          & SCNN                & 72.6 & 10.7  \\
-                         & LSTM + Attention    & 73.3 & 13.6  \\ 
+                         & LSTM + Attention    & \textbf{73.3} & 13.6  \\ 
     \midrule
     \multirow{3}{*}{Temporal Augmentation}
                          & FBCSP-CNN           & 65.6 & 12.2  \\
                          & SCNN                & 35.1 & 14.2  \\
-                         & LSTM + Attention    & 66.6 & 17.1  \\ 
+                         & LSTM + Attention    & \textbf{66.6} & 17.1  \\ 
     \bottomrule
   \end{tabular}
   \caption{Classification accuracy using real data input under different augmentation strategies and models.}
 \end{table}
 
-\subsubsection{Learned Features}
+
 
 \section{Discussion}
 
@@ -422,9 +433,11 @@ Although some models succeed in classifying the examples in the primary dataset,
 
 %We spent some time exploring CNN architectures that developed features using data across time and space, but found very little success with these methods, (these experiments were very preliminary and consisted of a few heuristic selections of parameters). Typically the failure was not the result of over-fitting
 
+While we take the spatial patterns here as similar in principle to other algorithms such as ICA, unlike ICA there is no strong source separation premise underlying the neural network approach. In fact neural netowrks are notorious for developing redundant operations, and at times designers must take many steps to minimize this behaviour. 
+
 {\em Might spend some more time experimenting with the following observation:} When experimenting with crop strategies using the supplementary dataset in particular, it seemed apparent that taking crops from significantly before the onset of the experiment event the model became difficult to train. This may have been noticeable here because the recording are quite long (relative to the primary dataset). This may at first glance somewhat obvious, but it further suggests that the model genuinely is learning to distinguish input due to the event itself, rather than some other distinctiveness that may separate the trials, and thus it is a good sanity check.
 
-Our approach to maximal activations at their best behave much as they do in their equivalent context . As we mentioned before, previous success such as in \cite{Yosinski2015} employ a heuristic combination of regularization methods that encourage the input data to behave according to patterns the data that will be provided to the network takes. For example \cite{Yosinski2015} use a Guassian blur penalization to penalize the production of images with high spatial frequency. We notice that in fact in our work, the spectrograms we calculate in fact do demonstrate a lot of high frequency activity. It may be practical to not just begin with data that has $1\f$ spectral density, but to penalize deviations.
+Our approach to maximal activations at their best behave much as they do in their equivalent context . As we mentioned before, previous success such as in \cite{Yosinski2015} employ a heuristic combination of regularization methods that encourage the input data to behave according to patterns the data that will be provided to the network takes. For example \cite{Yosinski2015} use a Guassian blur penalization to penalize the production of images with high spatial frequency. We notice that in fact in our work, the spectrograms we calculate in fact do demonstrate a lot of high frequency activity. It may be practical to not just begin with data that has $1/f$ spectral density, but to penalize deviations.
 
 \begin{itemize}
 \item future work: seq2seq model that predicts phonemes/connects to some other pre-canned speech generation

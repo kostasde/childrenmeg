@@ -1010,6 +1010,8 @@ class NoisySpatialCNN(SpatialCNN):
     def __init__(self, inputshape, outputshape, params=None):
         START_PARAMS = {
             SpatialCNN.PARAM_LAYERS: (36, 24, 60, 80),
+            SpatialCNN.PARAM_REG: 0.00639,
+            SpatialCNN.PARAM_ACTIVATION: 0,
             SpatialCNN.PARAM_TEMP_LAYERS: 1.0,
             ShallowFBCSP.PARAM_FILTER_TEMPORAL: 72.0,
             AttentionLSTM.PARAM_STEPS: 5,

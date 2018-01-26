@@ -33,6 +33,8 @@ def maximize_activation(input, output, lr=0.2, input_generator=utils.pink_noise,
     """
     Given input and output tensors, perform gradient ascent from data created by input generator until there is some
     semblance of convergence, or a maximum number of iterations have occurred
+
+    Some of this code taken from: https://blog.keras.io/how-convolutional-neural-networks-see-the-world.html
     :param input_generator: function with a single argument for size/shape, and returns a numpy array with said shape
     :return: The new input data achieved, as np.array
     """
