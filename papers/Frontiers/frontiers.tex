@@ -318,11 +318,10 @@ The correlation of a single ICA component has correlation coefficients $\text{ab
   \caption{Root mean squared error (RMSE) and mean absolute error (MAE), in years, of 5-fold cross validation for each of the feature sets. Audio features combined with reduced MEG features show the best prediction capability. Bold indicates the best RMSE.}
 \end{table}
 
-Regressions across the 5 folds suggest that a multilinear regression model trained using both audio and the reduced (i.e., highly correlated) MEG feature sets performs better than either audio or MEG feature sets alone. Without reducing the MEG feature set, regression performance is quite poor.
+Regressions across the 5 folds suggest that a multilinear regression model trained using both audio and the reduced (i.e., highly correlated) MEG feature sets performs better than either audio or MEG feature sets alone. Without reducing the MEG feature set, regression performance is quite poor. Table \ref{tab:reg_results} shows the means and variances of root mean squared error (RMSE) and mean absolute error (MAE) values on regression, given various combinations of feature sets. There appears to be a marked decrease in error when combining audio features with a reduced set of MEG features result in the best accuracy on average.
 
-hl{When trained using the highly correlated MEG features, regression performance is nearly equivalent to its exhaustive counterpart. There is a fairly marked reduction \FR{can you show this with a statistical test? Kruskal-Wallis?} in variance, but performance does not increase until audio and MEG features are combined. This may be surprising, considering that the MEG features are relatively correlated with age. This could suggest somewhat complementary information between data sets. % FR: in future, a measure of mutual information should be computed.
 
-Table \ref{tab:reg_results} shows the means and variances of root mean squared error (RMSE) values on regression, given various combinations of feature sets. Clearly, combining audio features with a reduced set of MEG features result in the best accuracy on average. An $n$-way ANOVA confirms a significant effect of the feature type on regression accuracy ($F_{4,49} = 51.05$, $p<0.001$), with the combined audio + reduced MEG features being significantly more accurate than {\em each} of the other combinations, according to right-tailed $t$-tests, after correcting $\alpha$, with Bonferroni, for multiple comparisons.}
+% FR: in future, a measure of mutual information should be computed.
 
 \subsection{Feature-based classification}
 
@@ -405,10 +404,10 @@ Table \ref{tab:reg_results} shows the means and variances of root mean squared e
                          & LSTM + Attention    & \textbf{66.6} & 17.1  \\ 
     \bottomrule
   \end{tabular}
-  \caption{Classification accuracy using real data input under different augmentation strategies and models.}
+  \caption{Classification accuracy of SCNN and LSTM with attention models proposed in this work as compared to the convolutional FBCSP from \cite{Schirrmeister2017}. Despite some marginal increases accuracy, none of these are significant increases, as they substantially fail to meet p < 0.05 in a Wilcoxon signed rank test (each new model compared against FBCSP-CNN).}
 \end{table}
 
-Here we verify that the SCNN and LSTM + attention models are general enough to apply to a different application and achieve results that match the state of the art of a widely acessible and studied dataset.  
+Here we verify that the SCNN and LSTM + attention models are general enough to apply to a different application and achieve results that are comparable to the state-of-the-art. The accuracy improvements seen here with respect to the convolutional FBCSP are not statistically significant, with $p >> 0.05$ in a Wilcoxon signed rank test against the FBCSP models. If we consider the fact that these models have nearly two orders of magnitude more parameters, it is clear that they are not a particularly efficient solution. Interestingly, despite the fact that our temporal augmentation method fairs quite well in the primary dataset, it performs consistently worse in this application even so far as to ruin performance of the SCNN model. .
 
 \section{Discussion}
 
