@@ -300,7 +300,7 @@ The correlation of a single ICA component has correlation coefficients $\text{ab
 \begin{table}[t]
   \centering
   \label{tab:reg_results}
-  \begin{tabular}{| l | c | c | c | c |}
+  \begin{tabular}{ l | c | c | c | c }
     \toprule
     \textbf{Feature set} & \textbf{RMSE Mean} & \textbf{RMSE Deviation} & \textbf{MAE Mean} & \textbf{MAE Deviation}       \\
     \toprule
@@ -330,7 +330,7 @@ Regressions across the 5 folds suggest that a multilinear regression model train
   \label{tab:feat_results}
   \begin{tabular}{l l | c | c}
     \toprule
-    \textbf{Dataset} & \textbf{Model} & \textbf{Mean \%} & \textbf{Variance \%} \\
+    \textbf{Dataset} & \textbf{Model} & \textbf{Mean \%} & \textbf{STD. \%} \\
     \toprule
     \multirow{3}{*}{Audio}
                      & Logistic Regression & 17.5 & 4.42  \\
@@ -345,9 +345,17 @@ Regressions across the 5 folds suggest that a multilinear regression model train
                      & Shallow NN          & 27.1 & 0.80  \\
                      & LSTM + Attention    & 26.0 & 0.80  \\
                      & SCNN                & 24.8 & 8.78  \\
+
+    \midrule
+    \multirow{3}{*}{MEG reduced.}
+                     & Logistic Regression & 27.9 & 2.52  \\
+                     & Linear SVM          & NaN & NaN  \\
+                     & Shallow NN          & 28.1 & 5.91  \\
+                     & LSTM + Attention    & 20.7 & 6.90  \\
+                     & SCNN                & 22.4 & 4.96  \\
     \bottomrule
   \end{tabular}
-  \caption{Classification accuracy using one of three datasets, and three different basic classifier models. \FR{there are a lot of NaNs here... what is the cause? Should we reduce the number of covariates, e.g? We don't want this}}
+  \caption{Classification accuracy mean and standard deviation using one of three datasets, and three different basic classifier models. \FR{there are a lot of NaNs here... what is the cause? Should we reduce the number of covariates, e.g? We don't want this}}
 \end{table}
 
 % I don't think much space should be devoted to the analysis of the parameters of these models
@@ -375,14 +383,14 @@ Regressions across the 5 folds suggest that a multilinear regression model train
                          & SCNN                & 21.9 & 2.20  \\
     \midrule
     \multirow{3}{*}{Spatial Augmentation}
-                         & SCNN                & NaN & NaN  \\
+                         & SCNN                & 15.0 & 5.10  \\
     
     \bottomrule
   \end{tabular}
-  \caption{Classification accuracy using minimally pre-processed data input under different augmentation strategies and models. We do not combine spatial and temporal augmentation as they should provide additive gains \hl{but realistically its because the spatial augmentation models take a long time to train.}}
+  \caption{Classification accuracy across the seven age categories, using minimally pre-processed data input under different augmentation strategies and models. We do not combine spatial and temporal augmentation as they should provide additive gains \hl{but realistically its because the spatial augmentation models take a long time to train.}}
 \end{table}
 
-\subsubsection{Learned features}
+
 
 \subsubsection{Secondary dataset}
 
@@ -408,6 +416,32 @@ Regressions across the 5 folds suggest that a multilinear regression model train
 \end{table}
 
 Here we verify that the SCNN and LSTM + attention models are general enough to apply to a different application and achieve results that are comparable to the state-of-the-art. The accuracy improvements seen here with respect to the convolutional FBCSP are not statistically significant, with $p >> 0.05$ in a Wilcoxon signed rank test against the FBCSP models. If we consider the fact that these models have nearly two orders of magnitude more parameters, it is clear that they are not a particularly efficient solution. Interestingly, despite the fact that our temporal augmentation method fairs quite well in the primary dataset, it performs consistently worse in this application even so far as to ruin performance of the SCNN model. .
+
+\subsection{Model Analysis}
+
+\begin{table}[t]
+  \centering
+  \label{tab:end2end_results}
+  \begin{tabular}{l l | c | c}
+    \toprule
+    \textbf{Feature set} & \textbf{Model} & \textbf{Mean \%} & \textbf{Variance \%} \\
+    \toprule
+    \multirow{3}{*}{MEG reduced.}
+                         & Logistic Regression    & 28.1 & 5.00  \\ 
+                         & Shallow NN             & 28.6 & 7.91  \\
+    \midrule
+    \multirow{3}{*}{Raw Data}
+                         & LSTM + Attention    & 92.6 & 5.79  \\ 
+                         & SCNN                & 95.1 & 2.31  \\
+    \midrule
+    \multirow{3}{*}{Temporal Augmentation}
+                         & LSTM + Attention    & 26.3 & 2.07  \\ 
+                         & SCNN                & 89.2 & 7.93  \\
+    
+    \bottomrule
+  \end{tabular}
+  \caption{Classification accuracy when constrained to the binary classification problem of $age  >=  10$ versus $age < 10$.}
+\end{table}
 
 \section{Discussion}
 
@@ -436,6 +470,8 @@ While we take the spatial patterns here as similar in principle to other algorit
 {\em Might spend some more time experimenting with the following observation:} When experimenting with crop strategies using the supplementary dataset in particular, it seemed apparent that taking crops from significantly before the onset of the experiment event the model became difficult to train. This may have been noticeable here because the recording are quite long (relative to the primary dataset). This may at first glance somewhat obvious, but it further suggests that the model genuinely is learning to distinguish input due to the event itself, rather than some other distinctiveness that may separate the trials, and thus it is a good sanity check.
 
 Our approach to maximal activations at their best behave much as they do in their equivalent context . As we mentioned before, previous success such as in \cite{Yosinski2015} employ a heuristic combination of regularization methods that encourage the input data to behave according to patterns the data that will be provided to the network takes. For example \cite{Yosinski2015} use a Guassian blur penalization to penalize the production of images with high spatial frequency. We notice that in fact in our work, the spectrograms we calculate in fact do demonstrate a lot of high frequency activity. It may be practical to not just begin with data that has $1/f$ spectral density, but to penalize deviations.
+
+The spatial projection dataset was particularly susceptible to overfitting to the training data, it appears that the redundant data in this presentation made generalization more difficult. 
 
 \begin{itemize}
 \item future work: seq2seq model that predicts phonemes/connects to some other pre-canned speech generation
