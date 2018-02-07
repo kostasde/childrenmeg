@@ -349,7 +349,7 @@ Regressions across the 5 folds suggest that a multilinear regression model train
     \midrule
     \multirow{3}{*}{MEG reduced.}
                      & Logistic Regression & 27.9 & 2.52  \\
-                     & Linear SVM          & NaN & NaN  \\
+                     & Linear SVM          & 28.5 & 0.79  \\
                      & Shallow NN          & 28.1 & 5.91  \\
                      & LSTM + Attention    & 20.7 & 6.90  \\
                      & SCNN                & 22.4 & 4.96  \\
@@ -415,7 +415,7 @@ Regressions across the 5 folds suggest that a multilinear regression model train
   \caption{Classification accuracy of SCNN and LSTM with attention models proposed in this work as compared to the convolutional FBCSP from \cite{Schirrmeister2017}. Despite some marginal increases accuracy, none of these are significant increases, as they substantially fail to meet p < 0.05 in a Wilcoxon signed rank test (each new model compared against FBCSP-CNN).}
 \end{table}
 
-Here we verify that the SCNN and LSTM + attention models are general enough to apply to a different application and achieve results that are comparable to the state-of-the-art. The accuracy improvements seen here with respect to the convolutional FBCSP are not statistically significant, with $p >> 0.05$ in a Wilcoxon signed rank test against the FBCSP models. If we consider the fact that these models have nearly two orders of magnitude more parameters, it is clear that they are not a particularly efficient solution. Interestingly, despite the fact that our temporal augmentation method fairs quite well in the primary dataset, it performs consistently worse in this application even so far as to ruin performance of the SCNN model. .
+Here we verify that the SCNN and LSTM + attention models are general enough to apply to a different application and achieve results that are comparable to the state-of-the-art. The accuracy improvements seen here with respect to the convolutional FBCSP are not statistically significant, SPECIFIC QUANTITY NEEDED -- Kruskal Wallis all examples ignoring the SCNN outlier, and determine if all part of the same group. If we consider the fact that these models have nearly two orders of magnitude more parameters, it is clear that they are not as parameter efficient. Here we see further evidence that the temporal augmentation strategy for these models does not provide an increase in performance for the models we have selected, as the SCNN model with a temporal augmentation strategy seems to underperform by a large margin in comparison to it's un-augmented counterpart (under a Wilcoxon Signed Rank test...).
 
 \subsection{Model Analysis}
 
@@ -427,21 +427,25 @@ Here we verify that the SCNN and LSTM + attention models are general enough to a
     \textbf{Feature set} & \textbf{Model} & \textbf{Mean \%} & \textbf{Variance \%} \\
     \toprule
     \multirow{3}{*}{MEG reduced.}
-                         & Logistic Regression    & 28.1 & 5.00  \\ 
-                         & Shallow NN             & 28.6 & 7.91  \\
+                         & Logistic Regression    & 63.5 & 5.64  \\ 
+                         & Shallow NN             & 69.2 & 5.74  \\
     \midrule
     \multirow{3}{*}{Raw Data}
                          & LSTM + Attention    & 92.6 & 5.79  \\ 
                          & SCNN                & 95.1 & 2.31  \\
     \midrule
     \multirow{3}{*}{Temporal Augmentation}
-                         & LSTM + Attention    & 26.3 & 2.07  \\ 
+                         & LSTM + Attention    & NaN & NaN  \\ 
                          & SCNN                & 89.2 & 7.93  \\
     
     \bottomrule
   \end{tabular}
   \caption{Classification accuracy when constrained to the binary classification problem of $age  >=  10$ versus $age < 10$.}
 \end{table}
+
+Here we notice what appears to be a startling difference in performance between feature and end-to-end approaches.
+
+Kruskal Wallis 
 
 \section{Discussion}
 
