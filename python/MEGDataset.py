@@ -506,11 +506,11 @@ class BaseDatasetAgeRanges(BaseDataset, metaclass=ABCMeta):
     AGE_12_13 = (12, 14)
     AGE_14_15 = (14, 16)
     AGE_16_18 = (16, 19)
-    # AGE_RANGES = [AGE_4_5, AGE_6_7, AGE_8_9, AGE_10_11, AGE_12_13, AGE_14_15, AGE_16_18]
+    AGE_RANGES = [AGE_4_5, AGE_6_7, AGE_8_9, AGE_10_11, AGE_12_13, AGE_14_15, AGE_16_18]
 
     AGE_4_9 = (4, 10)
     AGE_10_18 = (10, 19)
-    AGE_RANGES = [AGE_4_9, AGE_10_18]
+    # AGE_RANGES = [AGE_4_9, AGE_10_18]
 
     AGE_DISTRIBUTION = False
 

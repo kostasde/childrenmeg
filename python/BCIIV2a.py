@@ -291,11 +291,6 @@ class BCISSTAug(BCICompetitionIV2aSingleSubjectClassification):
     def inputshape(self):
         return int(self.SAMPLE_FREQ*(self.WINDOW[1]-self.WINDOW[0])), self.x_train.shape[-1]
 
-    def testset(self, batchsize=None, flatten=True, shuffle=False):
-        return super(BCICompetitionIV2aSingleSubjectClassification, self).testset(
-            batchsize=1, flatten=flatten, shuffle=shuffle
-        )
-
 
 class BCIMSTAug(BCIIVMultiSubjectClassification):
 

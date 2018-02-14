@@ -85,8 +85,10 @@ def predict(model, dataset, args):
         x, y = next(ts)
         y_p = model.predict(x, batch_size=batchsize)
         if hasattr(dataset, 'CROP_VOTE'):
-            y_p = y_p.mean(axis=0)
-            y = y[0, :]
+            y_p = y_p.reshape(batchsize, y_p.shape[0]//batchsize, *y_p.shape[1:])
+            y_p = y_p.mean(axis=1)
+            y = y.reshape(batchsize, y.shape[0]//batchsize, *y.shape[1:])
+            y = y.mean(axis=1)
         y_true.append(y)
         y_pred.append(y_p)
     y_true = np.vstack(y_true).squeeze()
@@ -178,6 +180,7 @@ def print_metrics(metrics, predictions, args):
         print('=' * 100)
         for y_pred, y_true in predictions:
             if len(y_true) < len(y_pred) or len(y_pred) < len(y_true):
+                print('Warning: Unbalanced labels and predictions!')
                 y_pred = y_pred[:min((len(y_true), len(y_pred)))]
                 y_true = y_true[:min((len(y_true), len(y_pred)))]
             c = confusion_matrix(y_true, y_pred)
