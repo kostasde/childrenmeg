@@ -262,6 +262,7 @@ if __name__ == '__main__':
     parser.add_argument('--null-hyp', action='store_true', help='Run a test with initial state weights')
     parser.add_argument('--activ-vis', default=None, help='Location to save the inputs for maximal activations for '
                                                           'each convolution layer.')
+    parser.add_argument('--save-metrics', help='CSV file to save the outputted metrics to')
     args = parser.parse_args()
 
     # Load the appropriate dataset, considering whether it is regression or classification
