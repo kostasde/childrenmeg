@@ -2,7 +2,10 @@ import argparse
 import utils
 import pickle
 import numpy as np
-# import matplotlib.pyplot as plt
+
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 from models import *
 from pathlib import Path
@@ -81,7 +84,10 @@ def activations_scnn(args, model: SCNN):
     :return:
     """
     if args.activ is not None and args.activ.exists():
-        return pickle.load(args.activ.open('rb'))
+        if args.maximize:
+            return pickle.load(args.activ.open('rb'))
+        else:
+            in_data = np.load(str(args.activ))[np.newaxis, :]
     to_return = dict()
 
     model.load_weights(args.saved_model)
@@ -91,25 +97,37 @@ def activations_scnn(args, model: SCNN):
 
     # Max activations from the input to each spatial filter
     for layer in spat_dict:
-        print('Calculating maximum for layer: ', layer)
-        act = maximize_activation(model.input, spat_dict[layer].output)
+        if args.maximize:
+            print('Calculating maximum for layer: ', layer)
+            act = maximize_activation(model.input, spat_dict[layer].output)
+            act = np.mean(act, axis=0)
+        else:
+            act = np.empty
         # Compress the redundant temporal dimension
-        act = np.mean(act, axis=0)
         to_return[layer] = act
 
     # Max activations for spatial filters starting from the mixed channels
     for layer in temp_dict:
-        print('Calculating maximum for layer: ', layer)
-        act = maximize_activation(spatial_out.output, temp_dict[layer].output)
+        if args.maximize:
+            print('Calculating maximum for layer: ', layer)
+            act = maximize_activation(spatial_out.output, temp_dict[layer].output)
+        else:
+            act = K.function([model.input, K.learning_phase()], [temp_dict[layer].output])([in_data, 0])[0].squeeze()
         to_return[layer] = act
 
     # output activations
     if out_layer is not None:
-        print('Calculating maximum for each output class after spatial mixing.')
-        to_return['OUT'] = maximize_activation(spatial_out.output, out_layer.output)
+        if args.maximize:
+            print('Calculating maximum for each output class after spatial mixing.')
+            to_return['OUT'] = maximize_activation(spatial_out.output, out_layer.output)
+        else:
+            to_return['OUT'] = np.expand_dims(K.function([model.input, K.learning_phase()],
+                                                         [spat_dict[sorted(spat_dict.keys())[-1]].output])
+                                              ([in_data, 0])[0].squeeze(), -1)
 
     print('Completed Maximum Calculations.')
-    pickle.dump(to_return, args.activ.open('wb'))
+    if args.maximize:
+        pickle.dump(to_return, args.activ.open('wb'))
     return to_return
 
 
@@ -120,26 +138,27 @@ def save_viz_scnn(args, activations, model):
 
     chans = np.load(args.chans.open('rb'))
 
-    # topomaps = activations[spatial_out.name]
-    # for i in range(topomaps.shape[-1]):
-    #     im, cn = plot_topomap(np.mean(topomaps[..., i], 0), chans, show=True)
-    #     save_loc = args.save_viz / spatial_out.name
-    #     save_loc.mkdir(parents=True, exist_ok=True)
-    #     plt.title('Component {0}'.format(i))
-    #     plt.savefig(str(save_loc / 'component_{0}.png'.format(i)))
-    #     plt.clf()
-    #
-    # for t in temp_dict:
-    #     fil_act = activations[t]
-    #     for f in range(fil_act.shape[-1]):
-    #         for c in range(fil_act.shape[-2]):
-    #             directory = args.save_viz / t / 'filter_{0}'.format(f)
-    #             directory.mkdir(parents=True, exist_ok=True)
-    #             plt.specgram(fil_act[..., c, f].squeeze(), Fs=200, cmap='bwr', NFFT=64, noverlap=50)
-    #             plt.colorbar()
-    #             plt.title('{0} {1} Component {2}'.format(t, f, c))
-    #             plt.savefig(str(directory / 'component_{0}'.format(c)))
-    #             plt.clf()
+    if args.maximize:
+        topomaps = activations[spatial_out.name]
+        for i in range(topomaps.shape[-1]):
+            im, cn = plot_topomap(topomaps[..., i], chans, show=True)
+            save_loc = args.save_viz / spatial_out.name
+            save_loc.mkdir(parents=True, exist_ok=True)
+            plt.title('Component {0}'.format(i))
+            plt.savefig(str(save_loc / 'component_{0}.png'.format(i)))
+            plt.clf()
+
+        for t in temp_dict:
+            fil_act = activations[t]
+            for f in range(fil_act.shape[-1]):
+                for c in range(fil_act.shape[-2]):
+                    directory = args.save_viz / t / 'filter_{0}'.format(f)
+                    directory.mkdir(parents=True, exist_ok=True)
+                    plt.specgram(fil_act[..., c, f].squeeze(), Fs=200, cmap='bwr', NFFT=64, noverlap=50)
+                    plt.colorbar()
+                    plt.title('{0} {1} Component {2}'.format(t, f, c))
+                    plt.savefig(str(directory / 'component_{0}'.format(c)))
+                    plt.clf()
 
     if out_layer is not None:
         out_act = activations[out_layer.name]
@@ -150,6 +169,8 @@ def save_viz_scnn(args, activations, model):
                 plt.specgram(out_act[..., f, c].squeeze(), Fs=200, cmap='bwr', NFFT=64, noverlap=50)
                 plt.colorbar()
                 plt.title('{0} Output Class {1} Component {2}'.format(out_layer.name, c, f))
+                plt.ylabel('Frequency (Hz)')
+                plt.xlabel('Time (s)')
                 plt.savefig(str(directory / 'component_{0}'.format(f)))
                 plt.clf()
 
@@ -158,14 +179,16 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Produce max-activations and associated visualizations for SCNN and '
                                                  'Attention LSTM models.')
     parser.add_argument('model', choices=['SCNN'], help='Which model to produce output for.')
+    parser.add_argument('activ', help='Previously stored file with max activations to be calculated for '
+                                                  'model, or datapoint to calculate outputs for.')
     parser.add_argument('--saved-model', help='Model weights that will be loaded to calculate activations.')
     parser.add_argument('--hyper-params', help='Model hyperparameters.', default=None)
-    parser.add_argument('--activ', help='Previously stored file with max activations to be calculated for model')
     parser.add_argument('--save-viz', help='Directory to save all vizualizations to. If not provided, will not '
                                            'determine vizualizations.')
     parser.add_argument('--chans', default='../CTF151.npy', help='Location of the CTF151 channel locations file.')
 
     args = parser.parse_args()
+    activations = None
 
     if args.hyper_params is not None:
         args.hyper_params = pickle.load(open(args.hyper_params, 'rb'))
@@ -174,16 +197,14 @@ if __name__ == '__main__':
 
     if args.activ is not None:
         args.activ = Path(args.activ)
-        if args.activ.suffix != '.pkl':
-            print('Incorrect format for activation file: ', args.activ)
-            exit(-1)
-        elif not args.activ.exists() and args.saved_model is None:
-            print('Need to provide model weights if no previously calculated activities provided.')
+        if not args.activ.exists() and args.saved_model is None:
+            print('Activation file is empty, need to provide model weights to calculate activations.')
             exit(-1)
 
+        args.maximize = args.activ.suffix == '.pkl'
         if args.model == 'SCNN':
             print('Calculating SCNN activations...')
-            model = SCNN((400, 151), 2, params=args.hyper_params)
+            model = SCNN((700, 151), 2, params=args.hyper_params)
             # FIXME Hardcoded
             activations = activations_scnn(args, model)
         else:
@@ -210,6 +231,5 @@ if __name__ == '__main__':
             print('Saving SCNN visualizations...')
             save_viz_scnn(args, activations, model)
 
-
-
+    print('Finished.')
 

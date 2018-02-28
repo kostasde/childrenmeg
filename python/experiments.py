@@ -77,24 +77,32 @@ def predict(model, dataset, args):
     :return: Prediction array(s), True array(s)
     """
     batchsize = args.batch_size if args.batch_size > 0 else int(model.batchsize)
-    ts = dataset.testset(flatten=model.NEEDS_FLAT, batchsize=batchsize)
+    ts = dataset.testset(flatten=model.NEEDS_FLAT, batchsize=batchsize, fnames=True)
     iterations = np.ceil(ts.n/ts.batch_size)
     y_true = []
     y_pred = []
+    pred_max = np.zeros(dataset.outputshape())
+    best_fnames = ['' for _ in range(dataset.outputshape())]
     for i in range(int(iterations)):
-        x, y = next(ts)
+        fnames, x, y = next(ts)
         y_p = model.predict(x, batch_size=batchsize)
         if hasattr(dataset, 'CROP_VOTE'):
             y_p = y_p.reshape(batchsize, y_p.shape[0]//batchsize, *y_p.shape[1:])
             y_p = y_p.mean(axis=1)
             y = y.reshape(batchsize, y.shape[0]//batchsize, *y.shape[1:])
             y = y.mean(axis=1)
+        val_maxes = np.max(y_p, axis=0)
+        arg_maxes = np.argmax(y_p, axis=0)
+        for j in range(dataset.outputshape()):
+            if pred_max[j] < val_maxes[j]:
+                pred_max[j] = val_maxes[j]
+                best_fnames[j] = fnames[arg_maxes[j]]
         y_true.append(y)
         y_pred.append(y_p)
     y_true = np.vstack(y_true).squeeze()
     y_pred = np.vstack(y_pred).squeeze()
     assert len(y_pred.shape) == 2 and len(y_true.shape) == 2
-    return np.argmax(y_pred, -1), np.argmax(y_true, -1)
+    return np.argmax(y_pred, -1), np.argmax(y_true, -1), best_fnames
 
 
 def train_filter_visualization(model, args):
@@ -178,7 +186,7 @@ def print_metrics(metrics, predictions, args):
         print('=' * 100)
         print('Confusion Matrix')
         print('=' * 100)
-        for y_pred, y_true in predictions:
+        for y_pred, y_true, best_fnames in predictions:
             if len(y_true) < len(y_pred) or len(y_pred) < len(y_true):
                 print('Warning: Unbalanced labels and predictions!')
                 y_pred = y_pred[:min((len(y_true), len(y_pred)))]
@@ -187,6 +195,8 @@ def print_metrics(metrics, predictions, args):
             cm.append(c)
             acc_true.append(np.mean(y_pred == y_true))
             print(c)
+            print('-' * 100)
+            print('Highest Confidence: ', best_fnames)
             print('-' * 100)
         print('-' * 100)
         print('Mean:')

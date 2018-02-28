@@ -103,7 +103,7 @@ class SubjectFileLoader(KerasDataloader):
     """
 
     def __init__(self, x, toplevel, longest_vector, subject_hash, target_cols, slice_length, f_loader, batchsize=-1,
-                 flatten=True, shuffle=True, seed=None, evaluate=False, test=False):
+                 flatten=True, shuffle=True, seed=None, evaluate=False, test=False, fnames=False):
 
         self.x = np.asarray(x)
         self.toplevel = toplevel
@@ -115,6 +115,7 @@ class SubjectFileLoader(KerasDataloader):
         self.flatten = flatten
         self.evaluate = evaluate
         self.test = test
+        self.fnames = fnames
 
         if batchsize < 0:
             batchsize = x.shape[0]
@@ -151,10 +152,13 @@ class SubjectFileLoader(KerasDataloader):
             y[i, :] = np.array([self.subject_hash[self.x[row, 0]][column] for column in self.targets])
 
         dims = tuple(i for i in range(1, len(x.shape)))
+        # Fixme Ugly workaround
         if nancheck:
-            return x[~np.isnan(x).any(axis=dims)], y[~np.isnan(x).any(axis=dims)]
+            ret = x[~np.isnan(x).any(axis=dims)], y[~np.isnan(x).any(axis=dims)]
         else:
-            return x, y
+            ret = x, y
+
+        return ret if not self.fnames else tuple([self.x[index_array, 1:], *ret])
 
     def __next__(self):
         with self.lock:
@@ -476,7 +480,7 @@ class BaseDataset:
         return self.GENERATOR(self.eval_points, self.toplevel, self.longest_vector, self.subject_hash, self.DATASET_TARGETS,
                               self.slice_length, self.get_features, batchsize=batchsize, flatten=flatten, evaluate=True)
 
-    def testset(self, batchsize=None, flatten=True, shuffle=False):
+    def testset(self, batchsize=None, flatten=True, shuffle=False, fnames=False):
         """
         Provides a generator object with the current training set
         :param batchsize:
@@ -487,7 +491,7 @@ class BaseDataset:
 
         return self.GENERATOR(self.testpoints, self.toplevel, self.longest_vector, self.subject_hash,
                               self.DATASET_TARGETS, self.slice_length, self.get_features, batchsize=batchsize,
-                              flatten=flatten, evaluate=False, test=True, shuffle=shuffle)
+                              flatten=flatten, evaluate=False, test=True, shuffle=shuffle, fnames=fnames)
 
     def inputshape(self):
         return int(self.longest_vector // self.slice_length), self.slice_length
@@ -506,18 +510,20 @@ class BaseDatasetAgeRanges(BaseDataset, metaclass=ABCMeta):
     AGE_12_13 = (12, 14)
     AGE_14_15 = (14, 16)
     AGE_16_18 = (16, 19)
-    AGE_RANGES = [AGE_4_5, AGE_6_7, AGE_8_9, AGE_10_11, AGE_12_13, AGE_14_15, AGE_16_18]
+    # AGE_RANGES = [AGE_4_5, AGE_6_7, AGE_8_9, AGE_10_11, AGE_12_13, AGE_14_15, AGE_16_18]
 
     AGE_4_9 = (4, 10)
     AGE_10_18 = (10, 19)
-    # AGE_RANGES = [AGE_4_9, AGE_10_18]
+    AGE_RANGES = [AGE_4_9, AGE_10_18]
 
     AGE_DISTRIBUTION = False
 
     class AgeSubjectLoader(SubjectFileLoader):
 
         def _load(self, batch: np.ndarray, cols: list):
-            x, y_float = super()._load(batch, cols)
+            loaded = super()._load(batch, cols)
+            # FIXME - this is from potentially loading the filenames
+            x, y_float = loaded[-2:]
             y = np.zeros([x.shape[0], len(BaseDatasetAgeRanges.AGE_RANGES)])
 
             age_col = BaseDataset.DATASET_TARGETS.index(HEADER_AGE)
@@ -539,7 +545,10 @@ class BaseDatasetAgeRanges(BaseDataset, metaclass=ABCMeta):
                     y[inds, i-1] = 0.15
 
             # dims = tuple(i for i in range(1, len(x.shape)))
-            return x, y
+            if len(loaded) == 2:
+                return x, y
+            else:
+                return loaded[0], x, y
 
     GENERATOR = AgeSubjectLoader
 
