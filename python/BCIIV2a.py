@@ -185,7 +185,7 @@ class BCICompetitionIV2aSingleSubjectRegression:
 
         return self.GENERATOR(self.x_eval, self.y_eval, batchsize, flatten=flatten, evaluate=True)
 
-    def testset(self, batchsize=None, flatten=True, shuffle=False):
+    def testset(self, batchsize=None, flatten=True, shuffle=False, fnames=False):
         """
         Provides a generator object with the current training set
         :param batchsize:
@@ -195,7 +195,7 @@ class BCICompetitionIV2aSingleSubjectRegression:
             batchsize = self.batchsize
 
         return self.GENERATOR(self.x_test, self.y_test, batchsize, flatten=flatten, shuffle=shuffle,
-                              evaluate=False, test=True)
+                              evaluate=False, test=True, fnames=fnames)
 
     def inputshape(self):
         return self.x_train.shape[1:]

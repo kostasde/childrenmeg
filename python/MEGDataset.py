@@ -39,7 +39,7 @@ if MEG_COLUMNS.exists():
     megind = np.load(str(MEG_COLUMNS))
 else:
     megind = None
-megind = None
+# megind = None
 
 
 def random_slices(dataset: np.ndarray, sizeofslices=(0.1, 0.9)):
@@ -206,7 +206,10 @@ class TemporalAugmentation(SubjectFileLoader):
             self.eval_start = 0
 
     def _load(self, index_array, batch_size, **kwargs):
-        ins, y = self.loader._load(index_array, batch_size)
+        if self.fnames:
+            fnames, ins, y = self.loader._load(index_array, batch_size)
+        else:
+            ins, y = self.loader._load(index_array, batch_size)
         # Handle multi-input loaders
         multiin = isinstance(ins, (list, tuple))
         x = ins[0] if multiin else ins
@@ -248,6 +251,8 @@ class TemporalAugmentation(SubjectFileLoader):
         else:
             x = x_new
 
+        if self.fnames:
+            return np.repeat(fnames, crops, axis=0), x, y
         if multiin:
             return [x, *ins[1:]], y
         else:

@@ -9,11 +9,12 @@ from models import TYPE_CLASSIFICATION, TYPE_REGRESSION
 
 class ArrayFeeder(KerasDataloader):
 
-    def __init__(self, x, y, batchsize, shuffle=True, seed=None, flatten=True, evaluate=False, test=False):
+    def __init__(self, x, y, batchsize, shuffle=True, seed=None, flatten=True, evaluate=False, test=False, fnames=False):
         self.x, self.y = x, y
         self.flatten = flatten
         self.evaluate = evaluate
         self.test = test
+        self.fnames = fnames
         super().__init__(n=x.shape[0], batch_size=batchsize, shuffle=shuffle, seed=seed)
 
     def __next__(self):
@@ -26,7 +27,10 @@ class ArrayFeeder(KerasDataloader):
         return self._load(index_array, current_batch_size)
 
     def _load(self, index_array, batch_size, **kwargs):
-        return self.x[index_array], self.y[index_array]
+        if self.fnames:
+            return index_array, self.x[index_array], self.y[index_array]
+        else:
+            return self.x[index_array], self.y[index_array]
 
 
 class MNISTRegression:

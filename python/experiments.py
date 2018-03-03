@@ -1,7 +1,7 @@
 import argparse
 import utils
 
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, matthews_corrcoef
 from scipy.stats import mode
 from keras.backend import clear_session
 from keras import backend as K
@@ -173,15 +173,16 @@ def print_metrics(metrics, predictions, args):
     stddev = np.std(metrics, axis=0)
     cm = []
     acc_true = []
-    for i, m in enumerate([model.loss, *model.metrics]):
-        if hasattr(m, '__name__'):
-            print(m.__name__)
-        else:
-            print(m)
-        print('.' * 30)
-        print(metrics[:, i])
-        print('Mean', mean[i], 'Stddev', stddev[i])
-        print('-' * 100)
+    mathews_true = []
+    # for i, m in enumerate([model.loss, *model.metrics]):
+    #     if hasattr(m, '__name__'):
+    #         print(m.__name__)
+    #     else:
+    #         print(m)
+    #     print('.' * 30)
+    #     print(metrics[:, i])
+    #     print('Mean', mean[i], 'Stddev', stddev[i])
+    #     print('-' * 100)
     if args.confusion_matrix:
         print('=' * 100)
         print('Confusion Matrix')
@@ -194,6 +195,8 @@ def print_metrics(metrics, predictions, args):
             c = confusion_matrix(y_true, y_pred)
             cm.append(c)
             acc_true.append(np.mean(y_pred == y_true))
+            if np.max(y_true) == 1:
+                mathews_true.append(matthews_corrcoef(y_true, y_pred))
             print(c)
             print('-' * 100)
             print('Highest Confidence: ', best_fnames)
@@ -204,6 +207,9 @@ def print_metrics(metrics, predictions, args):
         print('=' * 100)
         print('True Accuracy:')
         print(acc_true)
+        print('=' * 100)
+        print('Mathews Correlation Coefficient:')
+        print(mathews_true)
         print('=' * 100)
     print('=' * 100)
 
@@ -330,7 +336,7 @@ if __name__ == '__main__':
                 print('Loading model from', str(f))
                 model.load_weights(f)
                 print('Loaded previous weights!')
-                metrics.append(test(model, dataset, args))
+                # metrics.append(test(model, dataset, args))
                 if args.confusion_matrix:
                     predictions.append(predict(model, dataset, args))
                 if args.activ_vis:
