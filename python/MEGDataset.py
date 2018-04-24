@@ -6,6 +6,7 @@ import utils
 from tqdm import tqdm
 
 from keras.preprocessing.image import Iterator as KerasDataloader
+from keras.utils import to_categorical
 
 # from functools import lru_cache
 from cachetools import cached, RRCache
@@ -39,7 +40,7 @@ if MEG_COLUMNS.exists():
     megind = np.load(str(MEG_COLUMNS))
 else:
     megind = None
-# megind = None
+megind = None
 
 
 def random_slices(dataset: np.ndarray, sizeofslices=(0.1, 0.9)):
@@ -90,7 +91,7 @@ def parsesubjects(subjecttable):
     for subject in idlist:
         index = idlist.index(subject)
         subject_dictionary[subject.strip()] = \
-            {HEADER_AGE: agelist[index], HEADER_SEX: sexlist[index]}
+            {HEADER_AGE: agelist[index], HEADER_SEX: float(sexlist[index] == 'F')}
 
     return subject_dictionary
 
@@ -322,8 +323,9 @@ class BaseDataset:
                 print('Loaded previous preprocessing!')
                 self.buckets, self.longest_vector, self.slice_length,\
                 self.testpoints, self.training_subjects = pickle.load(f)
-                # list of subjects that we will use for the cross validation
-                # self.leaveoutsubjects = np.unique(self.datapoints[:, 0])
+                # Ensure only the tests selected are used
+                for i, bucket in enumerate(tqdm(self.buckets)):
+                    self.buckets[i] = [x for x in bucket if any(t in str(x[1]) for t in tests)]
                 # Todo: warn/update pickled file if new subjects exist
                 self.print_folds(self.buckets)
         else:
@@ -360,6 +362,7 @@ class BaseDataset:
                 # ind = np.random.choice(ind, replace=False, size=int(0.2*numpoints)
             self.print_folds(self.buckets)
 
+        # FIXME
         if megind is not None:
             self.slice_length = len(megind)
             self.longest_vector = len(megind)*79
@@ -561,6 +564,37 @@ class BaseDatasetAgeRanges(BaseDataset, metaclass=ABCMeta):
         return len(self.AGE_RANGES)
 
 
+class BaseDatasetSex(BaseDataset, metaclass=ABCMeta):
+    DATASET_TARGETS = [HEADER_SEX, HEADER_AGE]
+
+    class SubjectSexLoader(SubjectFileLoader):
+
+        AGES = (4, 10)
+
+        def _load(self, batch: np.ndarray, cols: list):
+            loaded = super()._load(batch, cols)
+            # FIXME - this is from potentially loading the filenames
+            x, y_float = loaded[-2:]
+
+            if HEADER_AGE in BaseDatasetSex.DATASET_TARGETS:
+                inds = np.where((y_float[:, BaseDatasetSex.DATASET_TARGETS.index(HEADER_AGE)] >= self.AGES[0]) &
+                                (y_float[:, BaseDatasetSex.DATASET_TARGETS.index(HEADER_AGE)] < self.AGES[1]))[0]
+                y_float = y_float[inds, 0]
+                x = x[inds]
+
+            y = to_categorical(y_float, 2)
+
+            if len(loaded) == 2:
+                return x, y
+            else:
+                return loaded[0], x, y
+
+    GENERATOR = SubjectSexLoader
+
+    def outputshape(self):
+        return 2
+
+
 # To make the MEG dataset, we ensure that the files that are loaded are from the MEG directory
 class MEGDataset(BaseDataset):
 
@@ -711,6 +745,22 @@ class MEGRawRanges(MEGAgeRangesDataset):
     def inputshape(self):
         # FIXME should not have magic number, comes from assumed sample rate of 200
         return 700, self.slice_length
+
+
+class MEGSexDataset(MEGDataset, BaseDatasetSex):
+    LOAD_SUFFIX = '.npy'
+
+    cache = RRCache(10000)
+
+    # Do not cache the raw data
+    @staticmethod
+    @cached(cache)
+    def get_features(path_to_file):
+        return np.load(path_to_file[0])
+
+    @property
+    def modality_folders(self):
+        return ['raw/MEG']
 
 
 class FusionRawRanges(FusionAgeRangesDataset):

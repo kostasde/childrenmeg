@@ -224,6 +224,8 @@ DATASETS = {
     'MEGSAugRaw': [None, MEGRawRangesSA],
     'MEGTSA': [None, MEGRawRangesTSA],
 
+    'MEGSex': [None, MEGSexDataset],
+
     'BCISS': [BCICompetitionIV2aSingleSubjectRegression, BCICompetitionIV2aSingleSubjectClassification],
     'BCIMS': [BCIIVMultiSubjectRegression, BCIIVMultiSubjectClassification],
     'BCISSTAug': [None, BCISSTAug],

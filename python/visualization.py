@@ -132,7 +132,6 @@ def activations_scnn(args, model: SCNN):
 
 
 def save_viz_scnn(args, activations, model):
-    import matplotlib.pyplot as plt
 
     layer_dict, conv_dict, spat_dict, temp_dict, spatial_out, out_layer = _parse_layers(model)
 
@@ -144,7 +143,8 @@ def save_viz_scnn(args, activations, model):
             im, cn = plot_topomap(topomaps[..., i], chans, show=True)
             save_loc = args.save_viz / spatial_out.name
             save_loc.mkdir(parents=True, exist_ok=True)
-            plt.title('Component {0}'.format(i))
+            plt.title('Spatial Component {0}'.format(i))
+            # plt.colorbar()
             plt.savefig(str(save_loc / 'component_{0}.png'.format(i)))
             plt.clf()
 
@@ -168,7 +168,8 @@ def save_viz_scnn(args, activations, model):
                 directory.mkdir(parents=True, exist_ok=True)
                 plt.specgram(out_act[..., f, c].squeeze(), Fs=200, cmap='bwr', NFFT=64, noverlap=50)
                 plt.colorbar()
-                plt.title('{0} Output Class {1} Component {2}'.format(out_layer.name, c, f))
+                classes = ['<10', '>=10']
+                plt.title('Output Class {0} Component {1}'.format(classes[c], f))
                 plt.ylabel('Frequency (Hz)')
                 plt.xlabel('Time (s)')
                 plt.savefig(str(directory / 'component_{0}'.format(f)))
