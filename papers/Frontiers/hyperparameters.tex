@@ -1,0 +1,453 @@
+\section{Search spaces}
+
+\subsection{Logistic Regression}
+
+\begin{table}[h]
+  \makebox[\textwidth]{
+  \centering
+  \label{tab:ss_log}
+  \begin{tabular}{ l | c | c | c | c | c }
+    \toprule
+    \textbf{Parameter} & \textbf{Selection Style} & \textbf{Param. 1} & \textbf{Param. 2} & \textbf{Param. 3} &  \textbf{Resolution} \\
+    \toprule
+    Batch Size                  &    Uniform    &    $min=1.0$   &  $max=1000$ &  --  & $10$      \\
+    Learning Rate               &  Log-Uniform  &   $min=e^{-7}$  &   $max=1$   &  --  & $\infty$  \\
+    Momentum                    &  Log-Uniform  &   $min=e^{-7}$  &   $max=1$   &  --  & $\infty$  \\
+    Optimizer                   &    Choice \footnotemark     &  SGD \footnotemark  &  Adam  &  --  & --        \\
+    L2-Regularization           &  Log-Uniform  &   $min=e^{-4}$  &   $max=1$   &  --  & $\infty$  \\
+
+    \hline
+  \end{tabular}}
+  \caption{Parameter space for Logistic Regression Models. Although not strictly necessary, these models were trained iteratively in batches like other models.}
+\end{table}
+
+\subsection{LinearSVM}
+
+\begin{table}[h]
+  \makebox[\textwidth]{
+  \centering
+  \label{tab:ss_linsvm}
+    \begin{tabular}{ l | c | c | c | c | c }
+    \toprule
+    \textbf{Parameter} & \textbf{Selection Style} & \textbf{Param. 1} & \textbf{Param. 2} & \textbf{Param. 3} &  \textbf{Resolution} \\
+    \toprule
+    Batch Size                  &    Uniform    &    $min=1.0$   &  $max=1000$ &  --  &  $10$       \\
+    Learning Rate               &  Log-Uniform  &   $min=e^{-7}$  &   $max=1$   &  --  &  $\infty$   \\
+    Momentum                    &  Log-Uniform  &   $min=e^{-7}$  &   $max=1$   &  --  &  $\infty$   \\
+    L2-Regularization           &  Log-Uniform  &   $min=e^{-4}$  &   $max=1$   &  --  &  $\infty$   \\
+
+    \hline
+  \end{tabular}}
+  \caption{Parameter space for the Linear SVM, trained in batches as with neural network models, all SVMs trained with SGD - Stochastic Gradient Descent with momentum.}
+\end{table}
+
+\footnotetext{The ``Choice'' option selects one of the options listed in the parameter columns.}
+\footnotetext{Stochastic Gradient Descent \textit{with} momentum.}
+
+\subsection{Feed forward neural network}
+
+\begin{table}[h]
+  \makebox[\textwidth]{
+  \centering
+  \label{tab:ss_ffnn}
+    \begin{tabular}{ l | c | c | c | c | c }
+    \toprule
+    \textbf{Parameter} & \textbf{Selection Style} & \textbf{Param. 1} & \textbf{Param. 2} & \textbf{Param. 3} &  \textbf{Resolution} \\
+    \toprule
+    Activation                  &    Choice     &    ReLU    & ELU     &  SELU  &  --          \\
+    Dropout                     &    Normal     &     0.5    & 0.15    &  --    &  $\infty$    \\
+    Batch Size                  &    Uniform    &    $1.0$   & $1000$  &  --    &  $10$        \\
+    Optimizer                   &    Choice     &     SGD    & Adam    &  --    &  --          \\
+    Learning Rate               &  Log-Uniform  &   $e^{-12}$ & $1$     &  --    &  $\infty$    \\
+    Momentum                    &  Log-Uniform  &   $e^{-9}$  & $1$     &  --    &  $\infty$    \\
+    L2-Regularization           &  Log-Uniform  &   $e^{-4}$  & $1$     &  --    &  $\infty$    \\
+
+    \hline
+  \end{tabular}}
+  \caption{Parameter space for the feed forward neural network model.}
+\end{table}
+
+\subsection{SCNN}
+
+\begin{table}[h]
+  \makebox[\textwidth]{
+  \centering
+  \label{tab:ss_scnn}
+    \begin{tabular}{ l | c | c | c | c | c }
+    \toprule
+    \textbf{Parameter} & \textbf{Selection Style} & \textbf{Param. 1} & \textbf{Param. 2} & \textbf{Param. 3} &  \textbf{Resolution} \\
+    \toprule 
+      Activation                  &    Choice     &     ReLU     & ELU               &  SELU  & --          \\
+      Dropout                     &    Normal     & $\mu = 0.5$  & $\sigma^2 = 0.15$ &  --    & $\infty$    \\
+      Batch Size                  &    Uniform    &   $min=1.0$  & $max=1000$        &  --    &  $10$       \\
+      Optimizer                   &    Choice     &     SGD      &        Adam       &  --    & --          \\
+      Learning Rate               &  Log-Uniform  & $min=e^{-12}$ & $max=1$           &  --    & $\infty$    \\
+      Momentum                    &  Log-Uniform  & $min=e^{-9}$  & $max=1$           &  --    & $\infty$    \\
+      L2-Regularization           &  Log-Uniform  & $min=e^{-4}$  & $max=1$           &  --    & $\infty$    \\
+      Spatial Units/Layer         &  Log-Uniform  & $min=e^{1.5}$ & $max=e^{5.5}$      &  --    & $2$         \\
+      Spatial Layers              &    Uniform    &  $min=1$     & $max=5$           &  --    & $1$         \\
+      Temporal Units/Layer        &  Log-Uniform  & $min=e^{1.5}$ & $max=e^{5.5}$      &  --    & $2$         \\
+      Temporal Layers             &    Uniform    &  $min=1$     & $max=9$           &  --    & $1$         \\
+      Temporal Kernel             &  Log-Uniform  & $min=e^{1}$   & $max=e^{6}$       &  --    & $2$         \\
+      Temporal Mean Pool          &    Uniform    & $min=5$      & $max=100$         &  --    & $5$         \\
+      Output Layers               &    Uniform    & $min=0$      & $max=3$           &  --    & $1$         \\
+      Output Layer 1              &  Log-Uniform  & $min=e^{1.5}$ & $max=e^{5.5}$      &  --    & $2$         \\
+      Output Layer 2              &  Log-Uniform  & $min=e^{4}$   & $max=e^{6}$       &  --    & $2$         \\
+      Output Layer 3              &  Log-Uniform  & $min=e^{4}$   & $max=e^{6}$       &  --    & $2$         \\
+ 
+     \hline
+  \end{tabular}}
+  \caption{Parameter space for the SCNN model.}
+\end{table}
+
+What appears to be missing in this section is the spatial kernel size. However we select the kernel size as a function of the number of spatial filtering layers. So each layer consists of filters sized ${number of channels}\over{number of layers}$ ($+1$ for output layer as needed to span channel space).
+
+\subsection{LSTM + Attention}
+
+\begin{table}[htp]
+  \makebox[\textwidth]{
+  \centering
+  \label{tab:ss_scnn}
+    \begin{tabular}{ l | c | c | c | c | c }
+    \toprule
+    \textbf{Parameter} & \textbf{Selection Style} & \textbf{Param. 1} & \textbf{Param. 2} & \textbf{Param. 3} &  \textbf{Resolution} \\
+    \toprule
+      Attention Function Depth    &   Uniform     &      0     & 4       &  --   & $\infty$      \\
+      Activation                  &    Choice     &    ReLU    & ELU     &  SELU & --            \\
+      Dropout                     &    Normal     &     0.5    & 0.15    &  --   & $\infty$      \\
+      Batch Size                  &    Uniform    &    $1.0$   & $1000$  &  --   & $10$          \\
+      Optimizer                   &    Choice     &     SGD    & Adam    &  --   & --            \\
+      Learning Rate               &  Log-Uniform  &   $e^{-12}$ & $1$     &  --   & $\infty$      \\
+      Momentum                    &  Log-Uniform  &   $e^{-9}$  & $1$     &  --   & $\infty$      \\
+      L2-Regularization           &  Log-Uniform  &   $e^{-4}$  & $1$     &  --   & $\infty$      \\
+      Spatial Units/Layer         &  Log-Uniform  & $min=e^{1.5}$ & $max=e^{5.5}$      &  --    & $2$         \\
+      Spatial Layers              &    Uniform    &  $min=1$     & $max=5$           &  --    & $1$         \\
+      Temporal Units/Layer        &  Log-Uniform  & $min=e^{1.5}$ & $max=e^{5.5}$      &  --    & $2$         \\
+      Temporal Layers             &    Uniform    &  $min=1$     & $max=9$           &  --    & $1$         \\
+      Temporal Kernel             &  Log-Uniform  & $min=e^{1}$   & $max=e^{6}$       &  --    & $2$         \\
+      Temporal Mean Pool          &    Uniform    & $min=5$      & $max=100$         &  --    & $5$         \\
+      Output Layers               &    Uniform    & $min=0$      & $max=3$           &  --    & $1$         \\
+      Output Layer 1              &  Log-Uniform  & $min=e^{1.5}$ & $max=e^{5.5}$      &  --    & $2$         \\
+      Output Layer 2              &  Log-Uniform  & $min=e^{4}$   & $max=e^{6}$       &  --    & $2$         \\
+      Output Layer 3              &  Log-Uniform  & $min=e^{4}$   & $max=e^{6}$       &  --    & $2$         \\
+      LSTM Output                 &    Choice     &  Final Step & Entire Sequence & -- & -- \\
+      Attention Units/Layer       &  Log-Uniform  & $min=e^{1.5}$ & $max=e^{5.5}$      &  --    & $2$         \\
+      Attention Hidden Layers            &    Uniform    & $min=0$      & $max=5$           & -- & $1$             \\
+    \hline
+  \end{tabular}}
+  \caption{Parameter space for the LSTM with attention weighted SCNN features model.}
+\end{table}
+
+The LSTM+Attention model must in addition to the parameters of the SCNN model, select whether to use the entire sequence of outputs of the LSTM, or to only use the final output of the sequence. Attention function above referes to the function $a()$ from section \ref{sec:attn_description}.
+
+\subsection{Spatial 2D CNN}
+
+\begin{table}[h]
+  \makebox[\textwidth]{
+  \centering
+  \label{tab:ss_Scnn}
+    \begin{tabular}{ l | c | c | c | c | c }
+    \toprule
+    \textbf{Parameter} & \textbf{Selection Style} & \textbf{Param. 1} & \textbf{Param. 2} & \textbf{Param. 3} &  \textbf{Resolution} \\
+    \toprule 
+      Activation                  &    Choice     &     ReLU     & ELU               &  SELU  & --          \\
+      Dropout                     &    Normal     & $\mu = 0.5$  & $\sigma^2 = 0.15$ &  --    & $\infty$    \\ 
+      Batch Size                  &    Uniform    &   $min=1.0$  & $max=1000$        &  --    &  $10$       \\
+      Optimizer                   &    Choice     &     SGD      &        Adam       &  --    & --          \\
+      Learning Rate               &  Log-Uniform  & $min=e^{-12}$ & $max=1$           &  --    & $\infty$    \\
+      Momentum                    &  Log-Uniform  & $min=e^{-9}$  & $max=1$           &  --    & $\infty$    \\
+      L2-Regularization           &  Log-Uniform  & $min=e^{-4}$  & $max=1$           &  --    & $\infty$    \\
+      Spatial Units/Layer         &  Log-Uniform  & $min=e^{1.5}$ & $max=e^{5.5}$      &  --    & $2$         \\
+      Spatial Layers              &    Uniform    &  $min=1$     & $max=5$           &  --    & $1$         \\
+      Temporal Units/Layer        &  Log-Uniform  & $min=e^{1.5}$ & $max=e^{5.5}$      &  --    & $2$         \\
+      Temporal Layers             &    Uniform    &  $min=1$     & $max=9$           &  --    & $1$         \\
+      Temporal Kernel             &  Log-Uniform  & $min=e^{1}$   & $max=e^{6}$       &  --    & $2$         \\
+      Temporal Mean Pool          &    Uniform    & $min=5$      & $max=100$         &  --    & $5$         \\
+      Output Layers               &    Uniform    & $min=0$      & $max=3$           &  --    & $1$         \\
+      Output Layer 1              &  Log-Uniform  & $min=e^{1.5}$ & $max=e^{5.5}$      &  --    & $2$         \\
+      Output Layer 2              &  Log-Uniform  & $min=e^{4}$   & $max=e^{6}$       &  --    & $2$         \\
+      Output Layer 3              &  Log-Uniform  & $min=e^{4}$   & $max=e^{6}$       &  --    & $2$         \\
+      Grid Height/Width           &    Uniform    & $min=10$      & $max=50$           &  --    & $5$         \\
+      Sensor Position Var. \footnotemark &    Normal     & $\mu = 0.05$  & $\sigma^2 = 0.01$ &  --    & $\infty$    \\ 
+     \hline
+  \end{tabular}}
+  \caption{Parameter space for the Spatial 2D CNN.}
+\end{table}
+
+\footnotetext{Only applies to the noise augmentation model. This parameter determines the covariance (the noise is symmetrical in horizontal and vertical directions) of the sensor locations.}
+
+\section{Best Models}
+
+\subsection{Audio}
+
+\subsubsection{Logistic Regression}
+
+\begin{itemize}
+\item Optimizer: Adam
+\item Learning Rate: $0.0181$
+\item L2 regularization: $0.598$
+\item Batch Size: $210$
+\end{itemize}
+
+\subsubsection{Linear SVM}
+
+\begin{itemize}
+\item Optimizer: Adam
+\item Learning Rate: $0.0608$
+\item L2 regularization: $0.0213$
+\item Batch Size: $910$
+\end{itemize}
+
+\subsubsection{Feed Forward Neural Network}
+
+\begin{itemize}
+\item Optimizer: Adam
+\item Learning Rate: $1.46 \times 10^{-5}$
+\item L2 regularization: $9.14 \times 10^{-4}$
+\item Batch Size: $40$
+\item Activation: SELU
+\item Dropout: $0.33$
+\end{itemize}
+
+\subsubsection{SCNN}
+
+\begin{itemize}
+\item Optimizer: SGD + Momentum
+\item Learning Rate: $5.13 \times 10^{-4}$
+\item Momentum: $0.0046$
+\item L2 regularization: $0.111$
+\item Batch Size: $160$
+\item Activation: ReLU
+\item Dropout: $0.45$
+\item Spatial Filters per Layer: $17$
+\item Spatial Filtering Layers: $3$
+\item Temporal Filters per Layer: $172$
+\item Temporal Filtering Layers: $5$
+\item Temporal Kernel Size: $2$
+\item Temporal Average Pooling Size: $20$
+\item Fully Connected Output Layers: $3: [10, 290, 50]$
+\end{itemize}
+
+\subsubsection{LSTM + Attention}
+
+\begin{itemize}
+\item Optimizer: SGD + Momentum
+\item Learning Rate: $2.04 \times 10^{-4}$
+\item Momentum: $0.0214$
+\item L2 regularization: $0.0216$
+\item Batch Size: $140$
+\item Activation: ReLU
+\item Dropout: $0.48$
+\item Spatial Filters per Layer: $108$
+\item Spatial Filtering Layers: $2$
+\item Temporal Filters per Layer: $230$
+\item Temporal Filtering Layers: $9$
+\item Temporal Kernel Size: $4$
+\item Temporal Mean Pooling Size: $20$
+\item Fully Connected Output Layers: $3: [190, 370, 120]$
+\item Use only final LSTM step
+\item Attention Function Layer Width: $244$
+\item Attention Hidden Layers: $2$
+\end{itemize}
+
+\subsection{MEG extracted features}
+
+\subsubsection{Logistic Regression}
+
+\begin{itemize}
+\item Optimizer: SGD + Momentum
+\item Learning Rate: $0.0243$
+\item Momentum: $0.0026$
+\item L2 regularization: $0.517$
+\item Batch Size: $650$
+\end{itemize}
+
+\subsubsection{Linear SVM}
+
+\begin{itemize}
+\item Optimizer: SGD + Momentum
+\item Learning Rate: $0.0667$
+\item Momentum: $0.154$
+\item L2 regularization: $0.508$
+\item Batch Size: $510$
+\end{itemize}
+
+\subsubsection{Feed Forward Neural Network}
+
+\begin{itemize}
+\item Optimizer: Adam
+\item Learning Rate: $0.0016$
+\item L2 regularization: $0.0211$
+\item Batch Size: $5$
+\item Activation: ELU
+\item Dropout: $0.59$
+\end{itemize}
+
+\subsubsection{SCNN}
+
+\begin{itemize}
+\item Optimizer: SGD + Momentum
+\item Learning Rate: $0.0094$
+\item Momentum: $0.00298$
+\item L2 regularization: $0.0477$
+\item Batch Size: $40$
+\item Activation: ELU
+\item Dropout: $0.59$
+\item Spatial Filters per Layer: $10$
+\item Spatial Filtering Layers: $2$
+\item Temporal Filters per Layer: $24$
+\item Temporal Filtering Layers: $1$
+\item Temporal Kernel Size: $12$
+\item Temporal Average Pooling Size: $55$
+\item Fully Connected Output Layers: $0$
+\end{itemize}
+
+\subsubsection{LSTM + Attention}
+
+\begin{itemize}
+\item Optimizer: SGD + Momentum
+\item Learning Rate: $7.45 \times 10^{-5}$
+\item Momentum: $0.00213$
+\item L2 regularization: $0.0216$
+\item Batch Size: $20$
+\item Activation: ReLU
+\item Dropout: $0.56$
+\item Spatial Filters per Layer: $7$
+\item Spatial Filtering Layers: $2$
+\item Temporal Filters per Layer: $4$
+\item Temporal Filtering Layers: $9$
+\item Temporal Kernel Size: $4$
+\item Temporal Mean Pooling Size: $20$
+\item Fully Connected Output Layers: $2: [38, 130]$
+\item Use only final LSTM step
+\item Attention Function Layer Width: $18$
+\item Attention Hidden Layers: $1$
+\end{itemize}
+
+\subsection{Raw MEG}
+
+\subsubsection{SCNN}
+
+\begin{itemize}
+\item Optimizer: Adam
+\item Learning Rate: $0.00048$
+\item L2 regularization: $0.0041$
+\item Batch Size: $40$
+\item Activation: SELU
+\item Dropout: $0.74$
+\item Spatial Filters per Layer: $60$
+\item Spatial Filtering Layers: $2$
+\item Temporal Filters per Layer: $10$
+\item Temporal Filtering Layers: $6$
+\item Temporal Kernel Size: $22$
+\item Temporal Average Pooling Size: $10$
+\item Fully Connected Output Layers: $3: [6, 170, 70]$
+\end{itemize}
+
+\subsubsection{LSTM + Attention}
+
+\begin{itemize}
+\item Optimizer: SGD + Momentum
+\item Learning Rate: $6.72 \times 10^{-5}$
+\item Momentum: $0.97$
+\item L2 regularization: $0.0061$
+\item Batch Size: $20$
+\item Activation: ReLU
+\item Dropout: $0.55$
+\item Spatial Filters per Layer: $76$
+\item Spatial Filtering Layers: $3$
+\item Temporal Filters per Layer: $136$
+\item Temporal Filtering Layers: $8$
+\item Temporal Kernel Size: $46$
+\item Temporal Mean Pooling Size: $14$
+\item Fully Connected Output Layers: $3: [32, 180, 230]$
+\item Use entire LSTM sequence.
+\item Attention Hiden Layers: $0$
+\end{itemize}
+
+\subsection{MEG Temporal Augmentation}
+
+\subsubsection{SCNN}
+
+\begin{itemize}
+\item Optimizer: Adam
+\item Learning Rate: $1.98 \times 10^{-4}$
+\item L2 regularization: $7.91 \times 10^{-4}$
+\item Batch Size: $40$
+\item Activation: SELU
+\item Dropout: $0.794$
+\item Spatial Filters per Layer: $44$
+\item Spatial Filtering Layers: $1$
+\item Temporal Filters per Layer: $8$
+\item Temporal Filtering Layers: $8$
+\item Temporal Kernel Size: $14$
+\item Temporal Average Pooling Size: $9$
+\item Fully Connected Output Layers: $1: [44]$
+\end{itemize}
+
+\subsubsection{LSTM + Attention}
+
+\begin{itemize}
+\item Optimizer: SGD + Momentum
+\item Learning Rate: $4.17 \times 10^{-4}$
+\item Momentum: $0.95$
+\item L2 regularization: $0.0011$
+\item Batch Size: $20$
+\item Activation: SELU
+\item Dropout: $0.298$
+\item Spatial Filters per Layer: $2$
+\item Spatial Filtering Layers: $3$
+\item Temporal Filters per Layer: $58$
+\item Temporal Filtering Layers: $6$
+\item Temporal Kernel Size: $12$
+\item Temporal Mean Pooling Size: $12$
+\item Fully Connected Output Layers: $0$
+\item Use entire LSTM sequence.
+\item Attention Function Layer Width: $79$
+\item Attention Hiden Layers: $4$
+\end{itemize}
+
+\subsection{MEG Spatial Projection}
+
+\subsubsection{Spatial 2D CNN}
+
+\begin{itemize}
+\item Optimizer: Adam
+\item Learning Rate: $0.0014$
+\item L2 regularization: $0.0064$
+\item Batch Size: $40$
+\item Activation: ReLU
+\item Dropout: $0.42$
+\item Spatial Filters per Layer: $7$
+\item Spatial Filtering Layers: $5$
+\item Temporal Filters per Layer: $24$
+\item Temporal Filtering Layers: $1$
+\item Temporal Kernel Size: $72$
+\item Temporal Average Pooling Size: $50$
+\item Fully Connected Output Layers: $2: [60, 80]$
+\item Grid Width/Length: $35$
+\end{itemize}
+
+\subsection{MEG Spatial Projection + Noise Sensors}
+
+\subsubsection{Spatial 2D CNN}
+
+\begin{itemize}
+\item Optimizer: SGD + Momentum
+\item Learning Rate: $0.123$
+\item Momentum: $0.077$
+\item L2 regularization: $0.166$
+\item Batch Size: $80$
+\item Activation: ReLU
+\item Dropout: $0.55$
+\item Spatial Filters per Layer: $21$
+\item Spatial Filtering Layers: $2$
+\item Temporal Filters per Layer: $4$
+\item Temporal Filtering Layers: $5$
+\item Temporal Kernel Size: $58$
+\item Temporal Average Pooling Size: $90$
+\item Fully Connected Output Layers: $2: [14, 400]$
+\item Grid Width/Length: $45$
+\item Sensor Covariance: $0.056$
+\end{itemize}
+
