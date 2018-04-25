@@ -20,7 +20,7 @@
 % Needs to be <=200 words.
 
 \begin{abstract}
-As language ability develops in children, the cortical structures employed in the brain progressively lateralize into typically the left hemisphere. Verb generation tasks have consistently demonstrated this phenomenon in both fMRI and MEG studies. With the recent increase in popularity of machine learning and deep neural networks (DNN)s, we consider whether a DNN trained with raw MEG signals can be used to predict the age of children performing a verb-generation task, a monosyllable speech-elicitation task, and a multi-syllabic speech-elicitation task. Previous work has explored taking DNNs designed for image processing and using them to process and classify encephalographic data with some success, but these architectures do little to acknowledge the structure of these data. Simple neural networks have been used extensively to classify data once broken down into features, but this requires extensive feature engineering and pre-processing. We present novel DNNs that can be trained from raw EEG/MEG data and mimic the feature-engineering pipeline. We demonstrate criteria the network use to make classification choices including relative weighting of channel measurements and preferred spectro-temporal information of un-mixed channels. Our data feature 92 subjects aged 4-18 recorded using a 151 channel MEG helmet. Our proposed model scores over 97\% single-fold binary classification accuracy distinguishing between greater or less than 10 years of age, and performs at least as well as previous state-of-the-art approaches on publicly available EEG data.
+As language ability develops in children, the cortical structures employed in the brain progressively lateralize into typically the left hemisphere. Verb generation tasks have consistently demonstrated this phenomenon in both fMRI and MEG studies. With the recent increase in popularity of machine learning and deep neural networks (DNN)s, we consider whether a DNN trained with raw MEG signals can be used to predict the age of children performing a verb-generation task, a monosyllable speech-elicitation task, and a multi-syllabic speech-elicitation task. Previous work has explored taking DNNs designed for image processing and using them to process and classify encephalographic data with some success, but these architectures do little to acknowledge the structure of these data. Simple neural networks have been used extensively to classify data once broken down into features, but this requires extensive feature engineering and pre-processing. We present novel DNNs that can be trained from raw EEG/MEG data and mimic the feature-engineering pipeline. We demonstrate criteria the network use to make classification choices including relative weighting of channel measurements and preferred spectro-temporal information of un-mixed channels. Our data feature 92 subjects aged 4-18 recorded using a 151 channel MEG helmet. Our proposed model scores over 97\% single-fold binary classification accuracy distinguishing between greater or less than 10 years of age, and can classify publicly available EEG with state-of-the-art accuracy.
 
 \end{abstract}
 \begin{document}
@@ -81,13 +81,13 @@ The temporal filtering operations behave like eq. \ref{eq:scnn_s1}, but each ker
 
 \subsubsection*{Two-dimensional SCNN}
 
-This architecture extends the SCNN above to data that are represented as 2D interpolated images of shape $D \times D$, rather than single dimensional sequences of channel values. In this architecture, rather than kernels being vectors, they are 2D square tensors that scale patches of the image. As such, \ref{eq:scnn_s1} would instead be expressed:
+This architecture extends the SCNN above to data that are represented as 2D interpolated images of shape $D \times D$, rather than single dimensional sequences of channel values. In this architecture, rather than kernels being vectors, they are 2D square tensors that scale patches of the image. As such, eq. \ref{eq:scnn_s1} would instead be expressed:
 
 \begin{equation} \label{eq:s2dcnn_s1}
   \boldsymbol{\hat{X}}_{t, m, n, j} = f(\sum_{m'=0}^{C''} \sum_{n'=0}^{C''} {\boldsymbol{w}_{L_1}^j}_{m', n'} \boldsymbol{X}_{t,m+m',n+n'})
 \end{equation}
 
-Which would result in a four-dimensional tensor $\boldsymbol{\hat{X}}$ with dimensions $T \times (C-C'') \times (C-C'') \times K_1$. Similarly modifying \ref{eq:scnn_s1}, the same $X_{Spatial}$ is produced:
+Which would result in a four-dimensional tensor $\boldsymbol{\hat{X}}$ with dimensions $T \times (C-C'') \times (C-C'') \times K_1$. Similarly modifying eq. \ref{eq:scnn_s1}, the same $X_{Spatial}$ is produced:
 
 \begin{equation} \label{eq:scnn_s2}
   {\boldsymbol{X}_{Spatial}}_{t, s} = f(\sum_{m=0}^{D-C''}\sum_{n=0}^{D-C''}{\boldsymbol{w}_{L_2}^s}_{m,n} \boldsymbol{X'}_{t, m, n, s})
@@ -103,7 +103,7 @@ In contrast, our implementation does not use a pre-trained CNN, but trains convo
   x_{t,i}^{In} = \sum_{t=0}^{T'} \alpha_{t,i} X_{t,i}^{SCNN}
 \end{equation}
 
-Where $\alpha$ is defined in \ref{eq:attn_nrg}. We select whether to use the full LSTM output sequence, or exclusively the last state output as part of our hyperparameter search, and optionally have several fully connected layers before the prediction layer.
+Where $\alpha$ is defined in eq. \ref{eq:attn_nrg}. We select whether to use the full LSTM output sequence, or exclusively the last state output as part of our hyperparameter search, and optionally have several fully connected layers before the prediction layer.
 
 \section*{Results}
 
@@ -119,7 +119,7 @@ Where $\alpha$ is defined in \ref{eq:attn_nrg}. We select whether to use the ful
     \toprule
     \textbf{Dataset} & \textbf{Model} & \textbf{Mean \%} & \textbf{Dev. \%} & \textbf{W1 Mean \%} & \textbf{W1 Dev. \%}\\
     \toprule
-    \multirow{5}{*}{Audio}
+    \multirow{5}{*}{Audio (feature)}
                      & Logistic Reg.       & 17.5 & 4.42  & 48.1 & 4.41 \\
                      & Linear SVM          & 17.2 & 5.15  & 54.4 & 1.91 \\
                      & FFNN                & 18.9 & 6.00  & 49.7 & 11.9 \\
@@ -127,25 +127,25 @@ Where $\alpha$ is defined in \ref{eq:attn_nrg}. We select whether to use the ful
                      & SCNN                & 15.6 & 4.00  & 40.2 & 8.59 \\
     
     \midrule
-    \multirow{5}{*}{MEG (red.)}
+    \multirow{5}{*}{MEG (feature)}
                      & Logistic Reg.        & 27.9 & 2.52  & 49.0 & 9.96 \\
                      & Linear SVM          & 28.5 & 0.79  & 53.0 & 2.82 \\
                      & FFNN                & 28.1 & 5.91  & 51.7 & 8.37 \\
                      & LSTM+A              & 20.7 & 6.90  & 50.1 & 11.6 \\
                      & SCNN                & 22.4 & 4.96  & 53.0 & 3.68 \\
     \midrule
-    \multirow{2}{*}{MEG (raw)}
+    \multirow{2}{*}{MEG}
                          & LSTM+A              & 28.1 & 5.00 & 60.0 & 9.11 \\ 
                          & SCNN                & 28.6 & 7.91 & 59.9 & 11.0 \\
     \midrule
-    \multirow{2}{*}{MEG (cropping)}
+    \multirow{2}{*}{MEG (+crop aug.)}
                          & LSTM+A              & 26.3 & 2.07 & 50.2 & 2.36 \\ 
                          & SCNN                & 32.4 & 10.9 & 62.6 & 9.29 \\
     \midrule
-    \multirow{1}{*}{MEG (projection)}
+    \multirow{1}{*}{MEG (+projection aug.)}
                          & SCNN                & 21.9 & 2.20 & 44.0 & 5.10 \\
     \midrule
-    \multirow{1}{*}{MEG (proj.+noise)}
+    \multirow{1}{*}{MEG (proj.+noise aug.)}
                          & SCNN                & 15.0 & 5.10 & 37.4 & 9.83 \\
     \bottomrule
   \end{tabular}}
@@ -226,99 +226,103 @@ The results in table \ref{tab:sec_results} are meant as a verification that SCNN
 
 \subsection*{Model Analysis}
 
-We calculated the maximal activations as described in \ref{sec:max_act} for the model with the highest single fold test accuracy in the binary classification task to minimize creating artificial data that had characteristics that were not pertinent to the task at hand. This resulted in using the SCNN model trained with the second fold of the raw MEG dataset. The full listing of activations is found in Appendix \ref{apdx:max_act} for brevity. Here we focus on components (figure \ref{fig:max_components}) and spectrograms (figures \ref{}) that demonstrate characteristics that are common among the artificial activations.
+We calculated the maximal activations as described in \ref{sec:max_act} for the model with the highest single fold test accuracy in the binary classification task to minimize creating artificial data that had characteristics that were not pertinent to the task at hand. This resulted in using the SCNN model trained with the second fold of the raw MEG dataset. The full listing of activations is found in Appendix \ref{apdx:max_act} for brevity. Here we focus on components (figure \ref{fig:max_components}) and spectrograms (figure \ref{fig:max_spectrograms}) that demonstrate characteristics that are common among the artificial activations.
 
 \begin{figure}[h!]
   \begin{minipage}{0.31\textwidth}
     \centering\includegraphics[width=\linewidth]{max_act/4.png}
      \subcaption{}
-    %\label{fig:component_4}
+    \label{fig:component_4}
   \end{minipage}
   \hspace*{\fill} % separation between the subfigures
   \begin{minipage}{0.31\textwidth}
     \includegraphics[width=\linewidth]{max_act/28.png}
      \subcaption{}
-    %\label{fig:component_28}
+    \label{fig:component_28}
   \end{minipage}
    \hspace*{\fill} % separation between the subfigures
    \begin{minipage}{0.31\textwidth}
     \includegraphics[width=\linewidth]{max_act/49.png}
     \subcaption{}
-    %\label{fig:component_49}
+    \label{fig:component_49}
   \end{minipage}
   \caption[textfind]{Components (a) and (b) show a common pattern of spatial mixing, with a particularly strong weight localized around channels near the inferior frontal or perhaps dorsolateral prefrontal regions. This region is the only somewhat consistently strongly weighted region that is not exagerated by the edge effects of the interpolation. Component (c) shows a very nearly inverse set of weights compared to (a), in addition to what could be strong weights over the visual cortex (although edge effects of the interpolation make this hard to say). Components were plotted using the MNE python library. \footnotemark} \label{fig:max_components}
 \end{figure}
 \footnotetext{https://www.martinos.org/mne/stable/index.html}
 
 \begin{figure}
-  \begin{minipage}{0.47\textwidth}
+  \begin{minipage}{0.24\textwidth}
     \includegraphics[width=\linewidth]{max_act/artificial_spec_4_0.png}
+    \subcaption{}
 %    \caption{} \label{fig:art_4_0}
   \end{minipage}
   \hspace*{\fill} 
-  \begin{minipage}{0.47\textwidth}
+  \begin{minipage}{0.24\textwidth}
     \includegraphics[width=\linewidth]{max_act/artificial_spec_4_1.png}
+    \subcaption{}
 %    \caption{} \label{fig:art_4_1}
   \end{minipage}
-  \vskip\baselineskip
-  \begin{minipage}{0.47\textwidth}
+%  \vskip\baselineskip
+  \begin{minipage}{0.24\textwidth}
     \includegraphics[width=\linewidth]{max_act/real_0_4.png}
+    \subcaption{}
 %    \caption{} \label{fig:real_4_0}
   \end{minipage}
   \hspace*{\fill} 
-  \begin{minipage}{0.47\textwidth}
+  \begin{minipage}{0.24\textwidth}
     \includegraphics[width=\linewidth]{max_act/real_1_4.png}
+    \subcaption{}
 %    \caption{} \label{fig:real_4_1}
   \end{minipage}
-  \caption{Plots (a) and (b) represent artificially generated data that maximally activate the classes $<10$ and $>=10$ years old respectively with respect to component 4 (plot (a) of figure \ref{fig:max_components}). Plots (c) and (d) show the two real datapoints that most significantly maximized the two classes for the same component.}
-  \label{fig:component_4}
-\end{figure}
-
-\begin{figure}
-  \begin{minipage}{0.47\textwidth}
+  \vskip\baselineskip
+  \begin{minipage}{0.24\textwidth}
     \includegraphics[width=\linewidth]{max_act/artificial_spec_28_0.png}
+    \subcaption{}
 %    \caption{} \label{fig:art_28_0}
   \end{minipage}
   \hspace*{\fill} 
-  \begin{minipage}{0.47\textwidth}
+  \begin{minipage}{0.24\textwidth}
     \includegraphics[width=\linewidth]{max_act/artificial_spec_28_1.png}
+    \subcaption{}
 %    \caption{} \label{fig:art_28_1}
   \end{minipage}
-  \vskip\baselineskip
-  \begin{minipage}{0.47\textwidth}
+%  \vskip\baselineskip
+  \begin{minipage}{0.24\textwidth}
     \includegraphics[width=\linewidth]{max_act/real_0_28.png}
+    \subcaption{}
 %    \caption{} \label{fig:real_28_0}
   \end{minipage}
   \hspace*{\fill} 
-  \begin{minipage}{0.47\textwidth}
+  \begin{minipage}{0.24\textwidth}
     \includegraphics[width=\linewidth]{max_act/real_1_28.png}
+    \subcaption{}
 %    \caption{} \label{fig:real_28_1}
   \end{minipage}
-  \caption{Plots (a) and (b) represent artificially generated data that maximally activate the classes $<10$ and $>=10$ years old respectively with respect to component 28 (plot (b) of figure \ref{fig:max_components}). Plots (c) and (d) show the two real datapoints that most significantly maximized the two classes for the same component.}
-  \label{fig:component_28}
-\end{figure}
-
-\begin{figure}
-  \begin{minipage}{0.47\textwidth}
+  \vskip\baselineskip
+  \begin{minipage}{0.24\textwidth}
     \includegraphics[width=\linewidth]{max_act/artificial_spec_49_0.png}
+    \subcaption{}
 %    \caption{} \label{fig:art_49_0}
   \end{minipage}
   \hspace*{\fill} 
-  \begin{minipage}{0.47\textwidth}
+  \begin{minipage}{0.24\textwidth}
     \includegraphics[width=\linewidth]{max_act/artificial_spec_49_1.png}
+    \subcaption{}
 %    \caption{} \label{fig:art_49_1}
   \end{minipage}
-  \vskip\baselineskip
-  \begin{minipage}{0.47\textwidth}
+%  \vskip\baselineskip
+  \begin{minipage}{0.24\textwidth}
     \includegraphics[width=\linewidth]{max_act/real_0_49.png}
+    \subcaption{}
 %    \caption{} \label{fig:real_49_0}
   \end{minipage}
   \hspace*{\fill} 
-  \begin{minipage}{0.47\textwidth}
+  \begin{minipage}{0.24\textwidth}
     \includegraphics[width=\linewidth]{max_act/real_1_49.png}
+    \subcaption{}
 %    \caption{} \label{fig:real_49_1}
   \end{minipage}
-  \caption{Plots (a) and (b) represent artificially generated data that maximally activate the classes $<10$ and $>=10$ years old respectively with respect to component 49 (plot (c) of figure \ref{fig:max_components}). Plots (c) and (d) show the two real datapoints that most significantly maximized the two classes for the same component.} \label{fig:component_49}
+  \caption{Plots \textbf{(a), (b), (e), (f), (i), and (j)} above represent artificially generated data that maximally activate the classes $<10$ and $>=10$ years old with respect to component 4 (figure \ref{fig:component_4}), component 28 (figure \ref{fig:component_28}) and component 49 (figure \ref{fig:component_49}). Where each row of spectrograms down corresponds to components 4, 28 and 49 respectively. Plots \textbf{(c), (d), (g), (h), (k), and (l)} show the two real datapoints that most significantly maximized the two classes for the same component.} \label{fig:max_spectrograms}
 \end{figure}
 
 Throughout the learned components, there is a common patch of strong weights found where what looks like the inferior frontal or perhaps dorsolateral prefrontal regions. All three components shown in figure \ref{fig:max_components} demonstrate this to some degree (although (c) has inverse sign). The artificially generated datapoints show fairly uniform spectrograms across all components, with spectral density concentrated between approximately $0-15$ H{\em z} in the $<10$ years old class, and concentration $15-22$ H$z$ for $>=10$ years old. All of the artificial datapoints are very stationary, and show no particular emphasis around the event time $t=1.5s$. The $>=10$ artificial data spectrograms do however show more activity overall in the high $beta$ low $gamma$ rhythms and this is particularly evident in components 4 and 49.
