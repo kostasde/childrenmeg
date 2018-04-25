@@ -20,7 +20,7 @@
 % Needs to be <=200 words.
 
 \begin{abstract}
-As language ability develops in children, the cortical structures employed in the brain progressively lateralize into typically the left hemisphere. Verb generation tasks have consistently demonstrated this phenomenon in both fMRI and MEG studies. With the recent increase in popularity of machine learning and deep neural networks (NN)s, we consider whether a neural network trained with raw MEG signals can be used to predict the age of children performing a verb-generation task, a monosyllable speech-elicitation task, and a multi-syllabic speech-elicitation task. Previous work has explored taking NNs designed for image processing and using them to process encephalographic data with some success, but these architectures do little to acknowledge the structure of these data. Simple NNs have been used extensively to classify data once broken down into features, but this requires feature engineering. We present novel NNs that can be trained from raw EEG/MEG data and mimic the feature-engineering pipeline. We visually demonstrate criteria the network use to make classification choices including relative weighting of channel measurements and preferred spectro-temporal information of un-mixed channels. Our data feature 92 subjects aged 4-18 recorded using a 151 channel MEG helmet and a single channel of synchronized audio. Our proposed model scores over 97\% binary single-fold classification accuracy when distinguishing between greater or less than 10 years of age, and performs at least as well as previous state-of-the-art approaches on publicly available EEG data.
+As language ability develops in children, the cortical structures employed in the brain progressively lateralize into typically the left hemisphere. Verb generation tasks have consistently demonstrated this phenomenon in both fMRI and MEG studies. With the recent increase in popularity of machine learning and deep neural networks (DNN)s, we consider whether a DNN trained with raw MEG signals can be used to predict the age of children performing a verb-generation task, a monosyllable speech-elicitation task, and a multi-syllabic speech-elicitation task. Previous work has explored taking DNNs designed for image processing and using them to process and classify encephalographic data with some success, but these architectures do little to acknowledge the structure of these data. Simple neural networks have been used extensively to classify data once broken down into features, but this requires extensive feature engineering and pre-processing. We present novel DNNs that can be trained from raw EEG/MEG data and mimic the feature-engineering pipeline. We demonstrate criteria the network use to make classification choices including relative weighting of channel measurements and preferred spectro-temporal information of un-mixed channels. Our data feature 92 subjects aged 4-18 recorded using a 151 channel MEG helmet. Our proposed model scores over 97\% single-fold binary classification accuracy distinguishing between greater or less than 10 years of age, and performs at least as well as previous state-of-the-art approaches on publicly available EEG data.
 
 \end{abstract}
 \begin{document}
@@ -35,11 +35,11 @@ As language ability develops in children, the cortical structures employed in th
 
 \section*{Introduction}
 
-The development of speech from infancy to adulthood is a remarkable and uniquely human process. Language and speech in the adult brain spans a diverse set of regions and interconnections from brain stem to cerebral cortex \cite{GuentherBook, Tourville2011, Hillis}, but higher level language abilities are a typically left-hemisphere lateralized process for approximately 90\% of the general population, although this  can range from 70\% to 95\% in populations with distinct left and right handedness respectively \cite{GuentherBook, Kadis2011, Yu2014}. Children develop this lateralization over time and show more bi-lateral activity as an inverse function of age \cite{Kadis2011, Ressel2008}. A common experiment paradigm for demonstrating this is the verb-generation task, which requires a subject to produce a verb they feel conveys meaning related to a stimuli with which they have been provided (e.g. an image) \cite{Kadis2011}. Speech articulation divorced from language is much less lateralized in comparison to {\em higher level} language faculties irregardless of age \cite{GuentherBook}, and in terms of cortical systems, heavily engages the Rolandic cortex to integreate somatosensory and motor control representations to command the speech articulators \cite{GuentherBook}. Despite the fact that this process is less lateralized than higher level language function, non-word monosyllabic, and multisyllabic experiments still show some left-lateralization \cite{Ghosh2008a}. We consider a dataset made up of a combination of a verb-generation task, the monosyllabic utterance /{\em pah}/ and the multisyllable non-word /{\em pah tah kah}/ with overlapping sets of subjects recorded using magnetoencephalography (MEG), in an effort to demonstrate age-related language and speech development.
+The development of speech from infancy to adulthood is a remarkable and uniquely human process. Language and speech in the adult brain spans a diverse set of regions and interconnections from brain stem to cerebral cortex \cite{GuentherBook, Tourville2011, Hillis}, but higher level language abilities are a typically left-hemisphere lateralized process for approximately 90\% of the general population, although this  can range from 70\% to 95\% in populations with distinct left and right handedness respectively \cite{GuentherBook, Kadis2011, Yu2014}. Children develop this lateralization over time and show more bi-lateral activity as an inverse function of age \cite{Kadis2011, Ressel2008}. A common experiment paradigm for demonstrating this is the verb-generation task, which requires a subject to produce a verb they feel conveys meaning related to a stimuli with which they have been provided (e.g. an image) \cite{Kadis2011}. Speech articulation divorced from language is much less lateralized in comparison to {\em higher level} language faculties irregardless of age \cite{GuentherBook}, and in terms of cortical systems, heavily engages the Rolandic cortex to integreate somatosensory and motor control representations to command the speech articulators \cite{GuentherBook}. Despite the fact that this process is less lateralized than higher level language function, non-word monosyllabic, and multisyllabic experiments still show some left-lateralization \cite{Ghosh2008a}. We consider a dataset made up of a combination of a verb-generation task, the monosyllabic utterance /{\em pah}/ and the multisyllable non-word /{\em pah tah kah}/ with overlapping sets of subjects recorded using magnetoencephalography (MEG), in an effort to demonstrate age-related language and speech development. We expect that models making age distinctions with these data will leverage the phenomenon of lateralization to make age distinctions.
 
 Machine learning (ML), especially neural networks has seen a recent surge in popularity as the costs for training has become practical for more scientists \cite{LeCun2015}. ML has been used in brain computer interface (BCI) tasks that typically require a classifier mechanism to make some prediction, and a common merging of language and speech tasks with BCI applications is the prediction of silent speech (imagined or covert) \cite{Sereshkeh2017, Guimaraes2007, Zhao2015a}. A typical pipeline is consistently employed for silent speech with BCIs \cite{RezaeiTabar2016}. First, data are collected and pre-processed using a variety of techniques, such as cropping, trial averaging, normalization, band-pass filtering, and spatial transforms such as principle component analysis (PCA), independent component analysis (ICA) and common spatial patterns (CSP) \cite{Muller-Gerking1999}. The goal of the preprocessing stage is to overcome the low signal-to-noise ratios typical of these types of recordings which complicate training in ML. After these initial steps, features are calculated from these data, of which there are a plethora of successful options, most commonly including spectral characteristics in the canonical brain rhythm bands ($\delta$, $\theta$, $\alpha$, etc.) and summary statistics. Finally, these features and their associated class labels are used to train a classifier. Often, classifiers like support vector machines (SVMs) or logistic regression are used, as they provide convex optimizations that are guaranteed to converge, and are less computationally taxing compared to (large) neural networks. An advantage of this overall approach is that expert knowledge about the data can help circumvent relatively poor signal quality and encourage ML models to distinguish between classes using established signal correlates. However, this comes with potential \emph{bias} of expert knowledge, and the underlying assumptions it may reinforce. In contrast, deep ML models can achieve many of the stages of this pipeline intrinsically. Although these deep-learning architectures are arbitrarily flexible classifiers, when they are trained in an end-to-end fashion, their hierarchical structures can also perform signal-processing in early layers that may be informative when compared to more directed techniques.
 
-Taking an end-to-end machine learning approach to classifying new, perhaps previously difficult, problems that are not just BCI focused may provide new insights into underlying phenomena and also expand the pool of tools available to make sense of the increasingly large data produced by modern non-invasive brain activity recording techniques. Towards this, we propose two new deep neural network architectures trained end-to-end to predict the age of the subjects in our dataset. Since our dataset is of MEG recorded speech tasks, the prediction target of age with this context serves as the method for the ML classifier to find evidence of the development of language itself, rather than age-related distinctions alone.
+Taking an end-to-end machine learning approach to classifying new, perhaps previously difficult, problems that are not just BCI focused may provide new insights into underlying phenomena and also expand the pool of tools available to make sense of the increasingly large data produced by modern non-invasive brain activity recording techniques. Towards this, we propose two new deep neural network architectures trained end-to-end to predict the age of the subjects in our dataset. Since our dataset is of MEG recorded speech tasks, the prediction target of age with this context serves as the method for the ML classifier to find evidence of the development of language itself, rather than age-related distinctions alone. We compare their performance versus 
 
 
 \section*{Proposed neural network architectures}
@@ -64,8 +64,6 @@ Taking an end-to-end machine learning approach to classifying new, perhaps previ
 The critical innovation of this architecture is to ensure spatial convolutions and temporal convolutions are performed separately. This results in a set of spatial filtering components that can be examined independently from temporal features. This also mimics the common feature approach pipeline of: spatial (channel) mixing, applying filter banks to mixed components to develop a set of features and then finally employing some classifier to use these features. In this architecture, the spatial convolutions ultimately span the length of the incoming channels, but rather than being a single linear layer we introduce non-linearity and multiple convolution layers that work together to construct a more flexible spatial filter, but one that still employs weight sharing at each step. We select a hyperparameter indicating the depth of the spatial filter, and then stack convolutional layers, where each layer reduces the spatial dimension until the final layer completely collapses it to a single dimension. After this, a number of temporal filters (i.e., convolutions over the temporal dimension) are applied to the new spatial mapping (the number is also a selected hyperparameter), and an optional average pooling layer to reduce the number of parameters and effectively low-pass filter these new features. Finally, the resulting features are flattened into a single vector and a fully connected neural network (FFNN) classifier is used as an output stage, with the number of layers determined again through hyperparameter search.
 
 The first few layers of the CNN can be seen as a mapping from $R^{T \times C \times 1}$ to $R^{T \times 1 \times S}$ (the spatial filtering) to $R^{T' \times 1 \times F }$ (the temporal filtering) where $T' \leq T$, $C$ is the number of recording channels, $S$ is the number of spatial transformations, and $F$ is the number of temporal filters. In other words, a set $S$ of non-linear spatial transformations are applied to the $C$ channels, and then a set of $F$ temporal filters are applied to these new sequences.
-
-
 
 Since the actual depth of spatial filtering and temporal filtering operations changes depending on the configuration selected by the hyperparameter search, consider an example architecture with two layers of spatial steps with $K_1, K_2$ kernels for each layer respectively. Let $\boldsymbol{X}$ be our input data with dimensions $T \times C$, where $T$ is the length of our temporal sequence and $C$ is the number of channels recorded. Also, as a result of the two spatial layers, we intend to produce the output $\boldsymbol{X}_{Spatial}$ with dimensions $T \times K_2$ where $K_2$ is the target number of {\em spatial components}. Starting with the first layer, and our $j'^{th}$ kernel $\boldsymbol{w}_{L_1}^j$, which has length $C'$, where $C' < C$, the output of filter $j$ of the first layer at time $t$ is then:
 
@@ -253,22 +251,22 @@ We calculated the maximal activations as described in \ref{sec:max_act} for the 
 \footnotetext{https://www.martinos.org/mne/stable/index.html}
 
 \begin{figure}
-  \begin{minipage}{0.45\textwidth}
+  \begin{minipage}{0.47\textwidth}
     \includegraphics[width=\linewidth]{max_act/artificial_spec_4_0.png}
 %    \caption{} \label{fig:art_4_0}
   \end{minipage}
   \hspace*{\fill} 
-  \begin{minipage}{0.45\textwidth}
+  \begin{minipage}{0.47\textwidth}
     \includegraphics[width=\linewidth]{max_act/artificial_spec_4_1.png}
 %    \caption{} \label{fig:art_4_1}
   \end{minipage}
   \vskip\baselineskip
-  \begin{minipage}{0.45\textwidth}
+  \begin{minipage}{0.47\textwidth}
     \includegraphics[width=\linewidth]{max_act/real_0_4.png}
 %    \caption{} \label{fig:real_4_0}
   \end{minipage}
   \hspace*{\fill} 
-  \begin{minipage}{0.45\textwidth}
+  \begin{minipage}{0.47\textwidth}
     \includegraphics[width=\linewidth]{max_act/real_1_4.png}
 %    \caption{} \label{fig:real_4_1}
   \end{minipage}
@@ -277,22 +275,22 @@ We calculated the maximal activations as described in \ref{sec:max_act} for the 
 \end{figure}
 
 \begin{figure}
-  \begin{minipage}{0.45\textwidth}
+  \begin{minipage}{0.47\textwidth}
     \includegraphics[width=\linewidth]{max_act/artificial_spec_28_0.png}
 %    \caption{} \label{fig:art_28_0}
   \end{minipage}
   \hspace*{\fill} 
-  \begin{minipage}{0.45\textwidth}
+  \begin{minipage}{0.47\textwidth}
     \includegraphics[width=\linewidth]{max_act/artificial_spec_28_1.png}
 %    \caption{} \label{fig:art_28_1}
   \end{minipage}
   \vskip\baselineskip
-  \begin{minipage}{0.45\textwidth}
+  \begin{minipage}{0.47\textwidth}
     \includegraphics[width=\linewidth]{max_act/real_0_28.png}
 %    \caption{} \label{fig:real_28_0}
   \end{minipage}
   \hspace*{\fill} 
-  \begin{minipage}{0.45\textwidth}
+  \begin{minipage}{0.47\textwidth}
     \includegraphics[width=\linewidth]{max_act/real_1_28.png}
 %    \caption{} \label{fig:real_28_1}
   \end{minipage}
@@ -301,22 +299,22 @@ We calculated the maximal activations as described in \ref{sec:max_act} for the 
 \end{figure}
 
 \begin{figure}
-  \begin{minipage}{0.45\textwidth}
+  \begin{minipage}{0.47\textwidth}
     \includegraphics[width=\linewidth]{max_act/artificial_spec_49_0.png}
 %    \caption{} \label{fig:art_49_0}
   \end{minipage}
   \hspace*{\fill} 
-  \begin{minipage}{0.45\textwidth}
+  \begin{minipage}{0.47\textwidth}
     \includegraphics[width=\linewidth]{max_act/artificial_spec_49_1.png}
 %    \caption{} \label{fig:art_49_1}
   \end{minipage}
   \vskip\baselineskip
-  \begin{minipage}{0.45\textwidth}
+  \begin{minipage}{0.47\textwidth}
     \includegraphics[width=\linewidth]{max_act/real_0_49.png}
 %    \caption{} \label{fig:real_49_0}
   \end{minipage}
   \hspace*{\fill} 
-  \begin{minipage}{0.45\textwidth}
+  \begin{minipage}{0.47\textwidth}
     \includegraphics[width=\linewidth]{max_act/real_1_49.png}
 %    \caption{} \label{fig:real_49_1}
   \end{minipage}
@@ -331,11 +329,13 @@ The real data, unlike the artificial data, unsurprisingly is not stationary, and
 
 This work proposes two novel deep neural network architectures that can distinguish between children at different levels of speech development with at least equivalent if not greater accuracy than a feature based-pipeline. These networks also have the advantage of a consolidated training process (they are entirely trained through gradient-descent based optimization without intermediate steps) and also learn parameters that may have direct and interpretable connections to the task they are employed against. They also perform quite comparably against the state-of-the-art in a completely separate BCI task. 
 
+Although some models succeed in classifying the examples in the primary dataset, many (reasonable) models during hyperparameter searches and initial investigations failed to perform better than random chance. This implies that the hyperparameter selection is of critical importance, and in many cases it will not suffice to try incompatible architectures with parameters that are just {\em good enough}. We see this as further indication that the application of deep-learning here needs continued development to establish a tool-set of appropriate architectures and stronger guiding principles for this type of data.
+
+Towards determining if the /{\em pah}/ and /{\em pah tah kah}/ vocalization trials or the verb generation experiment trials had a greater impact on performance in the end-to-end learning, we trained the raw SCNN model using these datasets separately. Interestingly they seemed to have difficulty outperforming random chance on their own (although these were somewhat earlier model iterations). This suggests that despite being slightly different experiments perhaps at the very least the increase in training data is crucial to enabling the performance of these more powerful ML models.
+
 When establishing the reduced set of MEG features, we evaluated the `optimal' reduced set of features against other subsets of the MEG features to determine if they were justifiably more powerful. First, we randomly extracted a subset of 172 features. Performing multilinear regression on this random selection of features remained insignificantly different than using all features. We also considered a set of the 172 most correlated MEG features among those with $p \geq 10^{-5}$, which accounts for high, but potentially quite variable, correlations. Surprisingly, this improves accuracy slightly on average over using all features, but with a much larger variance. The optimum solution remained to force $p<10^{-5}$ for the feature set we focused on. % These {\em ad hoc} analyses seem to suggest that increases in performance depend not on merely reducing dimensionality blindly, but on selecting {\em consistently} correlated features.
 
 %Performing ICA separately for each stimulus results in different components, naturally. In other words, component $c_i$ with respect to the /{\em pah}/ data is different than component $c_i'$ with respect to the VG data. Future work should consider the sensitivity of any analysis to the stimulus, and be able to generalize ICA analyses that were performed on different data sets, particularly since our approach to end-to-end spatial mixing is done with no consideration for which stimuli were used at training time. Additionally, while we take the spatial patterns from the end-to-end models as similar in principle to ICA, unlike ICA there is no strong source separation premise underlying the neural network approach. In fact neural networks are notorious for developing redundant operations, and at times designers must take many steps to minimize this behaviour.
-
-Although some models succeed in classifying the examples in the primary dataset, many (reasonable) models during hyperparameter searches and initial investigations failed to perform better than random chance. This implies that the hyperparameter selection is of critical importance, and in many cases it will not suffice to try incompatible architectures with parameters that are just {\em good enough}. We see this as further indication that the application of deep-learning here needs continued development to establish a tool-set of appropriate architectures and stronger guiding principles for this type of data.
 
 During hyperparameter search and initial investigations, we considered {\em label-smoothing} \cite{Pereyra2017} while training the seven-way classification task. This means rather than using {\em one-hot} encoded true labels for the seven classes, we created a discrete pseudo-normal distribution centred at the true label. In practice this meant setting the true label to $0.6$ and its neighbouring classes to $0.2$ (and at the upper and lower ends we set the true label to $0.8$ with its neighbour again $0.2$). This in effect created a distribution that the models were expected to learn, rather than discrete classes. We also considered L2 SVM output layers as described in \cite{Tang2013a}, but found that they performed no better than a softmax output layer and tended if anything to perform slightly worse overall. We also spent some time exploring CNN architectures that developed features using data across time and space, but found very little success with these methods, (these experiments were very preliminary and consisted of a few heuristic selections of parameters). Interestingly the failures were generally not the result of over-fitting, as they found fitting to the training data surprisingly difficult (they could however memorize smaller subsets of the data). On the other hand the spatial projection dataset was {\em particularly} susceptible to overfitting to the training data. We believe that the redundant data in this presentation made generalization {\em much} more difficult. Unless considering datasets with many more training points, or employing some more effective regularization techniques we would not recommend proceeding with spatially projected data in future work. 
 
@@ -346,8 +346,6 @@ Although no statistically significant conclusions can be made as to the power of
 As we mentioned in section \ref{sec:max_act}, previous successes with maximal activations such as in Yosinski {\em et al.} employ a heuristic combination of regularization methods that encourage the input data to behave according to patterns the data that will be provided to the network takes \cite{Yosinski2015}. An interesting example Yosinski {\em et al.} provide, is the use of Guassian blur penalization that penalizes the production of images with high spatial frequency \cite{Yosinski2015}. We notice that in fact in our work, the spectrograms we calculate in fact do demonstrate some surprisingly high frequency activity. It may be practical to not just begin with data that have $1/f$ spectral density as we do with our data, but to also penalize deviations from this expectation. There may be more that can be done to regularize artificial data and this warrants further study.
 
 Future work that investigates maximal activations should also take steps to gauge event related synchrony/desynchrony in the context of artificial data, as the current consideration of spectrograms alone is fairly limited. Work in this direction may prove particularly interesting since convolution operations as employed in CNNs are in effect also calculating a correlation measure \cite{GravesRNNBook}.
-
-Towards determining if the /{\em pah}/ and /{\em pah tah kah}/ vocalization trials or the verb generation experiment trials had a greater impact on performance in the end-to-end learning, we trained the raw SCNN model using these datasets separately. Interestingly they seemed to have difficulty outperforming random chance on their own (although these were somewhat earlier model iterations). This suggests that despite being slightly different experiments perhaps at the very least the increase in training data is crucial to enabling the performance of these more powerful ML models.
 
 These results are interesting as a demonstration of the ability of end-to-end models to predict language development, but neural networks show perhaps even greater promise as computational modelling techniques that to some degree mimic the human brain. For example \cite{cichy2016} compare the activations of a image classifier CNN and the MEG and fMRI activity of 15 subjects viewing the same test objects as the CNN. Interesting future work would be to employ new deep neural network architectures that predict speech output or articulator positions with the same data, and explore their connection to real brain structures and/or other speech models such as \cite{Guenther2005}.
 
@@ -388,7 +386,7 @@ There are several challenges to using this dataset as a benchmark. It uses a dif
 
 \subsection*{Supplementary dataset: BCI Competition IV, Dataset 2a}
 
-In an effort to compare the potential success of our end-to-end models to previous work, we also trained some of our proposed models using the BCI Competition IV EEG Dataset \cite{Tangermann2012}. This dataset has featured in several other attempts to apply deep learning to neurophysiological data \cite{Schirrmeister2017,Tabar2017,Lawhern2017,Sun} and is freely available online \footnote{http://bnci-horizon-2020.eu/database/data-sets}.
+In an effort to compare the potential success of our end-to-end models to previous work, we also trained some of our proposed models using the BCI Competition IV EEG Dataset \cite{Tangermann2012}. This dataset has featured in several other attempts to apply neural networks trained end-to-end to neurophysiological data \cite{Schirrmeister2017,Tabar2017,Lawhern2017,Sun} and is freely available online \footnote{http://bnci-horizon-2020.eu/database/data-sets}.
 
 These data consist of EEG recordings of 9 subjects performing 4 different imagined motor tasks: left hand, right hand, both feet, and tongue. These recordings were broken up into two separate sessions for each subject recorded on different days. Each of these sessions consisted of 6 sets of 48 trials separated by a short break, where the 48 trials were 12 executions of each of the 4 tasks. Thus a total of 288 trials were recorded per session. One session is considered training data, and the second is used as evaluation requiring some carry-over performance between days. The recordings consist of 22 EEG electrodes, and 3 monopolar EOG electrodes, all recorded at 250 Hz and bandpass filtered between 0.5 and 100 Hz. Additionally, a 50 Hz notch-filter was used to minimize line noise. The trials themselves are available as 6 second recordings, where the first two seconds consist of presenting each subject a fixation point. At 2s through 3.25s a task stimuli was presented to the subjects. There is additionally some EOG only trials per session that we discard. 
 

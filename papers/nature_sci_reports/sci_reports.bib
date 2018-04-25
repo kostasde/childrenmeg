@@ -112,44 +112,33 @@ year={2009},
 pages={2317-2321}, 
 keywords={adaptive filters;electroencephalography;feature extraction;independent component analysis;least squares approximations;medical signal processing;EEG components;EEG data;ICA;RLS algorithm;adaptive filtering;brain waves;horizontal eye movements;independent component analysis;interference estimation;ocular artifacts automatic removal;online interference cancellation;recursive least squares;reference signal extraction;vertical eye movements;Abstracts;Electroencephalography}, 
 month={Aug},}
-
 @article{Tang2013a,
-abstract = {Recently, fully-connected and convolutional neural networks have been trained to achieve state-of-the-art performance on a wide variety of tasks such as speech recognition, image classification, natural language processing, and bioinformatics. For classification tasks, most of these "deep learning" models employ the softmax activation function for prediction and minimize cross-entropy loss. In this paper, we demonstrate a small but consistent advantage of replacing the softmax layer with a linear support vector machine. Learning minimizes a margin-based loss instead of the cross-entropy loss. While there have been various combinations of neural nets and SVMs in prior art, our results using L2-SVMs show that by simply replacing softmax with linear SVMs gives significant gains on popular deep learning datasets MNIST, CIFAR-10, and the ICML 2013 Representation Learning Workshop's face expression recognition challenge.},
-archivePrefix = {arXiv},
-arxivId = {1306.0239},
-author = {Tang, Yichuan},
-eprint = {1306.0239},
-file = {:home/demetres/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/Tang - Unknown - Deep Learning using Linear Support Vector Machines(3).pdf:pdf},
-month = {jun},
-title = {{Deep Learning using Linear Support Vector Machines}},
-url = {https://arxiv.org/pdf/1306.0239.pdf http://arxiv.org/abs/1306.0239},
-year = {2013}
+  author    = {Yichuan Tang},
+  title     = {Deep Learning using Support Vector Machines},
+  journal   = {CoRR},
+  volume    = {abs/1306.0239},
+  year      = {2013},
+  url       = {http://arxiv.org/abs/1306.0239},
+  archivePrefix = {arXiv},
+  eprint    = {1306.0239},
+  timestamp = {Wed, 07 Jun 2017 14:41:28 +0200},
+  biburl    = {https://dblp.org/rec/bib/journals/corr/Tang13},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
 }
 @article{Szegedy2015,
-abstract = {Training Deep Neural Networks is complicated by the fact that the distribution of each layer's inputs changes during training, as the parameters of the previous layers change. This slows down the training by requiring lower learning rates and careful parameter initialization, and makes it notoriously hard to train models with saturating nonlinearities. We refer to this phenomenon as internal covariate shift, and address the problem by normalizing layer inputs. Our method draws its strength from making normalization a part of the model architecture and performing the normalization for each training mini-batch. Batch Normalization allows us to use much higher learning rates and be less careful about initialization. It also acts as a regularizer, in some cases eliminating the need for Dropout. Applied to a state-of-the-art image classification model, Batch Normalization achieves the same accuracy with 14 times fewer training steps, and beats the original model by a significant margin. Using an ensemble of batch-normalized networks, we improve upon the best published result on ImageNet classification: reaching 4.9{\%} top-5 validation error (and 4.8{\%} test error), exceeding the accuracy of human raters.},
-annote = {NULL},
-archivePrefix = {arXiv},
-arxivId = {1502.03167},
-author = {Ioffe, Sergey and Szegedy, Christian},
-doi = {10.1007/s13398-014-0173-7.2},
-eprint = {1502.03167},
-file = {:home/demetres/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/Ioffe, Szegedy - 2015 - Batch Normalization Accelerating Deep Network Training by Reducing Internal Covariate Shift.pdf:pdf},
-isbn = {9780874216561},
-issn = {0717-6163},
-pmid = {15003161},
-title = {{Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift}},
-url = {https://arxiv.org/pdf/1502.03167.pdf http://arxiv.org/abs/1502.03167},
-year = {2015}
-}
-@incollection{NIPS2017_6698,
-author = {Klambauer, G{\"{u}}nter and Unterthiner, Thomas and Mayr, Andreas and Hochreiter, Sepp},
-booktitle = {Advances in Neural Information Processing Systems 30},
-editor = {Guyon, I and Luxburg, U V and Bengio, S and Wallach, H and Fergus, R and Vishwanathan, S and Garnett, R},
-pages = {972--981},
-publisher = {Curran Associates, Inc.},
-title = {{Self-Normalizing Neural Networks}},
-url = {http://papers.nips.cc/paper/6698-self-normalizing-neural-networks.pdf},
-year = {2017}
+  author    = {Sergey Ioffe and
+               Christian Szegedy},
+  title     = {Batch Normalization: Accelerating Deep Network Training by Reducing
+               Internal Covariate Shift},
+  journal   = {CoRR},
+  volume    = {abs/1502.03167},
+  year      = {2015},
+  url       = {http://arxiv.org/abs/1502.03167},
+  archivePrefix = {arXiv},
+  eprint    = {1502.03167},
+  timestamp = {Wed, 07 Jun 2017 14:40:49 +0200},
+  biburl    = {https://dblp.org/rec/bib/journals/corr/IoffeS15},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
 }
 @article{Sønderby2015,
 abstract = {Machine learning is widely used to analyze biological sequence data. Non-sequential models such as SVMs or feed-forward neural networks are often used although they have no natural way of handling sequences of varying length. Recurrent neural networks such as the long short term memory (LSTM) model on the other hand are designed to handle sequences. In this study we demonstrate that LSTM networks predict the subcellular location of proteins given only the protein sequence with high accuracy (0.902) outperforming current state of the art algorithms. We further improve the performance by introducing convolutional filters and experiment with an attention mechanism which lets the LSTM focus on specific parts of the protein. Lastly we introduce new visualizations of both the convolutional filters and the attention mechanisms and show how they can be used to extract biological relevant knowledge from the LSTM networks.},
@@ -489,16 +478,21 @@ url = {https://arxiv.org/pdf/1411.4280.pdf file:///Files/F3/F3D05FD8-EB31-491C-8
 year = {2015}
 }
 @article{He2015a,
-abstract = {Rectified activation units (rectifiers) are essential for state-of-the-art neural networks. In this work, we study rectifier neural networks for image classification from two aspects. First, we propose a Parametric Rectified Linear Unit (PReLU) that generalizes the traditional rectified unit. PReLU improves model fitting with nearly zero extra computational cost and little overfitting risk. Second, we derive a robust initialization method that particularly considers the rectifier nonlinearities. This method enables us to train extremely deep rectified models directly from scratch and to investigate deeper or wider network architectures. Based on our PReLU networks (PReLU-nets), we achieve 4.94{\%} top-5 test error on the ImageNet 2012 classification dataset. This is a 26{\%} relative improvement over the ILSVRC 2014 winner (GoogLeNet, 6.66{\%}). To our knowledge, our result is the first to surpass human-level performance (5.1{\%}, Russakovsky et al.) on this visual recognition challenge.},
-archivePrefix = {arXiv},
-arxivId = {1502.01852},
-author = {He, Kaiming and Zhang, Xiangyu and Ren, Shaoqing and Sun, Jian},
-eprint = {1502.01852},
-file = {:home/demetres/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/He et al. - Unknown - Delving Deep into Rectifiers Surpassing Human-Level Performance on ImageNet Classification.pdf:pdf},
-month = {feb},
-title = {{Delving Deep into Rectifiers: Surpassing Human-Level Performance on ImageNet Classification}},
-url = {http://www.cv-foundation.org/openaccess/content{\_}iccv{\_}2015/papers/He{\_}Delving{\_}Deep{\_}into{\_}ICCV{\_}2015{\_}paper.pdf http://arxiv.org/abs/1502.01852},
-year = {2015}
+  author    = {Kaiming He and
+               Xiangyu Zhang and
+               Shaoqing Ren and
+               Jian Sun},
+  title     = {Delving Deep into Rectifiers: Surpassing Human-Level Performance on
+               ImageNet Classification},
+  journal   = {CoRR},
+  volume    = {abs/1502.01852},
+  year      = {2015},
+  url       = {http://arxiv.org/abs/1502.01852},
+  archivePrefix = {arXiv},
+  eprint    = {1502.01852},
+  timestamp = {Wed, 07 Jun 2017 14:41:19 +0200},
+  biburl    = {https://dblp.org/rec/bib/journals/corr/HeZR015},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
 }
 @article{Bahdanaua,
 abstract = {Neural machine translation is a recently proposed approach to machine translation. Unlike the traditional statistical machine translation, the neural machine translation aims at building a single neural network that can be jointly tuned to maximize the translation performance. The models proposed recently for neural machine translation often belong to a family of encoder-decoders and consists of an encoder that encodes a source sentence into a fixed-length vector from which a decoder generates a translation. In this paper, we conjecture that the use of a fixed-length vector is a bottleneck in improving the performance of this basic encoder-decoder architecture, and propose to extend this by allowing a model to automatically (soft-)search for parts of a source sentence that are relevant to predicting a target word, without having to form these parts as a hard segment explicitly. With this new approach, we achieve a translation performance comparable to the existing state-of-the-art phrase-based system on the task of English-to-French translation. Furthermore, qualitative analysis reveals that the (soft-)alignments found by the model agree well with our intuition.},
@@ -882,17 +876,23 @@ volume = {110},
 year = {1999}
 }
 @article{Lawhern2017,
-abstract = {Objective: Brain-Computer Interface (BCI) technologies enable direct communication between humans and computers by analyzing brain measurements, such as electroencephalography (EEG). BCI processing typically consists of heuristically extracting features for specific tasks, limiting the generalizability of the BCI across tasks. Here, we asked whether we can find a single generalized neural network architecture that can accurately classify EEG signals in different BCI tasks. Approach: In this work we introduce EEGNet, a compact fully convolutional network for EEG-based BCIs. We compare EEGNet to the current state-of-the-art approach across four different BCI classification tasks: P300 visual-evoked potentials, error-related negativity responses (ERN), movement-related cortical potentials (MRCP), and sensory motor rhythms (SMR). We fit 12 different architectures, all with the same number of parameters, to statistically control for the effect of model size versus model performance. Results: We show that one particular architecture performed on average the best over all datasets, suggesting that a generic model can be used for a variety of BCIs. We also show that EEGNet compares favorably to the current best state-of-the-art approach for each dataset across all four datasets. Significance: Our findings suggest that a common simplified architecture, EEGNet, can provide robust performance across many different BCI modalities.},
-archivePrefix = {arXiv},
-arxivId = {1611.08024},
-author = {Lawhern, Vernon J and Solon, Amelia J and Waytowich, Nicholas R and Gordon, Stephen M and Hung, Chou P and Lance, Brent J},
-doi = {10.1371/journal.pone.0138297},
-eprint = {1611.08024},
-file = {:home/demetres/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/Lawhern et al. - 2017 - EEGNet A Compact Convolutional Network for EEG-based Brain-Computer Interfaces(2).pdf:pdf},
-issn = {1932-6203},
-title = {{EEGNet: A Compact Convolutional Network for EEG-based Brain-Computer Interfaces}},
-url = {https://arxiv.org/pdf/1611.08024.pdf http://arxiv.org/abs/1611.08024},
-year = {2017}
+  author    = {Vernon J. Lawhern and
+               Amelia J. Solon and
+               Nicholas R. Waytowich and
+               Stephen M. Gordon and
+               Chou P. Hung and
+               Brent J. Lance},
+  title     = {EEGNet: {A} Compact Convolutional Network for EEG-based Brain-Computer
+               Interfaces},
+  journal   = {CoRR},
+  volume    = {abs/1611.08024},
+  year      = {2016},
+  url       = {http://arxiv.org/abs/1611.08024},
+  archivePrefix = {arXiv},
+  eprint    = {1611.08024},
+  timestamp = {Wed, 07 Jun 2017 14:41:19 +0200},
+  biburl    = {https://dblp.org/rec/bib/journals/corr/LawhernSWGHL16},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
 }
 @article{Cichy2016,
 abstract = {The complex multi-stage architecture of cortical visual pathways provides the neural basis for efficient visual object recognition in humans. However, the stage-wise computations therein remain poorly understood. Here, we compared temporal (magnetoencephalography) and spatial (functional MRI) visual brain representations with representations in an artificial deep neural network (DNN) tuned to the statistics of real-world visual recognition. We showed that the DNN captured the stages of human visual processing in both time and space from early visual areas towards the dorsal and ventral streams. Further investigation of crucial DNN parameters revealed that while model architecture was important, training on real-world categorization was necessary to enforce spatio-temporal hierarchical relationships with the brain. Together our results provide an algorithmically informed view on the spatio-temporal dynamics of visual object recognition in the human visual brain. Visual object recognition in humans is mediated by complex multi-stage processing of visual information emerg-ing rapidly in a distributed network of cortical regions 1–7 . Understanding visual object recognition in cortex thus requires a quantitative model that captures the complexity of the underlying spatio-temporal dynamics 8–10 . A major impediment in creating such a model is the highly nonlinear and sparse nature of neural tuning properties in mid-and high-level visual areas 11–13 that is difficult to capture experimentally, and thus unknown. Previous approaches to modeling object recognition in cortex relied on extrapolation of principles from well understood lower visual areas such as V1 8,9 and strong manual intervention, achieving only modest task perfor-mance compared to humans. Here we take an alternative route, constructing and comparing against brain signals a visual computational model based on deep neural networks (DNNs) 14–16 , i.e. computer vision models in which model neuron tuning properties are set by supervised learning without manual intervention 14,17 . DNNs are the best performing models on computer vision object recognition benchmarks and yield human performance levels on object categoriza-tion 18,19 . We used a tripartite strategy to reveal the spatio-temporal processing cascade underlying human visual object recognition by DNN model comparisons. First, as object recognition is a process rapidly unfolding over time 3,20–22 , we compared DNN visual representa-tions to millisecond resolved magnetoencephalography (MEG) brain data. Our results delineate an ordered relationship between the stages of processing in a DNN and the time course with which object representations emerge in the human brain 23 . Second, as object recognition recruits a multitude of distributed brain regions, a full account of object recogni-tion needs to go beyond the analysis of a few pre-defined brain regions 24–28 , determining the relationship between DNNs and the whole brain. Using a spatially unbiased approach, we revealed a hierarchical relationship between DNNs and the processing cascade of both the ventral and dorsal visual pathway.},
@@ -910,14 +910,16 @@ volume = {6},
 year = {2016}
 }
 @article{Yu2014,
-author = {Yu, Vickie Y and Macdonald, Matt J and Oh, Anna and Hua, Gordon N and Nil, Luc F De and Elizabeth, W and Pang, Elizabeth W},
+author = {Yu, Vickie Y and MacDonald, Matt J. and Oh, Anna and Hua, Gordon N and {De Nil}, Luc F. and Pang, Elizabeth W},
 doi = {10.1037/a0037470},
-file = {:home/demetres/Documents/Research Summer 2016/Yu et al{\_}Dev Psyc 2014.pdf:pdf},
-issn = {00121649},
+file = {:home/demetres/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/Yu et al. - 2014 - Developmental Psychology Age-Related Sex Differences in Language Lateralization A Magnetoencephalography Study in Ch.pdf:pdf},
+issn = {1939-0599},
+journal = {Developmental Psychology},
 keywords = {adult,dominance is lateralized to,event-related desynchroni-,gamma oscillations,in a typical right-handed,inferior frontal gyrus,it is well accepted,magnetoencephalography,that language,the brain and that,the left hemisphere of,verb generation,zation},
 number = {9},
 pages = {2276--2284},
-title = {{Developmental Psychology Age-Related Sex Differences in Language Lateralization : A Magnetoencephalography Study in Children Age-Related Sex Differences in Language Lateralization : A Magnetoencephalography Study in Children}},
+title = {{Age-related sex differences in language lateralization: A magnetoencephalography study in children.}},
+url = {http://doi.apa.org/getdoi.cfm?doi=10.1037/a0037470},
 volume = {50},
 year = {2014}
 }
@@ -1003,7 +1005,7 @@ year = {2015}
 abstract = {Synchronization of oscillations among brain areas is understood to mediate network communication supporting cognition, perception, and language. How task-dependent synchronization during word production develops throughout childhood and adolescence, as well as how such network coherence is related to the development of language abilities, remains poorly understood. To address this, we recorded magnetoencephalography while 73 participants aged 4–18 years performed a verb generation task. Atlas-guided source reconstruction was performed, and phase synchronization among regions was calculated. Task-dependent increases in synchronization were observed in the theta, alpha, and beta frequency ranges, and network synchronization differences were observed between age groups. Task-dependent synchronization was strongest in the theta band, as were differences between age groups. Network topologies were calculated for brain regions associated with verb generation and were significantly associated with both age and language abilities. These findings establish the maturational trajectory of network synchronization underlying expressive language abilities throughout childhood and adolescence and provide the first evidence for an association between large-scale neurophysiological network synchronization and individual differences in the development of language abilities.},
 annote = {NULL},
 author = {Doesburg, Sam M. and Tingling, Keriann and MacDonald, Matt J. and Pang, Elizabeth W.},
-doi = {10.1162/jocn_a_00879},
+doi = {10.1162/jocn\_a\_00879},
 file = {:home/demetres/Downloads/jocn{\_}a{\_}00879.pdf:pdf},
 journal = {Journal of Cognitive Neuroscience},
 month = {jan},
@@ -1032,42 +1034,54 @@ volume = {127},
 year = {2004}
 }
 @article{Pereyra2017,
-abstract = {We systematically explore regularizing neural networks by penalizing low entropy output distributions. We show that penalizing low entropy output distributions, which has been shown to improve exploration in reinforcement learning, acts as a strong regularizer in supervised learning. Furthermore, we connect a maximum entropy based confidence penalty to label smoothing through the direction of the KL divergence. We exhaustively evaluate the proposed confidence penalty and label smoothing on 6 common benchmarks: image classification (MNIST and Cifar-10), language modeling (Penn Treebank), machine translation (WMT'14 English-to-German), and speech recognition (TIMIT and WSJ). We find that both label smoothing and the confidence penalty improve state-of-the-art models across benchmarks without modifying existing hyperparameters, suggesting the wide applicability of these regularizers.},
-archivePrefix = {arXiv},
-arxivId = {1701.06548},
-author = {Pereyra, Gabriel and Tucker, George and Chorowski, Jan and Kaiser, {\L}ukasz and Hinton, Geoffrey},
-eprint = {1701.06548},
-file = {:home/demetres/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/Pereyra et al. - Unknown - REGULARIZING NEURAL NETWORKS BY PENALIZING CONFIDENT OUTPUT DISTRIBUTIONS.pdf:pdf},
-month = {jan},
-title = {{Regularizing Neural Networks by Penalizing Confident Output Distributions}},
-url = {https://arxiv.org/pdf/1701.06548.pdf http://arxiv.org/abs/1701.06548},
-year = {2017}
+  author    = {Gabriel Pereyra and
+               George Tucker and
+               Jan Chorowski and
+               Lukasz Kaiser and
+               Geoffrey E. Hinton},
+  title     = {Regularizing Neural Networks by Penalizing Confident Output Distributions},
+  journal   = {CoRR},
+  volume    = {abs/1701.06548},
+  year      = {2017},
+  url       = {http://arxiv.org/abs/1701.06548},
+  archivePrefix = {arXiv},
+  eprint    = {1701.06548},
+  timestamp = {Wed, 07 Jun 2017 14:42:24 +0200},
+  biburl    = {https://dblp.org/rec/bib/journals/corr/PereyraTCKH17},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
 }
 @article{Clevert,
-abstract = {We introduce the "exponential linear unit" (ELU) which speeds up learning in deep neural networks and leads to higher classification accuracies. Like rectified linear units (ReLUs), leaky ReLUs (LReLUs) and parametrized ReLUs (PReLUs), ELUs alleviate the vanishing gradient problem via the identity for positive values. However, ELUs have improved learning characteristics compared to the units with other activation functions. In contrast to ReLUs, ELUs have negative values which allows them to push mean unit activations closer to zero like batch normalization but with lower computational complexity. Mean shifts toward zero speed up learning by bringing the normal gradient closer to the unit natural gradient because of a reduced bias shift effect. While LReLUs and PReLUs have negative values, too, they do not ensure a noise-robust deactivation state. ELUs saturate to a negative value with smaller inputs and thereby decrease the forward propagated variation and information. Therefore, ELUs code the degree of presence of particular phenomena in the input, while they do not quantitatively model the degree of their absence. In experiments, ELUs lead not only to faster learning, but also to significantly better generalization performance than ReLUs and LReLUs on networks with more than 5 layers. On CIFAR-100 ELUs networks significantly outperform ReLU networks with batch normalization while batch normalization does not improve ELU networks. ELU networks are among the top 10 reported CIFAR-10 results and yield the best published result on CIFAR-100, without resorting to multi-view evaluation or model averaging. On ImageNet, ELU networks considerably speed up learning compared to a ReLU network with the same architecture, obtaining less than 10{\%} classification error for a single crop, single model network.},
-archivePrefix = {arXiv},
-arxivId = {1511.07289},
-author = {Clevert, Djork-Arn{\'{e}} and Unterthiner, Thomas and Hochreiter, Sepp},
-doi = {10.3233/978-1-61499-672-9-1760},
-eprint = {1511.07289},
-file = {:home/demetres/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/Clevert, Unterthiner, Hochreiter - Unknown - FAST AND ACCURATE DEEP NETWORK LEARNING BY EXPONENTIAL LINEAR UNITS (ELUS).pdf:pdf},
-isbn = {9781614996712},
-issn = {09226389},
-title = {{Fast and Accurate Deep Network Learning by Exponential Linear Units (ELUs)}},
-url = {https://arxiv.org/pdf/1511.07289.pdf http://arxiv.org/abs/1511.07289},
-year = {2015}
+  author    = {Djork{-}Arn{\'{e}} Clevert and
+               Thomas Unterthiner and
+               Sepp Hochreiter},
+  title     = {Fast and Accurate Deep Network Learning by Exponential Linear Units
+               (ELUs)},
+  journal   = {CoRR},
+  volume    = {abs/1511.07289},
+  year      = {2015},
+  url       = {http://arxiv.org/abs/1511.07289},
+  archivePrefix = {arXiv},
+  eprint    = {1511.07289},
+  timestamp = {Wed, 07 Jun 2017 14:40:17 +0200},
+  biburl    = {https://dblp.org/rec/bib/journals/corr/ClevertUH15},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
 }
 @article{Yosinski2015,
-abstract = {Recent years have produced great advances in training large, deep neural networks (DNNs), including notable successes in training convolutional neural networks (convnets) to recognize natural images. However, our understanding of how these models work, especially what computations they perform at intermediate layers, has lagged behind. Progress in the field will be further accelerated by the development of better tools for visualizing and interpreting neural nets. We introduce two such tools here. The first is a tool that visualizes the activations produced on each layer of a trained convnet as it processes an image or video (e.g. a live webcam stream). We have found that looking at live activations that change in response to user input helps build valuable intuitions about how convnets work. The second tool enables visualizing features at each layer of a DNN via regularized optimization in image space. Because previous versions of this idea produced less recognizable images, here we introduce several new regularization methods that combine to produce qualitatively clearer, more interpretable visualizations. Both tools are open source and work on a pre-trained convnet with minimal setup.},
-archivePrefix = {arXiv},
-arxivId = {1506.06579},
-author = {Yosinski, Jason and Clune, Jeff and Nguyen, Anh and Fuchs, Thomas and Lipson, Hod},
-eprint = {1506.06579},
-file = {:home/demetres/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/Yosinski et al. - 2015 - Understanding Neural Networks Through Deep Visualization(2).pdf:pdf},
-month = {jun},
-title = {{Understanding Neural Networks Through Deep Visualization}},
-url = {https://arxiv.org/pdf/1506.06579.pdf http://arxiv.org/abs/1506.06579},
-year = {2015}
+  author    = {Jason Yosinski and
+               Jeff Clune and
+               Anh Mai Nguyen and
+               Thomas J. Fuchs and
+               Hod Lipson},
+  title     = {Understanding Neural Networks Through Deep Visualization},
+  journal   = {CoRR},
+  volume    = {abs/1506.06579},
+  year      = {2015},
+  url       = {http://arxiv.org/abs/1506.06579},
+  archivePrefix = {arXiv},
+  eprint    = {1506.06579},
+  timestamp = {Wed, 07 Jun 2017 14:41:50 +0200},
+  biburl    = {https://dblp.org/rec/bib/journals/corr/YosinskiCNFL15},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
 }
 @article{Kingma2015,
 abstract = {We introduce Adam, an algorithm for first-order gradient-based optimization of stochastic objective functions, based on adaptive estimates of lower-order moments. The method is straightforward to implement, is computationally efficient, has little memory requirements, is invariant to diagonal rescaling of the gradients, and is well suited for problems that are large in terms of data and/or parameters. The method is also appropriate for non-stationary objectives and problems with very noisy and/or sparse gradients. The hyper-parameters have intuitive interpretations and typically require little tuning. Some connections to related algorithms, on which Adam was inspired, are discussed. We also analyze the theoretical convergence properties of the algorithm and provide a regret bound on the convergence rate that is comparable to the best known results under the online convex optimization framework. Empirical results demonstrate that Adam works well in practice and compares favorably to other stochastic optimization methods. Finally, we discuss AdaMax, a variant of Adam based on the infinity norm.},
@@ -1083,19 +1097,20 @@ url = {http://arxiv.org/abs/1412.6980},
 year = {2015}
 }
 @article{Zhu,
-abstract = {We have seen great progress in basic perceptual tasks such as object recognition and detection. However, AI models still fail to match humans in high-level vision tasks due to the lack of capacities for deeper reasoning. Recently the new task of visual question answering (QA) has been proposed to evaluate a model's capacity for deep image understanding. Previous works have established a loose, global association between QA sentences and images. However, many questions and answers, in practice, relate to local regions in the images. We establish a semantic link between textual descriptions and image regions by object-level grounding. It enables a new type of QA with visual answers, in addition to textual answers used in previous work. We study the visual QA tasks in a grounded setting with a large collection of 7W multiple-choice QA pairs. Furthermore, we evaluate human performance and several baseline models on the QA tasks. Finally, we propose a novel LSTM model with spatial attention to tackle the 7W QA tasks.},
-archivePrefix = {arXiv},
-arxivId = {1511.03416},
-author = {Zhu, Yuke and Groth, Oliver and Bernstein, Michael and Fei-Fei, Li},
-doi = {10.1109/CVPR.2016.540},
-eprint = {1511.03416},
-file = {:home/demetres/.local/share/data/Mendeley Ltd./Mendeley Desktop/Downloaded/Zhu et al. - Unknown - Visual7W Grounded Question Answering in Images.pdf:pdf},
-isbn = {978-1-4673-8851-1},
-issn = {10636919},
-month = {nov},
-title = {{Visual7W: Grounded Question Answering in Images}},
-url = {https://arxiv.org/pdf/1409.0473.pdf http://arxiv.org/abs/1409.0473 http://arxiv.org/abs/1511.03416},
-year = {2015}
+  author    = {Yuke Zhu and
+               Oliver Groth and
+               Michael S. Bernstein and
+               Li Fei{-}Fei},
+  title     = {Visual7W: Grounded Question Answering in Images},
+  journal   = {CoRR},
+  volume    = {abs/1511.03416},
+  year      = {2015},
+  url       = {http://arxiv.org/abs/1511.03416},
+  archivePrefix = {arXiv},
+  eprint    = {1511.03416},
+  timestamp = {Wed, 07 Jun 2017 14:40:06 +0200},
+  biburl    = {https://dblp.org/rec/bib/journals/corr/ZhuGBF15},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
 }
 @article{Ressel2008,
 abstract = {Previous functional magnetic resonance imaging (fMRI) studies investigating hemispheric dominance for language have shown that hemispheric specialization increases with age. We employed magnetoencephalography (MEG) to investigate these effects as a function of normal development. In sum, 22 healthy children aged 7-16 years were investigated using two language tasks: a verb-generation (VG) task and a vowel-identification (VI) task. Significant hemispheric differences were found for both tasks in cerebral language areas using oscillatory MEG spectral analyses, confirming the MEG's ability to detect hemispheric specialization for language in children. Additionally, a significant increase of this lateralization as a function of age was observed for both tasks. As performance in the VI task showed no correlation with age, this increase seems to be unrelated to performance. These results confirm an increase in hemispheric specialization as a function of normal brain maturation. {\textcopyright} 2008 Elsevier Inc. All rights reserved.},
