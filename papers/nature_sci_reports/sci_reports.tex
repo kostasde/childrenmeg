@@ -27,10 +27,7 @@ As language ability develops in children, the cortical structures employed in th
 
 \flushbottom
 \maketitle
-% * <john.hammersley@gmail.com> 2015-02-09T12:07:31.197Z:
-%
-%  Click the title above to edit the author information and abstract
-%
+
 \thispagestyle{empty}
 
 \section*{Introduction}
@@ -40,7 +37,6 @@ The development of speech from infancy to adulthood is a remarkable and uniquely
 Machine learning (ML), especially neural networks has seen a recent surge in popularity as the costs for training has become practical for more scientists \cite{LeCun2015}. ML has been used in brain computer interface (BCI) tasks that typically require a classifier mechanism to make some prediction, and a common merging of language and speech tasks with BCI applications is the prediction of silent speech (imagined or covert) \cite{Sereshkeh2017, Guimaraes2007, Zhao2015a}. A typical pipeline is consistently employed for silent speech with BCIs \cite{RezaeiTabar2016}. First, data are collected and pre-processed using a variety of techniques, such as cropping, trial averaging, normalization, band-pass filtering, and spatial transforms such as principle component analysis (PCA), independent component analysis (ICA) and common spatial patterns (CSP) \cite{Muller-Gerking1999}. The goal of the preprocessing stage is to overcome the low signal-to-noise ratios typical of these types of recordings which complicate training in ML. After these initial steps, features are calculated from these data, of which there are a plethora of successful options, most commonly including spectral characteristics in the canonical brain rhythm bands ($\delta$, $\theta$, $\alpha$, etc.) and summary statistics. Finally, these features and their associated class labels are used to train a classifier. Often, classifiers like support vector machines (SVMs) or logistic regression are used, as they provide convex optimizations that are guaranteed to converge, and are less computationally taxing compared to (large) neural networks. An advantage of this overall approach is that expert knowledge about the data can help circumvent relatively poor signal quality and encourage ML models to distinguish between classes using established signal correlates. However, this comes with potential \emph{bias} of expert knowledge, and the underlying assumptions it may reinforce. In contrast, deep ML models can achieve many of the stages of this pipeline intrinsically. Although these deep-learning architectures are arbitrarily flexible classifiers, when they are trained in an end-to-end fashion, their hierarchical structures can also perform signal-processing in early layers that may be informative when compared to more directed techniques.
 
 Taking an end-to-end machine learning approach to classifying new, perhaps previously difficult, problems that are not just BCI focused may provide new insights into underlying phenomena and also expand the pool of tools available to make sense of the increasingly large data produced by modern non-invasive brain activity recording techniques. Towards this, we propose two new deep neural network architectures trained end-to-end to predict the age of the subjects in our dataset. Since our dataset is of MEG recorded speech tasks, the prediction target of age with this context serves as the method for the ML classifier to find evidence of the development of language itself, rather than age-related distinctions alone. We compare their performance versus 
-
 
 \section*{Proposed neural network architectures}
 
@@ -97,13 +93,30 @@ Which would result in a four-dimensional tensor $\boldsymbol{\hat{X}}$ with dime
 
 This is an extension of the SCNN, that uses an LSTM and attention mechanism after the spatial and temporal steps to provide the network a stronger ability to focus on aspects of the signal. In our experiments, we employ an architecture that is very similar to the encoding stage employed in Zhu {\em et al.} for the purpose of image-directed question answering \cite{Zhu}. Those authors used a pre-trained CNN and an LSTM-based encoder that was fed attention weighted inputs. Their attention mechanism provides an average weighting of the different convolutional feature maps which are combined with one-hot encoded word vectors representing the words in the questions.
 
-In contrast, our implementation does not use a pre-trained CNN, but trains convolutional layers at the same time as the rest of the model. The attention serves as a mechanism to closely consider parts of the sequence depending on the state of the LSTM. So the intent is that the LSTM develops some sort of sequential processing that does not need to progress temporally sample by sample, but is flexible to consider any combination of samples that may become appropriate. Functionally, the attention mechanism pre-processes the output of the spatial summary (described in \ref{sec:scnn}) and optionally (a hyperparameter) filtering over time. The pre-processing is an average weighting of the entire temporal sequence of each incoming feature, depending on a function of the current LSTM hidden state and the feature sequence itself. So the input to the LSTM of feature $i$ at some point in the sequence $t$ of $T'$ is:
+In contrast, our implementation does not use a pre-trained CNN, but trains convolutional layers at the same time as the rest of the model. The attention serves as a mechanism to closely consider parts of the sequence depending on the state of the LSTM. Where for some feature $j$ and point $t$ in a sequence of $T$, we calculate a new value for $j$ as the weighted sum of entire sequence of that feature.  
+
+\begin{equation} 
+  e_{t, j} = a(f_{0, j},..., f_{T-1, j}, h_{t-1}),
+\end{equation}
+Where $a()$ is an arbitrary function\footnote{We use a multi-layer network similar to the original formulation in \cite{XuKELVINXU}, but the number of layers used is a hyperparameter determined during search, and units per layer equal to the number of hidden units with the associated LSTM.}. These vectors are normalized (so that they sum to 1, and range between 0 and 1) using the softmax function. This produces the {\em soft-attention} weights $\alpha_{t,j,t'}$ for each feature $j$ at time $t'$:
+
+\begin{equation} \label{eq:attn_nrg}
+  \alpha_{t,j,t'} =  \frac{\exp(e_{t,j,t'})}{\sum_{i=0}^{T-1}\exp(e_{t,j,i})},
+\end{equation}
+
+Finally the new attention-weighted feature is: 
+
+\begin{equation} \label{eq:attn}
+    f_{t,j}' = \sum_{i=0}^{T} f_{i,j} \alpha_{t,j,i}
+  \end{equation}
+
+So the intent is that the LSTM develops some sort of sequential processing that does not need to progress temporally sample by sample, but is flexible to consider any combination of samples that may become appropriate. In our case specifically, the attention mechanism pre-processes the output of the spatial summary (described in \ref{sec:scnn}) and optionally (a hyperparameter) filtering over time.
 
 \begin{equation}
   x_{t,i}^{In} = \sum_{t=0}^{T'} \alpha_{t,i} X_{t,i}^{SCNN}
 \end{equation}
 
-Where $\alpha$ is defined in eq. \ref{eq:attn_nrg}. We select whether to use the full LSTM output sequence, or exclusively the last state output as part of our hyperparameter search, and optionally have several fully connected layers before the prediction layer.
+We select whether to use the full LSTM output sequence, or exclusively the last state output as part of our hyperparameter search, and optionally have several fully connected layers before the prediction layer.
 
 \section*{Results}
 
@@ -119,7 +132,7 @@ Where $\alpha$ is defined in eq. \ref{eq:attn_nrg}. We select whether to use the
     \toprule
     \textbf{Dataset} & \textbf{Model} & \textbf{Mean \%} & \textbf{Dev. \%} & \textbf{W1 Mean \%} & \textbf{W1 Dev. \%}\\
     \toprule
-    \multirow{5}{*}{Audio (feature)}
+    \multirow{5}{*}{Audio (ext. feat.)}
                      & Logistic Reg.       & 17.5 & 4.42  & 48.1 & 4.41 \\
                      & Linear SVM          & 17.2 & 5.15  & 54.4 & 1.91 \\
                      & FFNN                & 18.9 & 6.00  & 49.7 & 11.9 \\
@@ -127,7 +140,7 @@ Where $\alpha$ is defined in eq. \ref{eq:attn_nrg}. We select whether to use the
                      & SCNN                & 15.6 & 4.00  & 40.2 & 8.59 \\
     
     \midrule
-    \multirow{5}{*}{MEG (feature)}
+    \multirow{5}{*}{MEG (ext. feat.)}
                      & Logistic Reg.        & 27.9 & 2.52  & 49.0 & 9.96 \\
                      & Linear SVM          & 28.5 & 0.79  & 53.0 & 2.82 \\
                      & FFNN                & 28.1 & 5.91  & 51.7 & 8.37 \\
@@ -138,14 +151,14 @@ Where $\alpha$ is defined in eq. \ref{eq:attn_nrg}. We select whether to use the
                          & LSTM+A              & 28.1 & 5.00 & 60.0 & 9.11 \\ 
                          & SCNN                & 28.6 & 7.91 & 59.9 & 11.0 \\
     \midrule
-    \multirow{2}{*}{MEG (+crop aug.)}
+    \multirow{2}{*}{MEG (crop aug.)}
                          & LSTM+A              & 26.3 & 2.07 & 50.2 & 2.36 \\ 
                          & SCNN                & 32.4 & 10.9 & 62.6 & 9.29 \\
     \midrule
-    \multirow{1}{*}{MEG (+projection aug.)}
+    \multirow{1}{*}{MEG (proj. aug.)}
                          & SCNN                & 21.9 & 2.20 & 44.0 & 5.10 \\
     \midrule
-    \multirow{1}{*}{MEG (proj.+noise aug.)}
+    \multirow{1}{*}{MEG (proj.\&noise aug.)}
                          & SCNN                & 15.0 & 5.10 & 37.4 & 9.83 \\
     \bottomrule
   \end{tabular}}
@@ -164,7 +177,7 @@ Examining the significance of the within-one metric scores using a Friedman test
   \centering
   \begin{tabular}{l l | c | c}
     \toprule
-    \textbf{Feature set} & \textbf{Model} & \textbf{Mean \%} & \textbf{Dev. \%} \\
+    \textbf{Dataset} & \textbf{Model} & \textbf{Mean \%} & \textbf{Dev. \%} \\
     \toprule
     \multirow{5}{*}{Audio}
                          & Logistic Regression    & 54.3 & 6.44  \\
@@ -173,7 +186,7 @@ Examining the significance of the within-one metric scores using a Friedman test
                          & LSTM + Attention       & 67.5 & 13.9  \\
                          & SCNN                   & 65.9 & 9.35  \\
     \midrule
-    \multirow{5}{*}{MEG reduced}
+    \multirow{5}{*}{MEG (ext. feat.)}
                          & Logistic Regression    & 63.5 & 5.64  \\
                          & Linear SVM             & 69.2 & 5.74  \\
                          & FFNN                   & 66.3 & 4.93  \\
@@ -181,11 +194,11 @@ Examining the significance of the within-one metric scores using a Friedman test
                          & SCNN                   & 69.7 & 7.03  \\
     
     \midrule
-    \multirow{2}{*}{Raw Data}
+    \multirow{2}{*}{MEG}
                          & LSTM + Attention    & 92.6 & 5.79  \\ 
                          & SCNN                & 95.1 & 2.31  \\
     \midrule
-    \multirow{2}{*}{Temporal Augmentation}
+    \multirow{2}{*}{MEG (+crop. aug.)}
                          & LSTM + Attention    & 93.4 & 0.93  \\ 
                          & SCNN                & 89.2 & 7.93  \\
     
@@ -195,24 +208,24 @@ Examining the significance of the within-one metric scores using a Friedman test
   \label{tab:binary_results}
 \end{table}
 
-Looking through table \ref{tab:binary_results} we notice what appears to be a very convincing difference in performance between feature-based and end-to-end approaches. The end-to-end approaches all score nearly 90\% or higher accuracy regardless of model used and interestingly, the combination of LSTM + attention model with temporal augmentation appears both highly accurate and consistent. When considering a single fold of the un-augmented raw data and the SCNN model, the accuracy is in fact over 97\%. Analysis with a Friedman test very distinctly shows real performance, with $\chi^2_{13}=52.789$ and $p<10^{-6}$. Despite these promising examinations, post-hoc analysis does not show that the end-to-end models unianimously outperform the feature engineered sets. All end-to-end models do significantly ($p<0.05$ after single-step correction) outperform logistic regression trained with either the audio or reduced MEG feature datasets, and the SCNN trained with raw un-augmented data also significantly outperforms the FFNN trained with the reduced MEG features dataset. Although this is not a unanimous demonstration that the end-to-end models are superior, we see this as a fairly promising indication of performance. Of particular interest are the SCNN models trained without temporal augmentation and the LSTM + attention model with temporal augmentation.
+Looking through table \ref{tab:binary_results} we notice what appears to be a very convincing difference in performance between feature-based and end-to-end approaches. The end-to-end approaches all score nearly 90\% or higher accuracy regardless of model used and interestingly, the combination of LSTM + attention model with crop augmentation appears both highly accurate and consistent. When considering a single fold of the un-augmented raw data and the SCNN model, the accuracy is in fact over 97\%. Analysis with a Friedman test very distinctly shows real performance, with $\chi^2_{13}=52.789$ and $p<10^{-6}$. Despite these promising examinations, post-hoc analysis does not show that the end-to-end models unanimously outperform the feature engineered sets. All end-to-end models do significantly ($p<0.05$ after single-step correction) outperform logistic regression trained with either the audio or reduced MEG feature datasets, and the SCNN trained with raw un-augmented data also significantly outperforms the FFNN trained with the reduced MEG features dataset. Although this is not a unanimous demonstration that the end-to-end models are superior, we see this as a fairly promising indication of performance. Of particular interest are the SCNN models trained without crop augmentation and the LSTM + attention model with crop augmentation.
 
 
 \subsection*{Secondary dataset classification}
 
 \begin{table}[t]
-  \caption{Classification accuracy of SCNN and LSTM with attention models proposed in this work as compared to the convolutional neural network implementation of a filter bank common spatial pattern (FBCSP) classifier from \cite{Schirrmeister2017}.}
+  \caption{Classification accuracy of SCNN and LSTM with attention models proposed in this work as compared to the convolutional neural network implementation of a filter bank common spatial pattern (FBCSP) classifier introduced by Schirrmeister {\em et. al.}\cite{Schirrmeister2017}.}
   \centering
   \begin{tabular}{l l | c | c}
     \toprule
-    \textbf{Feature set} & \textbf{Model} & \textbf{Mean \%} & \textbf{Dev. \%} \\
+    \textbf{Dataset} & \textbf{Model} & \textbf{Mean \%} & \textbf{Dev. \%} \\
     \toprule
-    \multirow{3}{*}{No Augmentation}
+    \multirow{3}{*}{BCI IV 2a.}
                          & FBCSP-CNN           & 70.9 & 12.6  \\
                          & SCNN                & 72.6 & 10.7  \\
                          & LSTM + Attention    & 73.3 & 13.6  \\ 
     \midrule
-    \multirow{3}{*}{Temporal Augmentation}
+    \multirow{3}{*}{BCI IV 2a. (+cropping aug.)}
                          & FBCSP-CNN           & 65.6 & 12.2  \\
                          & SCNN                & 35.1 & 14.2  \\
                          & LSTM + Attention    & 66.6 & 17.1  \\ 
@@ -250,7 +263,7 @@ We calculated the maximal activations as described in \ref{sec:max_act} for the 
 \end{figure}
 \footnotetext{https://www.martinos.org/mne/stable/index.html}
 
-\begin{figure}
+\begin{figure}[t!]
   \begin{minipage}{0.24\textwidth}
     \includegraphics[width=\linewidth]{max_act/artificial_spec_4_0.png}
     \subcaption{}
@@ -322,7 +335,7 @@ We calculated the maximal activations as described in \ref{sec:max_act} for the 
     \subcaption{}
 %    \caption{} \label{fig:real_49_1}
   \end{minipage}
-  \caption{Plots \textbf{(a), (b), (e), (f), (i), and (j)} above represent artificially generated data that maximally activate the classes $<10$ and $>=10$ years old with respect to component 4 (figure \ref{fig:component_4}), component 28 (figure \ref{fig:component_28}) and component 49 (figure \ref{fig:component_49}). Where each row of spectrograms down corresponds to components 4, 28 and 49 respectively. Plots \textbf{(c), (d), (g), (h), (k), and (l)} show the two real datapoints that most significantly maximized the two classes for the same component.} \label{fig:max_spectrograms}
+  \caption{Plots \textbf{(a), (b), (e), (f), (i), and (j)} above represent artificially generated data that maximally activate the classes $<10$ and $>=10$ years old with respect to component 4 (figure \ref{fig:component_4}), component 28 (figure \ref{fig:component_28}) and component 49 (figure \ref{fig:component_49}). Where each row of spectrograms down corresponds to components 4, 28 and 49 respectively. Plots \textbf{(c), (d), (g), (h), (k), and (l)} show the two real datapoints that most significantly maximized the two classes for the components of their corresponding rows.} \label{fig:max_spectrograms}
 \end{figure}
 
 Throughout the learned components, there is a common patch of strong weights found where what looks like the inferior frontal or perhaps dorsolateral prefrontal regions. All three components shown in figure \ref{fig:max_components} demonstrate this to some degree (although (c) has inverse sign). The artificially generated datapoints show fairly uniform spectrograms across all components, with spectral density concentrated between approximately $0-15$ H{\em z} in the $<10$ years old class, and concentration $15-22$ H$z$ for $>=10$ years old. All of the artificial datapoints are very stationary, and show no particular emphasis around the event time $t=1.5s$. The $>=10$ artificial data spectrograms do however show more activity overall in the high $beta$ low $gamma$ rhythms and this is particularly evident in components 4 and 49.
@@ -337,7 +350,7 @@ Although some models succeed in classifying the examples in the primary dataset,
 
 Towards determining if the /{\em pah}/ and /{\em pah tah kah}/ vocalization trials or the verb generation experiment trials had a greater impact on performance in the end-to-end learning, we trained the raw SCNN model using these datasets separately. Interestingly they seemed to have difficulty outperforming random chance on their own (although these were somewhat earlier model iterations). This suggests that despite being slightly different experiments perhaps at the very least the increase in training data is crucial to enabling the performance of these more powerful ML models.
 
-When establishing the reduced set of MEG features, we evaluated the `optimal' reduced set of features against other subsets of the MEG features to determine if they were justifiably more powerful. First, we randomly extracted a subset of 172 features. Performing multilinear regression on this random selection of features remained insignificantly different than using all features. We also considered a set of the 172 most correlated MEG features among those with $p \geq 10^{-5}$, which accounts for high, but potentially quite variable, correlations. Surprisingly, this improves accuracy slightly on average over using all features, but with a much larger variance. The optimum solution remained to force $p<10^{-5}$ for the feature set we focused on. % These {\em ad hoc} analyses seem to suggest that increases in performance depend not on merely reducing dimensionality blindly, but on selecting {\em consistently} correlated features.
+When establishing the reduced set of MEG features, we evaluated the `optimal' reduced set of features against other subsets of the MEG features to determine if they were justifiably more powerful. First, we considered the performance of using all of the entire set of features, and no statistically significant improvement over random chance using logistic regression or linear SVMs. After extracting the 172 features we ultimately use, we compared this set against a randomly extracted subset of 172 features. Performing multilinear regression on this random selection of features remained insignificantly different than using all features. We also considered a set of the 172 most correlated MEG features among those with $p \geq 10^{-5}$, which accounts for high, but potentially quite variable, correlations. Surprisingly, this improves accuracy slightly on average over using all features, but with a much larger variance. The optimum solution remained to force $p<10^{-5}$ for the feature set we focused on. % These {\em ad hoc} analyses seem to suggest that increases in performance depend not on merely reducing dimensionality blindly, but on selecting {\em consistently} correlated features.
 
 %Performing ICA separately for each stimulus results in different components, naturally. In other words, component $c_i$ with respect to the /{\em pah}/ data is different than component $c_i'$ with respect to the VG data. Future work should consider the sensitivity of any analysis to the stimulus, and be able to generalize ICA analyses that were performed on different data sets, particularly since our approach to end-to-end spatial mixing is done with no consideration for which stimuli were used at training time. Additionally, while we take the spatial patterns from the end-to-end models as similar in principle to ICA, unlike ICA there is no strong source separation premise underlying the neural network approach. In fact neural networks are notorious for developing redundant operations, and at times designers must take many steps to minimize this behaviour.
 
@@ -351,7 +364,7 @@ As we mentioned in section \ref{sec:max_act}, previous successes with maximal ac
 
 Future work that investigates maximal activations should also take steps to gauge event related synchrony/desynchrony in the context of artificial data, as the current consideration of spectrograms alone is fairly limited. Work in this direction may prove particularly interesting since convolution operations as employed in CNNs are in effect also calculating a correlation measure \cite{GravesRNNBook}.
 
-These results are interesting as a demonstration of the ability of end-to-end models to predict language development, but neural networks show perhaps even greater promise as computational modelling techniques that to some degree mimic the human brain. For example \cite{cichy2016} compare the activations of a image classifier CNN and the MEG and fMRI activity of 15 subjects viewing the same test objects as the CNN. Interesting future work would be to employ new deep neural network architectures that predict speech output or articulator positions with the same data, and explore their connection to real brain structures and/or other speech models such as \cite{Guenther2005}.
+These results are interesting as a demonstration of the ability of end-to-end models to predict language development, but neural networks show perhaps even greater promise as computational modelling techniques that to some degree mimic the human brain. For example \cite{cichy2016} compare the activations of an image classifier CNN and the MEG and fMRI activity of 15 subjects viewing the same test objects as the CNN. Interesting future work would be to employ new deep neural network architectures that predict speech output or articulator positions with the same data, and explore their connection to real brain structures and/or other speech models such as \cite{Guenther2005}.
 
 \section*{Methods}
 
@@ -376,7 +389,7 @@ These data were originally recorded to examine age- and sex-related developmenta
 
 Three distinct speech-elicitation stimuli were used. The first two were of the monosyllable /{\em pah}/ and the multisyllabic sequence /{\em pah tah kah}/, respectively. These were simple enough for young children and are part of the diadochokinetic rate (DDK) test, which can be used to evaluate neuromuscular control in motor speech disorders. Prior to acquisition, the experimenter demonstrated the productions of each stimuli, without word-like prosodic patterns. The third experiment was an overt verb generation (VG) task in English, where subjects were presented with an image with which they were familiar, and were asked to produce a verb associated with the object \cite{Doesburg2016}.
 
-Recordings were made in a sound-proof room, with each participant lying supine in a magnetically shielded room in the Neuromagnetic Lab of the Hospital for Sick Children in Toronto, using a CTF whole-head MEG system (MEG International Services Ltd., Coquitlam, BC, Canada). The system recorded all 151 MEG channels, and a single audio channel, with a sampling rate of 4 kHz. We perform a bare-minimum cleanup of the data were we resample MEG signals at 200 Hz, and band-pass filter between 0.5 Hz and 100 Hz, to remove offsets and accommodate the canonical ranges of $\delta$, $\theta$, $\alpha$, $\beta$, and $\gamma$ activity. Electrooculography (EOG) artifacts are removed using second order blind identification (SOBI) automated blind source separation as provided by EEGlab \cite{Delorme04eeglab}.
+Recordings were made in a sound-proof room, with each participant lying supine in a magnetically shielded room in the Neuromagnetic Lab of the Hospital for Sick Children in Toronto, using a CTF whole-head MEG system (MEG International Services Ltd., Coquitlam, BC, Canada). The system recorded all 151 MEG channels, and a single audio channel, with a sampling rate of 4 kHz. We perform a bare-minimum cleanup of the data were we resample MEG signals at 200 Hz, and band-pass filter between 0.5 Hz and 100 Hz, to remove offsets and accommodate the canonical ranges of $\delta$, $\theta$, $\alpha$, $\beta$, and $\gamma$ activity. Electrooculography (EOG) artifacts are removed using second order blind source identification as provided by EEGlab \cite{Delorme04eeglab}.
 
 Using these data, Doesburg {\em et al.} \cite{Doesburg2016} predicted language ability as an increase in network synchrony, particularly in the theta band with the increase of age during verb-generation (VG) tasks in children and adolescents. They observed a significant increase in the number of synchronous regions with older adolescents, compared with younger children. Yu {\em et al.} \cite{Yu2014} specifically focused on four regions of interest: inferior frontal regions, dorsolateral prefrontal regions, temporal-parietal regions, and superior temporal regions. They noticed distinct profiles of de-synchrony over time in VG tasks for children within five age ranges (i.e., 4-6, 7-9, 10-12, 13-15, and 16-18 years of age).
 
@@ -386,7 +399,7 @@ In an effort to compare the potential success of our end-to-end models to previo
 
 These data consist of EEG recordings of 9 subjects performing 4 different imagined motor tasks: left hand, right hand, both feet, and tongue. These recordings were broken up into two separate sessions for each subject recorded on different days. Each of these sessions consisted of 6 sets of 48 trials separated by a short break, where the 48 trials were 12 executions of each of the 4 tasks. Thus a total of 288 trials were recorded per session. One session is considered training data, and the second is used as evaluation requiring some carry-over performance between days. The recordings consist of 22 EEG electrodes, and 3 monopolar EOG electrodes, all recorded at 250 Hz and bandpass filtered between 0.5 and 100 Hz. Additionally, a 50 Hz notch-filter was used to minimize line noise. The trials themselves are available as 6 second recordings, where the first two seconds consist of presenting each subject a fixation point. At 2s through 3.25s a task stimuli was presented to the subjects. There is additionally some EOG only trials per session that we discard. 
 
-There are several challenges to using this dataset as a benchmark. It uses a different task entirely and contains EEG rather than MEG recordings, so there are far fewer EEG channels than the number of MEG channels from our primary dataset. The participants also come from a different population than the children and adolescents of our primary data. Regardless, we use this dataset to ensure that our model architectures have some sort of generalizability within this domain that can be compared against previous work. 
+There are several challenges to using this dataset as a benchmark. It uses a different task entirely and contains EEG rather than MEG recordings, so there are far fewer EEG channels than the number of MEG channels from our primary dataset. The participants also come from a different population than the children and adolescents of our primary data. Regardless, we use this dataset to ensure that our model architectures have some sort of generalizability within a similar domain that can be compared against previous work. 
 
 \subsection*{Supplementary dataset: BCI Competition IV, Dataset 2a}
 
@@ -429,6 +442,17 @@ Here we summarize any regularization penalties as $R(x)$. \cite{Yosinski2015} sh
 Where we heuristically select a step increase of $\eta = 0.2$ and L2 regularization of $\theta = 0.05$. We then iterate up to $10,000$ times, stopping if no progress is made for more than 5 steps. Additionally we normalize the derivative in eq. \ref{eq:max_act_update} for each step by its RMS value to make more stable (less oscillatory) progressions.
 
 We construct maximal inputs for two sets of input-output pairs in the trained (using the primary dataset) end-to-end models. The first is between the model's normal input, and the end of the final-most spatial convolution layers, which we then interpolate across true channel locations for our MEG machine to demonstrate a rough localization of spatial components/mixing. The second input-output pair is between the input to the first temporal convolution (the output of the last spatial) and the final model output (classification stage). This is to generate data that highlight temporal features of the patterns of mixed sensors, which we do by calculating a spectrogram (Hann windows with 50 samples overlap and 64 FFT bins) for each component and output class.
+
+\subsection*{Comparison features}
+
+For comparison, we perform a feature-engineering pipeline for use as a comparison against our proposed models. We first apply info-max independent component analysis (ICA) \cite{Bell1995} to determine statistically independent sub-components of the MEG recordings, across all subjects. These new components and a parallel recorded audio channel are then separated into windowed epochs corresponding to frames $-500$ ms to $+1500$ ms around the onset of the stimuli prompt. We extract 156 acoustic features and 4681 MEG features from each epoch using openSMILE \cite{Eyben13-RDI}. These are calculated using 50 ms rectangular windows, with a 25 ms overlap resulting in 79 windows per datapoint. Features to represent spectral activity are calculated for each window, using a fast Fourier transform (128 points for the 4kH{\em z} audio recordings, and 8 points for the 200H{\em z} MEG channels)) and linear predictive coding coefficients. Additionally, the summary statistics: mean (also absolute mean, quadratic mean, and aforementioned means calculated using only non-zero values), variance, skewness, and kurtosis are calculated. Finally, the root-mean-squared and log of the signal energy are also calculated for each window. Unique to the MEG channels we also calculate an autocorrelation function (ACF) calculated using the fast Fourier transform (FFT) and its inverse (iFFT) for window $w$:
+
+\begin{equation}
+  ACF(w) = iFFT(|FFT(w)|^2)
+  \label{eq1}
+\end{equation}
+
+As a result of the number of features extracted for each MEG trial, the number of features greatly outnumbers the number of training points available. As this reduces the efficacy of convex optimizations, we first select a sub-set of features to use during the training process. We use standard Pearson correlation between the MEG features and age, and highlight 172 features with $p$-values at $\alpha = 10^{-5}$ after Bonferroni correction, and correlation coefficients $\text{abs}(r) > 0.2$. These 172 features include the autocorrelation features of eight ICA components (including the first (highest entropy) component) in addition to the entire available frequency spectrum of four of these components.
 
 \subsection*{Model training procedures} \label{sec:train_proc}
 
