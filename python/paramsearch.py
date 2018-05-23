@@ -78,7 +78,7 @@ def hp_search(model_constructor, dataset_constructor, args):
 
         if trials_file is not None and trials_file.exists():
             print('Saving progress...')
-            pickle.dump(trials, trials_file.open('wb'))
+            # pickle.dump(trials, trials_file.open('wb'))
 
         dataset = dataset_constructor(args.toplevel, batchsize=int(hyperparams[Searchable.PARAM_BATCH]))
         val_loss = []
