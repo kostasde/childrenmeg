@@ -148,28 +148,17 @@ We employed artificial inputs that maximized the output of features and outputs 
     \subcaption{}
     \label{fig:component_49}
   \end{minipage}
-  \caption[textfind]{Components (a) and (b) show a common pattern of spatial mixing, with a particularly strong weight localized around channels near the inferior frontal or perhaps dorsolateral prefrontal regions. This region is the only somewhat consistently strongly weighted region that is not exagerated by the edge effects of the interpolation. Component (c) shows a very nearly inverse set of weights compared to (a), in addition to what could be strong weights over the visual cortex (although edge effects of the interpolation make this hard to say). Components were plotted using the MNE python library. \footnotemark} \label{fig:max_components}
+  \caption[textfind]{Components (a) and (b) show a common pattern of spatial mixing, with a particularly strong weight localized around channels near the inferior frontal or perhaps dorsolateral prefrontal regions. This region is the only somewhat consistently strongly weighted region that is not exagerated by the edge effects of the interpolation. Component (c) shows a very nearly inverse set of weights compared to (a), in addition to what could be strong weights over the visual cortex (although edge effects of the interpolation make this hard to say). Components were plotted using the MNE python library (available at \url{https://www.martinos.org/mne/stable/index.html})} \label{fig:max_components}
 \end{figure}
-\footnotetext{https://www.martinos.org/mne/stable/index.html}
 
 \newcolumntype{v}{>{\centering\arraybackslash} m{.13\linewidth} }
 \newcolumntype{V}{>{\centering\arraybackslash} m{.18\linewidth} }
 
-\begin{table}[t]
+\begin{figure}[t]
   \caption{The plots on the left represent artificially generated data that maximally activate the classes $<10$ and $>=10$ years old with respect to component 4 (figure \ref{fig:component_4}), component 28 (figure \ref{fig:component_28}) and component 49 (figure \ref{fig:component_49}). Each row of spectrograms corresponds to components 4, 28 and 49 respectively. Plots on the right show the two real datapoints that most significantly maximized the two classes for the components of their corresponding rows.}
- \begin{tabular}{v  V V | V V}
-   \multicolumn{1}{c}{} & \multicolumn{2}{c}{\textbf{Artificially Generated}} & \multicolumn{2}{c}{\textbf{Real Data}} \\
-   \toprule
-   \centering
-   Component 4  & \includegraphics[width=\linewidth]{max_act/artificial_spec_4_0.png} & \includegraphics[width=\linewidth]{max_act/artificial_spec_4_1.png} & \includegraphics[width=\linewidth]{max_act/real_0_4.png} & \includegraphics[width=\linewidth]{max_act/real_1_4.png}      \\
-
-   Component 28 & \includegraphics[width=\linewidth]{max_act/artificial_spec_28_0.png} & \includegraphics[width=\linewidth]{max_act/artificial_spec_28_1.png} & \includegraphics[width=\linewidth]{max_act/real_0_28.png} & \includegraphics[width=\linewidth]{max_act/real_1_28.png}  \\
-
-   Component 49 & \includegraphics[width=\linewidth]{max_act/artificial_spec_49_0.png} & \includegraphics[width=\linewidth]{max_act/artificial_spec_49_1.png} & \includegraphics[width=\linewidth]{max_act/real_0_49.png} & \includegraphics[width=\linewidth]{max_act/real_1_49.png}  \\
-                                                                                                                                                              
- \end{tabular}
+  \centering\includegraphics[width=\linewidth]{spectrogram_tables.png}
  \label{tab:max_spectrograms}
-\end{table}
+\end{figure}
 
 Throughout the learned components, there is a common patch of strong weights found in approximately the inferior frontal or perhaps dorsolateral prefrontal regions. All three components shown in figure \ref{fig:max_components} demonstrate this to some degree (although (c) has an inverse sign). The artificially generated datapoints show fairly uniform spectrograms across all components, with spectral density concentrated between approximately $0-14$ H{\em z} in the $<10$ years old class, and concentration $15-22$ H$z$ for $>=10$ years old. All of the artificial datapoints are very stationary, and show no particular emphasis around the event time $t=1.5s$. The $>=10$ artificial data spectrograms do however show more activity overall in the high $beta$, low $gamma$ rhythms and this is particularly evident in components 4 and 49.
 
@@ -211,10 +200,10 @@ The critical innovation of this architecture is to enable multiple layers of non
 
 The first few layers of the CNN can be seen as a mapping from $R^{T \times C \times 1}$ to $R^{T \times 1 \times S}$ (the spatial filtering) to $R^{T' \times 1 \times F }$ (the temporal filtering) where $T' \leq T$, $C$ is the number of recording channels, $S$ is the number of spatial transformations, and $F$ is the number of temporal filters. In other words, a set of $S$ non-linear spatial transformations are applied to the $C$ channels, and then a set of $F$ temporal filters are applied to these new sequences, as can be seen in the diagram presented in figure \ref{fig:scnn_arch}.
 
-Since the actual depth (of spatial filtering and temporal filtering operations) changes depending on the configuration selected by the hyperparameter search, consider an example architecture with two layers of spatial steps with $K_1, K_2$ kernels for each layer respectively. Let $\boldsymbol{X}$ be our input data with dimensions $T \times C$, where $T$ is the length of our temporal sequence and $C$ is the number of channels recorded. Also, as a result of the two spatial layers, we intend to produce the output $\boldsymbol{X}_{Spatial}$ with dimensions $T \times K_2$ where $K_2$ is the target number of {\em spatial components}. In the first layer, and $j^{th}$ kernel $\boldsymbol{w}_{L_1}^j$, has length $C'$, where $C' < C$, and the output of filter $j$ of the first layer at time $t$ is then:
+Since the actual depth (of spatial filtering and temporal filtering operations) changes depending on the configuration selected by the hyperparameter search, consider an example architecture with two layers of spatial steps with $K_1, K_2$ kernels for each layer respectively. Note that there are no bias terms included as batch normalization \cite{Szegedy2015} renders them redundant and is employed throughout. Let $\boldsymbol{X}$ be our input data with dimensions $T \times C$, where $T$ is the length of our temporal sequence and $C$ is the number of channels recorded. Also, as a result of the two spatial layers, we intend to produce the output $\boldsymbol{X}_{Spatial}$ with dimensions $T \times K_2$ where $K_2$ is the target number of {\em spatial components}. In the first layer, and $j^{th}$ kernel $\boldsymbol{w}_{L_1}^j$, has length $C'$, where $C' < C$, and the output of filter $j$ of the first layer at time $t$ is then:
 
 \begin{equation} \label{eq:scnn_s1}
-  \boldsymbol{X'}_{t, i, j} = f\left(\sum_{k=0}^{C'} {\boldsymbol{w}_{L_1}^j}_k \boldsymbol{X}_{t,i+k}\right) \footnote{There are no bias terms needed here or later, as batch normalization \cite{Szegedy2015} renders them redundant and is employed throughout.}
+  \boldsymbol{X'}_{t, i, j} = f\left(\sum_{k=0}^{C'} {\boldsymbol{w}_{L_1}^j}_k \boldsymbol{X}_{t,i+k}\right)
 \end{equation}
 
 Where $\boldsymbol{X'}$ is a three dimensional tensor of shape $T \times (C-C') \times K_1$ and $f(x)$ is the neuron's non-linear function of choice. There is no integration of any temporal information besides $t$, and that for each kernel there are $C-C'$ sequences of length $T$, of which only the $i^{th}$ is shown above. Next, the second layer consists of kernel vectors $\boldsymbol{w}_{L_2}^s$ of length $C-C'$, which determine component $s$ of $K_2$ at time $t$ as follows:
@@ -248,7 +237,7 @@ In contrast, our implementation does not use a pre-trained CNN, but trains convo
 \begin{equation} 
   e_{t, j} = a(f_{0, j},..., f_{T-1, j}, h_{t-1}),
 \end{equation}
-Where $a()$ is an arbitrary function\footnote{We use a multi-layer network similar to the original formulation in \cite{XuKELVINXU}, but the number of layers used is a hyperparameter determined during search, and units per layer equal to the number of hidden units with the associated LSTM.}. These vectors are normalized (so that they sum to 1, and range between 0 and 1) using the softmax function. This produces the {\em soft-attention} weights $\alpha_{t,j,t'}$ for each feature $j$ at time $t'$:
+Where $a()$ is an arbitrary function (we use a multi-layer network similar to the original formulation in \cite{XuKELVINXU}, but the number of layers used is a hyperparameter determined during search, and units per layer equal to the number of hidden units with the associated LSTM.). These vectors are normalized (so that they sum to 1, and range between 0 and 1) using the softmax function. This produces the {\em soft-attention} weights $\alpha_{t,j,t'}$ for each feature $j$ at time $t'$:
 
 \begin{equation} \label{eq:attn_nrg}
   \alpha_{t,j,t'} =  \frac{\exp(e_{t,j,t'})}{\sum_{i=0}^{T-1}\exp(e_{t,j,i})},
@@ -296,7 +285,7 @@ Using these data, Doesburg {\em et al.} \cite{Doesburg2016} predicted language a
 
 \subsection*{Supplementary dataset: BCI Competition IV, Dataset 2a}
 
-In an effort to compare the potential success of our end-to-end models to previous work, we also trained some of our proposed models using the BCI Competition IV EEG Dataset \cite{Tangermann2012}. This dataset has been featured in several other attempts to apply neural networks trained end-to-end to neurophysiological data \cite{Schirrmeister2017,Tabar2017,Lawhern2017,Sun} and is freely available online \footnote{\url{http://bnci-horizon-2020.eu/database/data-sets}}.
+In an effort to compare the potential success of our end-to-end models to previous work, we also trained some of our proposed models using the BCI Competition IV EEG Dataset \cite{Tangermann2012}. This dataset has been featured in several other attempts to apply neural networks trained end-to-end to neurophysiological data \cite{Schirrmeister2017,Tabar2017,Lawhern2017,Sun} and is freely available online: \url{http://bnci-horizon-2020.eu/database/data-sets}.
 
 These data consist of EEG recordings of 9 subjects performing 4 different imagined motor tasks: left hand, right hand, both feet, and tongue. These recordings were broken up into two separate sessions for each subject recorded on different days. Each of these sessions consisted of 6 sets of 48 trials separated by a short break, where the 48 trials were 12 executions of each of the 4 tasks. Thus a total of 288 trials were recorded per session. One session is considered training data, and the second is used as evaluation requiring some carry-over performance between days. The recordings consist of 22 EEG electrodes, and 3 monopolar EOG electrodes, all recorded at 250 Hz and bandpass filtered between 0.5 and 100 Hz. Additionally, a 50 Hz notch-filter was used to minimize line noise. The trials themselves are available as 6 second recordings, where the first two seconds consist of presenting each subject a fixation point. At 2s through 3.25s, a task stimuli was presented to the subjects. There is additionally some EOG-only trials per session that we discard. 
 
@@ -347,7 +336,7 @@ As a result of the number of features extracted for each MEG trial, the number o
 
 Each model is tested using 5-fold cross-validation against a held-out group of subjects. The test subjects are selected to have a similar distribution of the number of trials in each age range. The remaining subjects are ordered based on the number of trials they performed and their trials are distributed across the 5 folds in this order to create an approximately equal number of trials in each fold. The range in number of training points between folds was 3838 through 4078. We quantitatively evaluate the similarity between the 5 folds and test set using a K-sample Anderson-Darling test, where we found $A^2=-0.271$ with $p=0.61$. In the supplemental dataset, the training versus test datasets are separated in advance for intra-subject training.
 
-We use Keras \footnote{https://keras.io/} with a Tensorflow \footnote{https://www.tensorflow.org/} backend to build all of the following models, and use either stochastic gradient descent or the Adam optimizer\cite{Kingma2015} when performing back-propagation updates. When training the neural networks, we select between three different activation functions: the rectified linear unit (ReLU) \cite{He2015a}, the exponential linear unit (ELU) \cite{Clevert}, and the scaled ELU (SELU) \cite{NIPS2017_6698}. All layers are batch-normalized \cite{Szegedy2015} after activation. We additionally employ L2-norm weight regularization for all trainable weights, excluding those of RNNs. We apply dropout \cite{Srivastava2014} after all fully-connected layers, and both max-pooling and spatial dropout \cite{Tompson2015} to all convolutional layers. These techniques are not necessarily applied to the FBCSP-like model from \cite{Schirrmeister2017}, which is reproduced by examining their source code.
+We use Keras (\url{https://keras.io/}) with a Tensorflow (\url{https://www.tensorflow.org/}) backend to build all of the following models, and use either stochastic gradient descent or the Adam optimizer\cite{Kingma2015} when performing back-propagation updates. When training the neural networks, we select between three different activation functions: the rectified linear unit (ReLU) \cite{He2015a}, the exponential linear unit (ELU) \cite{Clevert}, and the scaled ELU (SELU) \cite{NIPS2017_6698}. All layers are batch-normalized \cite{Szegedy2015} after activation. We additionally employ L2-norm weight regularization for all trainable weights, excluding those of RNNs. We apply dropout \cite{Srivastava2014} after all fully-connected layers, and both max-pooling and spatial dropout \cite{Tompson2015} to all convolutional layers. These techniques are not necessarily applied to the FBCSP-like model from \cite{Schirrmeister2017}, which is reproduced by examining their source code.
 
 All hyperparameter selection is done using Bayesian parameter optimization with Hyperopt \cite{Bergstra2013} including: learning rate, regularization penalty, dropout rates, number of adjacent activations to pool, number and layers of hidden units, receptive fields, and activation functions for all appropriate models. Hyperparameter searches are performed for 100 iterations.
 
