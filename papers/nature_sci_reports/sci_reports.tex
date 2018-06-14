@@ -9,12 +9,14 @@
 \title{Machine learning for MEG during speech tasks}
 %\title{Comparing Machine Learning Techniques in Predicting Children's Age with MEG Recorded Speech Tasks}
 
-\author[1,*]{Demetres Kostas}
-\author[2]{Elizabeth W. Pang}
-\author[1,3]{Frank Rudzicz}
-\affil[1]{University of Toronto; Canada}
-\affil[2]{SickKids Research Institutue; Toronto, Canada}
-\affil[3]{Toronto Rehabilitation Institute-UHN; Canada}
+\author[1,2,*]{Demetres Kostas}
+\author[3,4]{Elizabeth W. Pang}
+\author[1,2,5]{Frank Rudzicz}
+\affil[1]{University of Toronto; Toronto, Canada}
+\affil[2]{Vector Institute; Toronto, Canada}
+\affil[3]{Hospital for Sick Children; Toronto, Canada}
+\affil[4]{SickKids Research Institutue; Toronto, Canada}
+\affil[5]{Toronto Rehabilitation Institute-UHN; Toronto, Canada}
 
 \affil[*]{demetres@cs.toronto.edu}
 
@@ -285,7 +287,7 @@ We select whether to use the full LSTM output sequence, or exclusively the last 
   \caption{Participant demographics, across stimuli types. The two speech tasks involve considerable participant overlap.}
   \label{tab:subjects}
 \end{table}
-These data were originally recorded to examine age- and sex-related developmental language differences in children by Doesburg {\em et al.} \cite{Doesburg2016} and Yu {\em et al.} \cite{Yu2014}. Table \ref{tab:subjects} summarizes participant demographics. Each participant spoke English as their first language and had no known or suspected histories of speech, language, hearing, or developmental disorders, according to their parents. Prior to the experiment, children received two standardized language clinical tests: the Peabody Picture Vocabulary Test (PPVT) \cite{Dunn97} and the Expressive Vocabulary Test (EVT) \cite{EVT}. All children's scores were at or above expected scores for their ages on the PPVT and EVT, and their speech showed neither signs of articulatory difficulties nor any significant effect of age. In total, 80 participants were right-handed, 5 were left-handed, and 7 were ambidextrous, according to the Edinburgh assessment \cite{Oldfield1971}, there is no significant variation of handedness with age.
+These data were originally recorded to examine age- and sex-related developmental language differences in children by Doesburg {\em et al.} \cite{Doesburg2016} and Yu {\em et al.} \cite{Yu2014}. Table \ref{tab:subjects} summarizes participant demographics. Each participant spoke English as their first language and had no known or suspected histories of speech, language, hearing, or developmental disorders, according to their parents. The acquisition protocol was approved by the SickKids Research Ethics Board (REB \#1000016645) which acts in accordance with the guidelines established by the Tri-Council Policy on Ethical Conduct for Research Involving Humans. All participants or their parents gave written informed consent. Children unable to read the consent form provided informed verbal assent. Prior to the experiment, children received two standardized language clinical tests: the Peabody Picture Vocabulary Test (PPVT) \cite{Dunn97} and the Expressive Vocabulary Test (EVT) \cite{EVT}. All children's scores were at or above expected scores for their ages on the PPVT and EVT, and their speech showed neither signs of articulatory difficulties nor any significant effect of age. In total, 80 participants were right-handed, 5 were left-handed, and 7 were ambidextrous, according to the Edinburgh assessment \cite{Oldfield1971}, there is no significant variation of handedness with age.
 
 Three distinct speech-elicitation stimuli were used. The first two were of the monosyllable /{\em pah}/ and the multisyllabic sequence /{\em pah tah kah}/, respectively. These were simple enough for young children and are part of the diadochokinetic rate (DDK) test, which can be used to evaluate neuromuscular control in motor speech disorders. Prior to acquisition, the experimenter demonstrated the productions of each stimuli, without word-like prosodic patterns. The third experiment was an overt verb generation (VG) task in English, where subjects were presented with an image with which they were familiar, and were asked to produce a verb associated with the object \cite{Doesburg2016}.
 
@@ -355,20 +357,20 @@ All hyperparameter selection is done using Bayesian parameter optimization with 
 
 \bibliography{sci_reports}
 
-\section*{Acknowledgements (not compulsory)}
+\section*{Acknowledgements}
 
-We acknowledge Drs. Darren Kadis and Vickie Yu who developed the MEG stimuli and determined the MEG data acquisition parameters. We acknowledge Matt J MacDonald, Anna Oh and Marc Lalancette for their roles in recruiting the MEG participants, acquiring the MEG data and standardized language scores. The MEG portion of this study was funded by a Canadian Institutes of Health Research Operating Grant (MOP-89961) to Elizabeth W. Pang.
+We acknowledge Drs. Darren Kadis and Vickie Yu who developed the MEG stimuli and determined the MEG data acquisition parameters. We acknowledge Matt J. MacDonald, Anna Oh and Marc Lalancette for their roles in recruiting the MEG participants, acquiring the MEG data and standardized language scores. The MEG portion of this study was funded by a Canadian Institutes of Health Research Operating Grant (MOP-89961) to Elizabeth W. Pang.
 
 \section*{Author contributions statement}
 
-Must include all authors, identified by initials, for example:
-A.A. conceived the experiment(s),  A.A. and B.A. conducted the experiment(s), C.A. and D.A. analysed the results.  All authors reviewed the manuscript. 
+E.P. directed collection of the primary dataset, F.R. conceived experiment and reworked draft manuscript, D.K conducted experiments, analyzed results and wrote initial manuscript, D.K. and F.R. developed proposed models. All authors edited and reviewed manuscript.
 
-\section*{Additional information}
+\section*{Competing interests}
 
-To include, in this order: \textbf{Accession codes} (where applicable); \textbf{Competing financial interests} (mandatory statement). 
+The author(s) declare no competing interests.
 
-The corresponding author is responsible for submitting a \href{http://www.nature.com/srep/policies/index.html#competing}{competing financial interests statement} on behalf of all authors of the paper. This statement must be included in the submitted article file.
+\section*{Access to collected data and source code}
 
+All source code will be made available publicly. For access to the data, please contact the corresponding author.
 
 \end{document}
