@@ -9,20 +9,21 @@
 \title{Machine learning for MEG during speech tasks}
 %\title{Comparing Machine Learning Techniques in Predicting Children's Age with MEG Recorded Speech Tasks}
 
-\author[1,*]{Demetres Kostas}
-\author[2]{Elizabeth W. Pang}
-\author[1,3]{Frank Rudzicz}
-\affil[1]{University of Toronto; Canada}
-\affil[2]{SickKids Research Institutue; Toronto, Canada}
-\affil[3]{Toronto Rehabilitation Institute-UHN; Canada}
+\author[1,2,*]{Demetres Kostas}
+\author[3,4]{Elizabeth W. Pang}
+\author[1,2,5]{Frank Rudzicz}
+\affil[1]{University of Toronto; Toronto, Canada}
+\affil[2]{Vector Institute; Toronto, Canada}
+\affil[3]{Hospital for Sick Children; Toronto, Canada}
+\affil[4]{SickKids Research Institutue; Toronto, Canada}
+\affil[5]{Toronto Rehabilitation Institute-UHN; Toronto, Canada}
 
 \affil[*]{demetres@cs.toronto.edu}
 
 % Needs to be <=200 words.
 
 \begin{abstract}
-As language develops in children, the cortical structures employed in the brain progressively lateralize, typically into the left hemisphere. Verb generation tasks consistently demonstrate this phenomenon in fMRI and MEG studies. Here, we consider whether a deep neural network trained with raw MEG data can be used to predict the age of children performing a verb-generation task, a monosyllable speech-elicitation task, and a multi-syllabic speech-elicitation task. Previous work has explored taking DNNs designed for, or trained with, images to classify encephalographic recordings with some success, but this does little to acknowledge the structure of these data. Simple neural networks have been used extensively to classify data expressed as features, but require extensive feature engineering and pre-processing. We present novel DNNs trained using raw EEG/MEG data that mimic the feature-engineering pipeline. We highlight criteria the networks use, including relative weighting of channels and preferred spectro-temporal characteristics of re-weighted channels. Our data feature 92 subjects aged 4-18 recorded using a 151 channel MEG system. Our proposed model scores over 97\% single-fold binary classification accuracy distinguishing $>10$ years of age, and can classify publicly available EEG with state-of-the-art accuracy.
-
+As language develops in children, the cortical structures employed in the brain progressively lateralize, typically into the left hemisphere. Verb generation tasks consistently demonstrate this phenomenon in fMRI and MEG studies. Here, we consider whether a deep neural network trained with raw MEG data can be used to predict the age of children performing a verb-generation task, a monosyllable speech-elicitation task, and a multi-syllabic speech-elicitation task. Previous work has explored taking DNNs designed for, or trained with, images to classify encephalographic recordings with some success, but this does little to acknowledge the structure of these data. Simple neural networks have been used extensively to classify data expressed as features, but require extensive feature engineering and pre-processing. We present novel DNNs trained using raw EEG/MEG data that mimic the feature-engineering pipeline. We highlight criteria the networks use, including relative weighting of channels and preferred spectro-temporal characteristics of re-weighted channels. Our data feature 92 subjects aged 4-18, recorded using a 151-channel MEG system. Our proposed model scores over 97\% single-fold binary classification accuracy distinguishing $>10$ years of age, and can classify publicly available EEG with state-of-the-art accuracy.
 % Don't like using DNNs acronym, but it cuts word count, and sounds less repetitive
 
 \end{abstract}
@@ -61,57 +62,6 @@ We propose new deep neural network architectures trained end-to-end to predict t
 \section*{Results}
 
 \subsection*{Age classification}
-
-% \subsubsection*{Fine-grained prediction}
-
-% \begin{table}[htp]
-%  \caption{Classification accuracy mean and standard deviation across the seven age classes (lower inclusive, higher exclusive): 4-6, 6-8, 8-10, 10-12, 12-14, 14-16, $>$16. Also includes within-one (W1) accuracy mean and standard deviation. Strict accuracy has both feature and end-to-end approaches performing relatively well, but considering the within-one metric the un-augmented and temporal augmentation appear to perform consistently well. Friedman tests of within-one metric rejects the null-hypothesis of all equivalent performances and post-hoc analysis shows the SCNN model trained with the temporally augmented MEG data significantly outperforms the spatially augmented data SCNN and the SCNN trained with Audio data.}
-%  \makebox[\textwidth]{
-%  \centering
-%  \begin{tabular}{l l| c | c | c | c}
-%    \toprule
-%    \textbf{Dataset} & \textbf{Model} & \textbf{Mean \%} & \textbf{Dev. \%} & \textbf{W1 Mean \%} & \textbf{W1 Dev. \%}\\
-%    \toprule
-%    \multirow{5}{*}{Audio (ext. feat.)}
-%                     & Logistic Reg.       & 17.5 & 4.42  & 48.1 & 4.41 \\
-%                     & Linear SVM          & 17.2 & 5.15  & 54.4 & 1.91 \\
-%                     & FFNN                & 18.9 & 6.00  & 49.7 & 11.9 \\
-%                     & LSTM+A              & 23.8 & 7.08  & 58.4 & 6.33 \\
-%                     & SCNN                & 15.6 & 4.00  & 40.2 & 8.59 \\
-   
-%    \midrule
-%    \multirow{5}{*}{MEG (ext. feat.)}
-%                     & Logistic Reg.        & 27.9 & 2.52  & 49.0 & 9.96 \\
-%                     & Linear SVM          & 28.5 & 0.79  & 53.0 & 2.82 \\
-%                     & FFNN                & 28.1 & 5.91  & 51.7 & 8.37 \\
-%                     & LSTM+A              & 20.7 & 6.90  & 50.1 & 11.6 \\
-%                     & SCNN                & 22.4 & 4.96  & 53.0 & 3.68 \\
-%    \midrule
-%    \multirow{2}{*}{MEG}
-%                         & LSTM+A              & 28.1 & 5.00 & 60.0 & 9.11 \\ 
-%                         & SCNN                & 28.6 & 7.91 & 59.9 & 11.0 \\
-%    \midrule
-%    \multirow{2}{*}{MEG (crop aug.)}
-%                         & LSTM+A              & 26.3 & 2.07 & 50.2 & 2.36 \\ 
-%                         & SCNN                & 32.4 & 10.9 & 62.6 & 9.29 \\
-%    \midrule
-%    \multirow{1}{*}{MEG (proj. aug.)}
-%                         & SCNN                & 21.9 & 2.20 & 44.0 & 5.10 \\
-%    \midrule
-%    \multirow{1}{*}{MEG (proj.\&noise aug.)}
-%                         & SCNN                & 15.0 & 5.10 & 37.4 & 9.83 \\
-%    \bottomrule
-%  \end{tabular}}
-%  \caption{Classification accuracy mean and standard deviation across the seven age classes (lower inclusive, higher exclusive): 4-6, 6-8, 8-10, 10-12, 12-14, 14-16, $>$16. Also includes within-one (W1) accuracy mean and standard deviation. Strict accuracy has both feature and end-to-end approaches performing relatively well, but considering the within-one metric the un-augmented and temporal augmentation appear to perform consistently well. Friedman tests of within-one metric rejects the null-hypothesis of all equivalent performances and post-hoc analysis shows the SCNN model trained with the temporally augmented MEG data significantly outperforms the spatially augmented data SCNN and the SCNN trained with Audio data.}
-%  \label{tab:seven_way_results}
-% \end{table}
-
-% The results for models trained across the seven age classes are presented in Table \ref{tab:seven_way_results}. Considering the strict accuracy metric alone, there is little difference between end-to-end and feature-based approaches. Both vary in mean scores in the 20-30\% range. The audio dataset and the spatial projection with augmentation perform somewhat more poorly in this metric than the rest of the datasets and models. 
-% The SCNN with the cropping augmentation appears to be the most successful model, and this holds for the within-one metric as well, albeit with a large variation. Interestingly, when considering the within-one metric (W1 in Table \ref{tab:seven_way_results}, the models trained with the audio dataset are in fact much more successful and in the case of the SVM perhaps dramatically so when compared to their strict accuracy. This indicates that some sort of pattern is being developed by the model, but is not powerful enough to distinguish among seven classes. The projection and projection+noise augmentation dataset perform quite poorly under both metrics, and additionally required much more training time and had many more parameters, and we would not recommend their use going forward without some change in number of training points or architecture configurations.
-
-% Examining the significance of the within-one metric scores using a Friedman test, we can reject that all the scores are equivalent with $\chi^2_{15}=36.494$ $p<0.0015$. Post-hoc Nemenyi analysis shows two significant ($p<0.05$ after single step correction) pairwise comparisons. In both cases the SCNN trained with the cropping augmented raw data significantly outperforms the SCNN trained with the audio dataset and the projection + noise datasets. This adds to an important observation that the models that are intended to be trained with end-to-end data are not {\em aided} by first extracting features, and with the audio dataset and SCNN clearly are {\em disadvantaged} by first extracting features. 
-
-% \subsubsection*{Binary classification}
 
 \begin{table}[htp]
   \caption{Classification accuracy of $age >= 10$ versus $age < 10$.}
@@ -178,7 +128,7 @@ The results in Table \ref{tab:sec_results} are meant as a verification that SCNN
 
 \subsection*{Model Analysis}
 
-We employed artificial inputs that maximized the output of features and outputs for the model with the highest single fold test accuracy in the binary classification task to minimize creating artificial data that had characteristics that were not pertinent to the task at hand. This resulted in using the SCNN model trained with the second fold of the raw MEG dataset. Figure \ref{fig:max_components} demonstrates relative channel weightings (interpolated over a scalp image) that maximize three spatial features. Correspondingly, figure \ref{fig:max_spectrograms} shows the spectral content of the same spatial features that maximally activate the two output classes, juxtaposed with high confidence real activations of again the same spatial features.
+We employed artificial inputs that maximized the output of features and outputs for the model with the highest single fold test accuracy in the binary classification task to minimize creating artificial data that had characteristics that were not pertinent to the task at hand. This resulted in using the SCNN model trained with the second fold of the raw MEG dataset. Figure \ref{fig:max_components} demonstrates relative channel weightings (interpolated over a scalp image) that maximize three spatial features. Correspondingly, table \ref{tab:max_spectrograms} shows the spectral content of the same spatial features that maximally activate the two output classes, juxtaposed with high confidence real activations of again the same spatial features.
 
 \begin{figure}[h!]
   \begin{minipage}{0.31\textwidth}
@@ -198,168 +148,16 @@ We employed artificial inputs that maximized the output of features and outputs 
     \subcaption{}
     \label{fig:component_49}
   \end{minipage}
-  \caption[textfind]{Components (a) and (b) show a common pattern of spatial mixing, with a particularly strong weight localized around channels near the inferior frontal or perhaps dorsolateral prefrontal regions. This region is the only somewhat consistently strongly weighted region that is not exagerated by the edge effects of the interpolation. Component (c) shows a very nearly inverse set of weights compared to (a), in addition to what could be strong weights over the visual cortex (although edge effects of the interpolation make this hard to say). Components were plotted using the MNE python library. \footnotemark} \label{fig:max_components}
-\end{figure}
-\footnotetext{https://www.martinos.org/mne/stable/index.html}
-
-\begin{table}[t]
- \begin{tabular}{m{2in} c c | c  c}
-   \multicolumn{1}{c}{} & \multicolumn{2}{c}{\textbf{Artificially Generated}} & \multicolumn{2}{c}{\textbf{Real Data}} \\
-   \toprule
-   \centering
-   Component 4  & \includegraphics[width=0.2\linewidth]{max_act/artificial_spec_4_0.png} & \includegraphics[width=0.2\linewidth]{max_act/artificial_spec_4_1.png} & \includegraphics[width=0.2\linewidth]{max_act/real_0_4.png} & \includegraphics[width=0.2\linewidth]{max_act/real_0_4.png}
-                                                                                                                                                              
- \end{tabular}
-\end{table}
-
-\begin{figure}[t!]
-  \begin{minipage}{0.24\textwidth}
-    \includegraphics[width=\linewidth]{max_act/artificial_spec_4_0.png}
-    \subcaption{}
-%    \caption{} \label{fig:art_4_0}
-  \end{minipage}
-  \hspace*{\fill} 
-  \begin{minipage}{0.24\textwidth}
-    \includegraphics[width=\linewidth]{max_act/artificial_spec_4_1.png}
-    \subcaption{}
-%    \caption{} \label{fig:art_4_1}
-  \end{minipage}
-%  \vskip\baselineskip
-  \begin{minipage}{0.24\textwidth}
-    \includegraphics[width=\linewidth]{max_act/real_0_4.png}
-    \subcaption{}
-%    \caption{} \label{fig:real_4_0}
-  \end{minipage}
-  \hspace*{\fill} 
-  \begin{minipage}{0.24\textwidth}
-    \includegraphics[width=\linewidth]{max_act/real_1_4.png}
-    \subcaption{}
-%    \caption{} \label{fig:real_4_1}
-  \end{minipage}
-  \vskip\baselineskip
-  \begin{minipage}{0.24\textwidth}
-    \includegraphics[width=\linewidth]{max_act/artificial_spec_28_0.png}
-    \subcaption{}
-%    \caption{} \label{fig:art_28_0}
-  \end{minipage}
-  \hspace*{\fill} 
-  \begin{minipage}{0.24\textwidth}
-    \includegraphics[width=\linewidth]{max_act/artificial_spec_28_1.png}
-    \subcaption{}
-%    \caption{} \label{fig:art_28_1}
-  \end{minipage}
-%  \vskip\baselineskip
-  \begin{minipage}{0.24\textwidth}
-    \includegraphics[width=\linewidth]{max_act/real_0_28.png}
-    \subcaption{}
-%    \caption{} \label{fig:real_28_0}
-  \end{minipage}
-  \hspace*{\fill} 
-  \begin{minipage}{0.24\textwidth}
-    \includegraphics[width=\linewidth]{max_act/real_1_28.png}
-    \subcaption{}
-%    \caption{} \label{fig:real_28_1}
-  \end{minipage}
-  \vskip\baselineskip
-  \begin{minipage}{0.24\textwidth}
-    \includegraphics[width=\linewidth]{max_act/artificial_spec_49_0.png}
-    \subcaption{}
-%    \caption{} \label{fig:art_49_0}
-  \end{minipage}
-  \hspace*{\fill} 
-  \begin{minipage}{0.24\textwidth}
-    \includegraphics[width=\linewidth]{max_act/artificial_spec_49_1.png}
-    \subcaption{}
-%    \caption{} \label{fig:art_49_1}
-  \end{minipage}
-%  \vskip\baselineskip
-  \begin{minipage}{0.24\textwidth}
-    \includegraphics[width=\linewidth]{max_act/real_0_49.png}
-    \subcaption{}
-%    \caption{} \label{fig:real_49_0}
-  \end{minipage}
-  \hspace*{\fill} 
-  \begin{minipage}{0.24\textwidth}
-    \includegraphics[width=\linewidth]{max_act/real_1_49.png}
-    \subcaption{}
-%    \caption{} \label{fig:real_49_1}
-  \end{minipage}
-  \caption{The plots on the left: \textbf{(a), (b), (e), (f), (i), and (j)}, represent artificially generated data that maximally activate the classes $<10$ and $>=10$ years old with respect to component 4 (figure \ref{fig:component_4}), component 28 (figure \ref{fig:component_28}) and component 49 (figure \ref{fig:component_49}). Each row of spectrograms corresponds to components 4, 28 and 49 respectively. Plots on the right: \textbf{(c), (d), (g), (h), (k), and (l)} show the two real datapoints that most significantly maximized the two classes for the components of their corresponding rows.} \label{fig:max_spectrograms}
+  \caption[textfind]{Components (a) and (b) show a common pattern of spatial mixing, with a particularly strong weight localized around channels near the inferior frontal or perhaps dorsolateral prefrontal regions. This region is the only somewhat consistently strongly weighted region that is not exagerated by the edge effects of the interpolation. Component (c) shows a very nearly inverse set of weights compared to (a), in addition to what could be strong weights over the visual cortex (although edge effects of the interpolation make this hard to say). Components were plotted using the MNE python library (available at \url{https://www.martinos.org/mne/stable/index.html})} \label{fig:max_components}
 \end{figure}
 
-\begin{figure}[t!]
-  \begin{minipage}{0.24\textwidth}
-    \includegraphics[width=\linewidth]{max_act/artificial_spec_4_0.png}
-    \subcaption{}
-%    \caption{} \label{fig:art_4_0}
-  \end{minipage}
-  \hspace*{\fill} 
-  \begin{minipage}{0.24\textwidth}
-    \includegraphics[width=\linewidth]{max_act/artificial_spec_4_1.png}
-    \subcaption{}
-%    \caption{} \label{fig:art_4_1}
-  \end{minipage}
-%  \vskip\baselineskip
-  \begin{minipage}{0.24\textwidth}
-    \includegraphics[width=\linewidth]{max_act/real_0_4.png}
-    \subcaption{}
-%    \caption{} \label{fig:real_4_0}
-  \end{minipage}
-  \hspace*{\fill} 
-  \begin{minipage}{0.24\textwidth}
-    \includegraphics[width=\linewidth]{max_act/real_1_4.png}
-    \subcaption{}
-%    \caption{} \label{fig:real_4_1}
-  \end{minipage}
-  \vskip\baselineskip
-  \begin{minipage}{0.24\textwidth}
-    \includegraphics[width=\linewidth]{max_act/artificial_spec_28_0.png}
-    \subcaption{}
-%    \caption{} \label{fig:art_28_0}
-  \end{minipage}
-  \hspace*{\fill} 
-  \begin{minipage}{0.24\textwidth}
-    \includegraphics[width=\linewidth]{max_act/artificial_spec_28_1.png}
-    \subcaption{}
-%    \caption{} \label{fig:art_28_1}
-  \end{minipage}
-%  \vskip\baselineskip
-  \begin{minipage}{0.24\textwidth}
-    \includegraphics[width=\linewidth]{max_act/real_0_28.png}
-    \subcaption{}
-%    \caption{} \label{fig:real_28_0}
-  \end{minipage}
-  \hspace*{\fill} 
-  \begin{minipage}{0.24\textwidth}
-    \includegraphics[width=\linewidth]{max_act/real_1_28.png}
-    \subcaption{}
-%    \caption{} \label{fig:real_28_1}
-  \end{minipage}
-  \vskip\baselineskip
-  \begin{minipage}{0.24\textwidth}
-    \includegraphics[width=\linewidth]{max_act/artificial_spec_49_0.png}
-    \subcaption{}
-%    \caption{} \label{fig:art_49_0}
-  \end{minipage}
-  \hspace*{\fill} 
-  \begin{minipage}{0.24\textwidth}
-    \includegraphics[width=\linewidth]{max_act/artificial_spec_49_1.png}
-    \subcaption{}
-%    \caption{} \label{fig:art_49_1}
-  \end{minipage}
-%  \vskip\baselineskip
-  \begin{minipage}{0.24\textwidth}
-    \includegraphics[width=\linewidth]{max_act/real_0_49.png}
-    \subcaption{}
-%    \caption{} \label{fig:real_49_0}
-  \end{minipage}
-  \hspace*{\fill} 
-  \begin{minipage}{0.24\textwidth}
-    \includegraphics[width=\linewidth]{max_act/real_1_49.png}
-    \subcaption{}
-%    \caption{} \label{fig:real_49_1}
-  \end{minipage}
-  \caption{The plots on the left: \textbf{(a), (b), (e), (f), (i), and (j)}, represent artificially generated data that maximally activate the classes $<10$ and $>=10$ years old with respect to component 4 (figure \ref{fig:component_4}), component 28 (figure \ref{fig:component_28}) and component 49 (figure \ref{fig:component_49}). Each row of spectrograms corresponds to components 4, 28 and 49 respectively. Plots on the right: \textbf{(c), (d), (g), (h), (k), and (l)} show the two real datapoints that most significantly maximized the two classes for the components of their corresponding rows.} \label{fig:max_spectrograms}
+\newcolumntype{v}{>{\centering\arraybackslash} m{.13\linewidth} }
+\newcolumntype{V}{>{\centering\arraybackslash} m{.18\linewidth} }
+
+\begin{figure}[t]
+  \caption{The plots on the left represent artificially generated data that maximally activate the classes $<10$ and $>=10$ years old with respect to component 4 (figure \ref{fig:component_4}), component 28 (figure \ref{fig:component_28}) and component 49 (figure \ref{fig:component_49}). Each row of spectrograms corresponds to components 4, 28 and 49 respectively. Plots on the right show the two real datapoints that most significantly maximized the two classes for the components of their corresponding rows.}
+  \centering\includegraphics[width=\linewidth]{spectrogram_tables.png}
+ \label{tab:max_spectrograms}
 \end{figure}
 
 Throughout the learned components, there is a common patch of strong weights found in approximately the inferior frontal or perhaps dorsolateral prefrontal regions. All three components shown in figure \ref{fig:max_components} demonstrate this to some degree (although (c) has an inverse sign). The artificially generated datapoints show fairly uniform spectrograms across all components, with spectral density concentrated between approximately $0-14$ H{\em z} in the $<10$ years old class, and concentration $15-22$ H$z$ for $>=10$ years old. All of the artificial datapoints are very stationary, and show no particular emphasis around the event time $t=1.5s$. The $>=10$ artificial data spectrograms do however show more activity overall in the high $beta$, low $gamma$ rhythms and this is particularly evident in components 4 and 49.
@@ -402,10 +200,10 @@ The critical innovation of this architecture is to enable multiple layers of non
 
 The first few layers of the CNN can be seen as a mapping from $R^{T \times C \times 1}$ to $R^{T \times 1 \times S}$ (the spatial filtering) to $R^{T' \times 1 \times F }$ (the temporal filtering) where $T' \leq T$, $C$ is the number of recording channels, $S$ is the number of spatial transformations, and $F$ is the number of temporal filters. In other words, a set of $S$ non-linear spatial transformations are applied to the $C$ channels, and then a set of $F$ temporal filters are applied to these new sequences, as can be seen in the diagram presented in figure \ref{fig:scnn_arch}.
 
-Since the actual depth (of spatial filtering and temporal filtering operations) changes depending on the configuration selected by the hyperparameter search, consider an example architecture with two layers of spatial steps with $K_1, K_2$ kernels for each layer respectively. Let $\boldsymbol{X}$ be our input data with dimensions $T \times C$, where $T$ is the length of our temporal sequence and $C$ is the number of channels recorded. Also, as a result of the two spatial layers, we intend to produce the output $\boldsymbol{X}_{Spatial}$ with dimensions $T \times K_2$ where $K_2$ is the target number of {\em spatial components}. In the first layer, and $j^{th}$ kernel $\boldsymbol{w}_{L_1}^j$, has length $C'$, where $C' < C$, and the output of filter $j$ of the first layer at time $t$ is then:
+Since the actual depth (of spatial filtering and temporal filtering operations) changes depending on the configuration selected by the hyperparameter search, consider an example architecture with two layers of spatial steps with $K_1, K_2$ kernels for each layer respectively. Note that there are no bias terms included as batch normalization \cite{Szegedy2015} renders them redundant and is employed throughout. Let $\boldsymbol{X}$ be our input data with dimensions $T \times C$, where $T$ is the length of our temporal sequence and $C$ is the number of channels recorded. Also, as a result of the two spatial layers, we intend to produce the output $\boldsymbol{X}_{Spatial}$ with dimensions $T \times K_2$ where $K_2$ is the target number of {\em spatial components}. In the first layer, and $j^{th}$ kernel $\boldsymbol{w}_{L_1}^j$, has length $C'$, where $C' < C$, and the output of filter $j$ of the first layer at time $t$ is then:
 
 \begin{equation} \label{eq:scnn_s1}
-  \boldsymbol{X'}_{t, i, j} = f\left(\sum_{k=0}^{C'} {\boldsymbol{w}_{L_1}^j}_k \boldsymbol{X}_{t,i+k}\right) \footnote{There are no bias terms needed here or later, as batch normalization \cite{Szegedy2015} renders them redundant and is employed throughout.}
+  \boldsymbol{X'}_{t, i, j} = f\left(\sum_{k=0}^{C'} {\boldsymbol{w}_{L_1}^j}_k \boldsymbol{X}_{t,i+k}\right)
 \end{equation}
 
 Where $\boldsymbol{X'}$ is a three dimensional tensor of shape $T \times (C-C') \times K_1$ and $f(x)$ is the neuron's non-linear function of choice. There is no integration of any temporal information besides $t$, and that for each kernel there are $C-C'$ sequences of length $T$, of which only the $i^{th}$ is shown above. Next, the second layer consists of kernel vectors $\boldsymbol{w}_{L_2}^s$ of length $C-C'$, which determine component $s$ of $K_2$ at time $t$ as follows:
@@ -439,7 +237,7 @@ In contrast, our implementation does not use a pre-trained CNN, but trains convo
 \begin{equation} 
   e_{t, j} = a(f_{0, j},..., f_{T-1, j}, h_{t-1}),
 \end{equation}
-Where $a()$ is an arbitrary function\footnote{We use a multi-layer network similar to the original formulation in \cite{XuKELVINXU}, but the number of layers used is a hyperparameter determined during search, and units per layer equal to the number of hidden units with the associated LSTM.}. These vectors are normalized (so that they sum to 1, and range between 0 and 1) using the softmax function. This produces the {\em soft-attention} weights $\alpha_{t,j,t'}$ for each feature $j$ at time $t'$:
+Where $a()$ is an arbitrary function (we use a multi-layer network similar to the original formulation in \cite{XuKELVINXU}, but the number of layers used is a hyperparameter determined during search, and units per layer equal to the number of hidden units with the associated LSTM.). These vectors are normalized (so that they sum to 1, and range between 0 and 1) using the softmax function. This produces the {\em soft-attention} weights $\alpha_{t,j,t'}$ for each feature $j$ at time $t'$:
 
 \begin{equation} \label{eq:attn_nrg}
   \alpha_{t,j,t'} =  \frac{\exp(e_{t,j,t'})}{\sum_{i=0}^{T-1}\exp(e_{t,j,i})},
@@ -477,7 +275,7 @@ We select whether to use the full LSTM output sequence, or exclusively the last 
   \caption{Participant demographics, across stimuli types. The two speech tasks involve considerable participant overlap.}
   \label{tab:subjects}
 \end{table}
-These data were originally recorded to examine age- and sex-related developmental language differences in children by Doesburg {\em et al.} \cite{Doesburg2016} and Yu {\em et al.} \cite{Yu2014}. Table \ref{tab:subjects} summarizes participant demographics. Each participant spoke English as their first language and had no known or suspected histories of speech, language, hearing, or developmental disorders, according to their parents. Prior to the experiment, children received two standardized language clinical tests: the Peabody Picture Vocabulary Test (PPVT) \cite{Dunn97} and the Expressive Vocabulary Test (EVT) \cite{EVT}. All children's scores were at or above expected scores for their ages on the PPVT and EVT, and their speech showed neither signs of articulatory difficulties nor any significant effect of age. In total, 80 participants were right-handed, 5 were left-handed, and 7 were ambidextrous, according to the Edinburgh assessment \cite{Oldfield1971}, there is no significant variation of handedness with age.
+These data were originally recorded to examine age- and sex-related developmental language differences in children by Doesburg {\em et al.} \cite{Doesburg2016} and Yu {\em et al.} \cite{Yu2014}. Table \ref{tab:subjects} summarizes participant demographics. Each participant spoke English as their first language and had no known or suspected histories of speech, language, hearing, or developmental disorders, according to their parents. The acquisition protocol was approved by the SickKids Research Ethics Board (REB \#1000016645) which acts in accordance with the guidelines established by the Tri-Council Policy on Ethical Conduct for Research Involving Humans. All participants or their parents gave written informed consent. Children unable to read the consent form provided informed verbal assent. Prior to the experiment, children received two standardized language clinical tests: the Peabody Picture Vocabulary Test (PPVT) \cite{Dunn97} and the Expressive Vocabulary Test (EVT) \cite{EVT}. All children's scores were at or above expected scores for their ages on the PPVT and EVT, and their speech showed neither signs of articulatory difficulties nor any significant effect of age. In total, 80 participants were right-handed, 5 were left-handed, and 7 were ambidextrous, according to the Edinburgh assessment \cite{Oldfield1971}, there is no significant variation of handedness with age.
 
 Three distinct speech-elicitation stimuli were used. The first two were of the monosyllable /{\em pah}/ and the multisyllabic sequence /{\em pah tah kah}/, respectively. These were simple enough for young children and are part of the diadochokinetic rate (DDK) test, which can be used to evaluate neuromuscular control in motor speech disorders. Prior to acquisition, the experimenter demonstrated the productions of each stimuli, without word-like prosodic patterns. The third experiment was an overt verb generation (VG) task in English, where subjects were presented with an image with which they were familiar, and were asked to produce a verb associated with the object \cite{Doesburg2016}.
 
@@ -487,7 +285,7 @@ Using these data, Doesburg {\em et al.} \cite{Doesburg2016} predicted language a
 
 \subsection*{Supplementary dataset: BCI Competition IV, Dataset 2a}
 
-In an effort to compare the potential success of our end-to-end models to previous work, we also trained some of our proposed models using the BCI Competition IV EEG Dataset \cite{Tangermann2012}. This dataset has been featured in several other attempts to apply neural networks trained end-to-end to neurophysiological data \cite{Schirrmeister2017,Tabar2017,Lawhern2017,Sun} and is freely available online \footnote{\url{http://bnci-horizon-2020.eu/database/data-sets}}.
+In an effort to compare the potential success of our end-to-end models to previous work, we also trained some of our proposed models using the BCI Competition IV EEG Dataset \cite{Tangermann2012}. This dataset has been featured in several other attempts to apply neural networks trained end-to-end to neurophysiological data \cite{Schirrmeister2017,Tabar2017,Lawhern2017,Sun} and is freely available online: \url{http://bnci-horizon-2020.eu/database/data-sets}.
 
 These data consist of EEG recordings of 9 subjects performing 4 different imagined motor tasks: left hand, right hand, both feet, and tongue. These recordings were broken up into two separate sessions for each subject recorded on different days. Each of these sessions consisted of 6 sets of 48 trials separated by a short break, where the 48 trials were 12 executions of each of the 4 tasks. Thus a total of 288 trials were recorded per session. One session is considered training data, and the second is used as evaluation requiring some carry-over performance between days. The recordings consist of 22 EEG electrodes, and 3 monopolar EOG electrodes, all recorded at 250 Hz and bandpass filtered between 0.5 and 100 Hz. Additionally, a 50 Hz notch-filter was used to minimize line noise. The trials themselves are available as 6 second recordings, where the first two seconds consist of presenting each subject a fixation point. At 2s through 3.25s, a task stimuli was presented to the subjects. There is additionally some EOG-only trials per session that we discard. 
 
@@ -538,7 +336,7 @@ As a result of the number of features extracted for each MEG trial, the number o
 
 Each model is tested using 5-fold cross-validation against a held-out group of subjects. The test subjects are selected to have a similar distribution of the number of trials in each age range. The remaining subjects are ordered based on the number of trials they performed and their trials are distributed across the 5 folds in this order to create an approximately equal number of trials in each fold. The range in number of training points between folds was 3838 through 4078. We quantitatively evaluate the similarity between the 5 folds and test set using a K-sample Anderson-Darling test, where we found $A^2=-0.271$ with $p=0.61$. In the supplemental dataset, the training versus test datasets are separated in advance for intra-subject training.
 
-We use Keras \footnote{https://keras.io/} with a Tensorflow \footnote{https://www.tensorflow.org/} backend to build all of the following models, and use either stochastic gradient descent or the Adam optimizer\cite{Kingma2015} when performing back-propagation updates. When training the neural networks, we select between three different activation functions: the rectified linear unit (ReLU) \cite{He2015a}, the exponential linear unit (ELU) \cite{Clevert}, and the scaled ELU (SELU) \cite{NIPS2017_6698}. All layers are batch-normalized \cite{Szegedy2015} after activation. We additionally employ L2-norm weight regularization for all trainable weights, excluding those of RNNs. We apply dropout \cite{Srivastava2014} after all fully-connected layers, and both max-pooling and spatial dropout \cite{Tompson2015} to all convolutional layers. These techniques are not necessarily applied to the FBCSP-like model from \cite{Schirrmeister2017}, which is reproduced by examining their source code.
+We use Keras (\url{https://keras.io/}) with a Tensorflow (\url{https://www.tensorflow.org/}) backend to build all of the following models, and use either stochastic gradient descent or the Adam optimizer\cite{Kingma2015} when performing back-propagation updates. When training the neural networks, we select between three different activation functions: the rectified linear unit (ReLU) \cite{He2015a}, the exponential linear unit (ELU) \cite{Clevert}, and the scaled ELU (SELU) \cite{NIPS2017_6698}. All layers are batch-normalized \cite{Szegedy2015} after activation. We additionally employ L2-norm weight regularization for all trainable weights, excluding those of RNNs. We apply dropout \cite{Srivastava2014} after all fully-connected layers, and both max-pooling and spatial dropout \cite{Tompson2015} to all convolutional layers. These techniques are not necessarily applied to the FBCSP-like model from \cite{Schirrmeister2017}, which is reproduced by examining their source code.
 
 All hyperparameter selection is done using Bayesian parameter optimization with Hyperopt \cite{Bergstra2013} including: learning rate, regularization penalty, dropout rates, number of adjacent activations to pool, number and layers of hidden units, receptive fields, and activation functions for all appropriate models. Hyperparameter searches are performed for 100 iterations.
 
@@ -547,20 +345,20 @@ All hyperparameter selection is done using Bayesian parameter optimization with 
 
 \bibliography{sci_reports}
 
-\section*{Acknowledgements (not compulsory)}
+\section*{Acknowledgements}
 
-We acknowledge Drs. Darren Kadis and Vickie Yu who developed the MEG stimuli and determined the MEG data acquisition parameters. We acknowledge Matt J MacDonald, Anna Oh and Marc Lalancette for their roles in recruiting the MEG participants, acquiring the MEG data and standardized language scores. The MEG portion of this study was funded by a Canadian Institutes of Health Research Operating Grant (MOP-89961) to Elizabeth W. Pang.
+We acknowledge Drs. Darren Kadis and Vickie Yu who developed the MEG stimuli and determined the MEG data acquisition parameters. We acknowledge Matt J. MacDonald, Anna Oh and Marc Lalancette for their roles in recruiting the MEG participants, acquiring the MEG data and standardized language scores. The MEG portion of this study was funded by a Canadian Institutes of Health Research Operating Grant (MOP-89961) to Elizabeth W. Pang.
 
 \section*{Author contributions statement}
 
-Must include all authors, identified by initials, for example:
-A.A. conceived the experiment(s),  A.A. and B.A. conducted the experiment(s), C.A. and D.A. analysed the results.  All authors reviewed the manuscript. 
+E.P. directed collection of the primary dataset, F.R. conceived experiment and reworked draft manuscript, D.K conducted experiments, analyzed results and wrote initial manuscript, D.K. and F.R. developed proposed models. All authors edited and reviewed manuscript.
 
-\section*{Additional information}
+\section*{Competing interests}
 
-To include, in this order: \textbf{Accession codes} (where applicable); \textbf{Competing financial interests} (mandatory statement). 
+The author(s) declare no competing interests.
 
-The corresponding author is responsible for submitting a \href{http://www.nature.com/srep/policies/index.html#competing}{competing financial interests statement} on behalf of all authors of the paper. This statement must be included in the submitted article file.
+\section*{Access to collected data and source code}
 
+All source code will be made available publicly. For access to the data, please contact the corresponding author.
 
 \end{document}
