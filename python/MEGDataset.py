@@ -167,6 +167,18 @@ class SubjectFileLoader(KerasDataloader):
 
         return self._load(index_array, current_batch_size)
 
+    def loadall(self):
+        raise NotImplementedError()
+        all = []
+        for batch in self:
+            if len(all) == 0:
+                all = [[b] for b in batch]
+            else:
+                for i, b in enumerate(batch):
+                    all[i].append(b)
+
+        return [np.vstack(a) for a in all]
+
 
 class TemporalAugmentation(SubjectFileLoader):
     """
@@ -307,16 +319,16 @@ class BaseDataset:
         self.batchsize = batchsize
         self.traindata = None
 
-        tests = []
+        self.tests = []
         # Assemble which experiments we are going to be using
         if PDK:
-            tests.append(TEST_PDK)
+            self.tests.append(TEST_PDK)
         if PA:
-            tests.append(TEST_PA)
+            self.tests.append(TEST_PA)
         if VG:
-            tests.append(TEST_VG)
+            self.tests.append(TEST_VG)
         if MO:
-            tests.append(TEST_MO)
+            self.tests.append(TEST_MO)
 
         if self.preprocessed_file in [x.name for x in self.toplevel.iterdir() if not x.is_dir()]:
             with (self.toplevel / self.preprocessed_file).open('rb') as f:
@@ -325,13 +337,13 @@ class BaseDataset:
                 self.testpoints, self.training_subjects = pickle.load(f)
                 # Ensure only the tests selected are used
                 for i, bucket in enumerate(tqdm(self.buckets)):
-                    self.buckets[i] = [x for x in bucket if any(t in str(x[1]) for t in tests)]
+                    self.buckets[i] = [x for x in bucket if any(t in str(x[1]) for t in self.tests)]
                 # Todo: warn/update pickled file if new subjects exist
                 self.print_folds(self.buckets)
         else:
             print('Preprocessing data...')
 
-            self.training_subjects, self.longest_vector, self.slice_length = self.files_to_load(tests)
+            self.training_subjects, self.longest_vector, self.slice_length = self.files_to_load(self.tests)
 
             if TEST_SUBJECTS:
                 print('Forcing test subjects...')
@@ -564,6 +576,35 @@ class BaseDatasetAgeRanges(BaseDataset, metaclass=ABCMeta):
         return len(self.AGE_RANGES)
 
 
+class BaseDatasetTask(BaseDataset, metaclass=ABCMeta):
+
+    TESTS = [TEST_PA, TEST_PDK, TEST_VG]
+
+    class TaskSubjectLoader(SubjectFileLoader):
+
+        def __init__(self, x, toplevel, longest_vector, subject_hash, target_cols, slice_length, f_loader,
+                     fnames=False, **kwargs):
+            super().__init__(x, toplevel, longest_vector, subject_hash, target_cols, slice_length, f_loader,
+                             fnames=True, **kwargs)
+            self.fname_hack = fnames
+
+        def _load(self, batch: np.ndarray, cols: list):
+            loaded = super()._load(batch, cols)
+            fns, x, y_float = loaded
+
+            y = np.array([[float(t in f.parts) for f in fns.squeeze()] for t in BaseDatasetTask.TESTS]).T
+
+            if self.fname_hack:
+                return fns, x, y
+            else:
+                return x, y
+
+    GENERATOR = TaskSubjectLoader
+
+    def outputshape(self):
+        return len(self.TESTS)
+
+
 class BaseDatasetSex(BaseDataset, metaclass=ABCMeta):
     DATASET_TARGETS = [HEADER_SEX, HEADER_AGE]
 
@@ -728,6 +769,26 @@ class FusionAgeRangesDataset(FusionDataset, BaseDatasetAgeRanges):
 
 # Classes that are used for raw data rather than opensmile feature-sets
 class MEGRawRanges(MEGAgeRangesDataset):
+    LOAD_SUFFIX = '.npy'
+
+    cache = RRCache(10000)
+
+    # Do not cache the raw data
+    @staticmethod
+    @cached(cache)
+    def get_features(path_to_file):
+        return np.load(path_to_file[0])
+
+    @property
+    def modality_folders(self):
+        return ['raw/MEG']
+
+    def inputshape(self):
+        # FIXME should not have magic number, comes from assumed sample rate of 200
+        return 700, self.slice_length
+
+
+class MEGRawTask(MEGDataset, BaseDatasetTask):
     LOAD_SUFFIX = '.npy'
 
     cache = RRCache(10000)
