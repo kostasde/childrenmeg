@@ -938,7 +938,7 @@ class BestSCNN(Model):
 
     def compile(self, **kwargs):
         extra_metrics = kwargs.pop('metrics', [])
-        super().compile(optimizer='Adam', loss=keras.losses.categorical_crossentropy,
+        super().compile(optimizer='Adam', loss=keras.losses.categorical_hinge,
                         metrics=[keras.metrics.categorical_crossentropy, keras.metrics.categorical_accuracy,
                                  *extra_metrics], **kwargs)
 

@@ -20,9 +20,9 @@ PATIENCE = 20
 WEIGHTS_FILE = 'Fold-{0}-weights.hdf5'
 PREDICT_FILE = 'Fold-{0}-predictions.pkl'
 
-# PRE_TRAINED_WEIGHTS = Path('/ais/clspace5/spoclab/children_megdata/eeglabdatasets/models/MEGraw/scnn/bin/')
-PRE_TRAINED_WEIGHTS = None
-SAVE_MODEL = Path('/ais/clspace5/spoclab/children_megdata/eeglabdatasets/models/MEGTask/scnn')
+PRE_TRAINED_WEIGHTS = Path('/ais/clspace5/spoclab/children_megdata/eeglabdatasets/models/MEGraw/scnn/bin/')
+# PRE_TRAINED_WEIGHTS = None
+SAVE_MODEL = Path('/ais/clspace5/spoclab/children_megdata/eeglabdatasets/models/MEGTask/scnn/ageweights')
 
 if __name__ == '__main__':
 
@@ -37,8 +37,8 @@ if __name__ == '__main__':
         print('-' * 30)
 
         dataset.next_leaveout(force=fold)
-        # model = BestSCNN(dataset.inputshape(), dataset.outputshape(), output_classifier=[])
-        model = BestSCNN(dataset.inputshape(), dataset.outputshape())
+        model = BestSCNN(dataset.inputshape(), dataset.outputshape(), output_classifier=[])
+        # model = BestSCNN(dataset.inputshape(), dataset.outputshape())
         model.compile()
         model.summary()
         if PRE_TRAINED_WEIGHTS:
