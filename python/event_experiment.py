@@ -1,6 +1,11 @@
 import pickle
 import pandas as pd
 import numpy as np
+import tqdm
+
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 from pathlib import Path
 from models import BestSCNN
@@ -15,10 +20,12 @@ TRAINED_MODEL = Path('/ais/clspace5/spoclab/children_megdata/eeglabdatasets/mode
 RESTING_DATA = '/ais/clspace5/spoclab/children_megdata/biggerset/resting/{0}/{1}.npy'
 
 
-def noise_occlusion(point, occlusion, occluded_points, occlusion_weight=0.99):
-    point[:, occluded_points, ...] = (1 - occlusion_weight) * point[:, occluded_points, ...]
-    occlusion *= occlusion_weight
-    return normalize(point + occlusion)
+OCCLUSION = np.random.rand(1, 700, 151)
+def noise_occlusion(point, occluded_points, occlusion_weight=0.999):
+    # occlusion = occlusion_weight * np.random.rand(point.shape[0], len(occluded_points), *point.shape[2:])
+    point[:, occluded_points, ...] = (1 - occlusion_weight) * point[:, occluded_points, ...] + occlusion_weight * \
+                                     OCCLUSION[:, occluded_points, ...]
+    return normalize(point)
 
 
 def normalize(data, ch_axis=-1, eps=1e-12):
@@ -38,31 +45,26 @@ def rest_points(fnames, x_shape):
     return rest
 
 
-def obscuring_profile(model, x):
-    obs_event = np.zeros(700, 2)
-    obs_ends = np.zeros(700, 2)
-    event_inds = [100]
+def obscuring_profile(model, x, step=1):
+    obs_event = np.zeros(((700-step)//step, 2))
+    obs_ends = np.zeros(((700-step)//step, 2))
+    event_inds = [99, 100]
     end_inds = [[0], [699]]
-    for i in range(700):
-        if i % 6:
-            event_inds.insert(0, event_inds[0]-1)
-            end_inds[0].append(end_inds[0][-1] + 1)
+    for i in range(step, 700-step, step):
+        if i % 7 == 0:
+            event_inds = list(reversed([event_inds[0] - i for i in range(1, step + 1)])) + event_inds
+            end_inds[0] += [end_inds[0][-1] + i for i in range(1, step + 1)]
         else:
-            event_inds.append(event_inds[-1]+1)
-            end_inds.insert(0, end_inds[1][0]-1)
+            end_inds[1] = list(reversed([end_inds[1][0] - i for i in range(1, step + 1)])) + end_inds[1]
+            event_inds += [event_inds[-1] + i for i in range(1, step + 1)]
 
-        obscure_event = np.zeros_like(x)
-        obscure_ends = np.zeros_like(x)
-        obscure_event[:, event_inds, :] = np.random.rand(*obscure_event[:, event_inds, :].shape)
-        obscure_ends[:, end_inds, :] = np.random.rand(*obscure_event[:, end_inds, :].shape)
-
-        obs_event[i, :] = model.predict(noise_occlusion(x, obscure_event, event_inds))
-        obs_ends[i, :] = model.predict(noise_occlusion(x, obscure_ends, end_inds))
+        obs_event[i // step - 1, :] = model.predict(noise_occlusion(x.copy(), event_inds))
+        obs_ends[i // step - 1, :] = model.predict(noise_occlusion(x.copy(), end_inds[0] + end_inds[1]))
 
     return obs_event, obs_ends
 
 
-BATCH_SIZE = 256
+BATCH_SIZE = 8
 POINTS_PER_SUBJECT = 20
 
 if __name__ == '__main__':
@@ -96,37 +98,61 @@ if __name__ == '__main__':
     filenames = np.vstack(filenames).squeeze()
     rest = rest_points(filenames, x.shape)
 
-    rest_corr_pred = model.predict(normalize(x - normalize(rest)), batch_size=BATCH_SIZE)
+    rest_corr_pred = model.predict(normalize(x - rest), batch_size=BATCH_SIZE)
     print('Rest Corrected Test Accuracy: ',
           np.mean(np.vstack(true_labels).argmax(axis=-1) == rest_corr_pred.argmax(axis=-1)))
 
     x = x[correct_filter]
     filenames = filenames[correct_filter]
+    rest = rest[correct_filter]
 
-    writer = pd.ExcelWriter('event_results/results_obscured.xlsx')
+    writer = pd.ExcelWriter('event_results/results.xlsx')
     dest = {s: {t: dict() for t in TESTS} for s in TEST_SUBJECTS}
 
+    obs_ends_profile = []
+    obs_evnt_profile = []
+
     # Consider high confidence points
-    for conf in reversed(best_confidence):
-        i = np.argmax(correct_pred[conf, :])
+    for subject in tqdm.tqdm(TEST_SUBJECTS, desc="Compiling results"):
+        for test in TESTS:
+            for conf in reversed(best_confidence):
+                if subject in filenames[conf].parts and test in filenames[conf].parts:
+                    print('Subject: {}, Test: {}'.format(subject, test))
+                    i = np.argmax(correct_pred[conf, :])
 
-        rest_x = rest[[conf], ...]
-        rest_pred = model.predict(normalize(rest_x))[0, i]
+                    rest_x = rest[[conf], ...]
+                    rest_pred = model.predict(normalize(rest_x))[0, i]
 
-        test_x = x[[conf], ...]
-        x_minus_rest = model.predict(normalize(test_x - normalize(rest_x)))[0, i]
+                    test_x = x[[conf], ...]
+                    x_minus_rest = model.predict(normalize(test_x - normalize(rest_x)))[0, i]
 
-        obs_event, obs_ends = obscuring_profile(model, test_x)
+                    obs_event, obs_ends = obscuring_profile(model, test_x.copy())
 
-        dest[filenames[conf].parts[SUBJECT_PART]][filenames[conf].parts[TEST_PART]] = dict(test_x=correct_pred[conf, i],
-                                                                                           rest=rest_pred,
-                                                                                           x_minus_rest=x_minus_rest,
-                                                                                           obscure_event=obs_event,
-                                                                                           obscure_ends=obs_ends)
+                    obs_ends_profile.append(obs_ends[:, i])
+                    obs_evnt_profile.append(obs_event[:, i])
 
-    for subject in TEST_SUBJECTS:
+                    dest[subject][test] = dict(test_x=correct_pred[conf, i], rest=rest_pred,
+                                               test_x_minus_rest=x_minus_rest)
+                    break
+
+    pickle.dump(dest, open('event_results/dest.pkl', 'wb'))
+
+    for subject in tqdm.tqdm(TEST_SUBJECTS, desc="Outputting specific results to file"):
         pd.DataFrame.from_dict(dest[subject], orient='index').to_excel(writer, subject,
                                                                        columns=['test_x', 'rest', 'test_x_minus_rest'])
-        pd.DataFrame.from_dict(dest[subject], orient='column')
-
     writer.save()
+
+    obs_evnt_profile = np.vstack(obs_evnt_profile).__ge__(0.5).mean(axis=0)
+    obs_ends_profile = np.vstack(obs_ends_profile).__ge__(0.5).mean(axis=0)
+    obs_x_sec = np.arange(1/200, 3.5, step=1/200)
+
+    # for title, data in zip(('Obscure Event', 'Obscure Ends'), (obs_evnt_profile, obs_ends_profile)):
+    plt.plot(obs_x_sec[:-1], obs_ends_profile[:-1]*100, label='Obscure Ends')
+    plt.plot(obs_x_sec[:-1], obs_evnt_profile[:-1]*100, label='Obscure Event')
+    plt.legend()
+    plt.title('Model Output of Obscured Trials')
+    plt.xlabel('Amount Obscured (s)')
+    plt.ylabel('Correct Prediction %')
+    plt.savefig('event_results/obscuring_profile.pdf')
+    plt.clf()
+
