@@ -181,8 +181,8 @@ if __name__ == '__main__':
                                                                        columns=['test_x', 'rest', 'test_x_minus_rest'])
     writer.save()
 
-    obs_evnt_profile = 100*np.vstack(obs_evnt_profile).mean(axis=0)[:-1, ...]
-    obs_ends_profile = 100*np.vstack(obs_ends_profile).mean(axis=0)[:-1, ...]
+    obs_evnt_profile = 100*np.stack(obs_evnt_profile, axis=0).mean(axis=0)[:-1, ...]
+    obs_ends_profile = 100*np.stack(obs_ends_profile, axis=0).mean(axis=0)[:-1, ...]
     obs_x_sec = np.arange(1/200, 3.5, step=1/200)[:-1]
 
     # for title, data in zip(('Obscure Event', 'Obscure Ends'), (obs_evnt_profile, obs_ends_profile)):
