@@ -3,6 +3,7 @@
 \usepackage{color,soul}
 
 \newcommand{\FR}[1]{{\small \textcolor{red}{\hl{FR: #1}}}}
+\newcommand{\newadd}[1]{{\sethlcolor{cyan}\hl{#1}}}
 
 \DeclareMathOperator*{\argmaxA}{arg\,max}
 
@@ -23,7 +24,7 @@
 % Needs to be <=200 words.
 
 \begin{abstract}
-As language develops in children, the cortical structures employed in the brain progressively lateralize, typically into the left hemisphere. Verb generation tasks consistently demonstrate this phenomenon in fMRI and MEG studies. Here, we consider whether a deep neural network trained with raw MEG data can be used to predict the age of children performing a verb-generation task, a monosyllable speech-elicitation task, and a multi-syllabic speech-elicitation task. Previous work has explored taking DNNs designed for, or trained with, images to classify encephalographic recordings with some success, but this does little to acknowledge the structure of these data. Simple neural networks have been used extensively to classify data expressed as features, but require extensive feature engineering and pre-processing. We present novel DNNs trained using raw EEG/MEG data that mimic the feature-engineering pipeline. We highlight criteria the networks use, including relative weighting of channels and preferred spectro-temporal characteristics of re-weighted channels. Our data feature 92 subjects aged 4-18, recorded using a 151-channel MEG system. Our proposed model scores over 97\% single-fold binary classification accuracy distinguishing $>10$ years of age, and can classify publicly available EEG with state-of-the-art accuracy.
+As language develops in children, the cortical structures employed in the brain progressively lateralize, typically into the left hemisphere. Verb generation tasks consistently demonstrate this phenomenon in fMRI and MEG studies. Here, we consider whether a deep neural network trained with raw MEG data can be used to predict the age of children performing a verb-generation task, a monosyllable speech-elicitation task, and a multi-syllabic speech-elicitation task. Previous work has explored taking DNNs designed for, or trained with, images to classify encephalographic recordings with some success, but this does little to acknowledge the structure of these data. Simple neural networks have been used extensively to classify data expressed as features, but require extensive feature engineering and pre-processing. We present novel DNNs trained using raw EEG/MEG data that mimic the feature-engineering pipeline. We highlight criteria the networks use, including relative weighting of channels and preferred spectro-temporal characteristics of re-weighted channels. Our data feature 92 subjects aged 4-18, recorded using a 151-channel MEG system. Our proposed model scores over 97\% single-fold binary classification \newadd{of single trials, when} \st{accuracy} distinguishing $>10$ years of age, and can classify publicly available EEG with state-of-the-art accuracy.
 % Don't like using DNNs acronym, but it cuts word count, and sounds less repetitive
 
 \end{abstract}
@@ -43,6 +44,8 @@ An advantage of this approach is that expert knowledge about the data can help c
 
 %Taking an end-to-end machine learning approach to classifying new, perhaps previously difficult, problems that are not just BCI focused may provide new insights into underlying phenomena and also expand the pool of tools available to make sense of the increasingly large data produced by modern non-invasive brain activity recording techniques. 
 We propose new deep neural network architectures trained end-to-end to predict the age of the subjects in our dataset, and we benchmark our performance using a public dataset. Since our primary data are of MEG recorded speech and language tasks, predicting age encourages the network to learn developmental distinctions. We use activation maximization to examine the network's inner workings and begin a discussion about appropriate application of this technique with encephalographic data.  
+
+\newadd{New section that merges previous, integrating basic methodology and dataset description}
 
 \begin{figure}[t]
   \begin{minipage}{0.47\textwidth}
@@ -128,7 +131,7 @@ The results in Table \ref{tab:sec_results} are meant as a verification that SCNN
 
 \subsection*{Model Analysis}
 
-We employed artificial inputs that maximized the output of features and outputs for the model with the highest single fold test accuracy in the binary classification task to minimize creating artificial data that had characteristics that were not pertinent to the task at hand. This resulted in using the SCNN model trained with the second fold of the raw MEG dataset. Figure \ref{fig:max_components} demonstrates relative channel weightings (interpolated over a scalp image) that maximize three spatial features. Correspondingly, table \ref{tab:max_spectrograms} shows the spectral content of the same spatial features that maximally activate the two output classes, juxtaposed with high confidence real activations of again the same spatial features.
+We employed artificial inputs that maximized the output of features and outputs for the model with the highest single fold test accuracy in the binary classification task to minimize creating artificial data that had characteristics that were not pertinent to the task at hand. This resulted in using the SCNN model trained with the second fold of the raw MEG dataset. Figure \ref{fig:max_components} demonstrates relative channel weightings (interpolated over a scalp image) that maximize three spatial features. Correspondingly, figure \ref{fig:max_spectrograms} shows the spectral content of the same spatial features that maximally activate the two output classes, juxtaposed with high confidence real activations of again the same spatial features.
 
 \begin{figure}[h!]
   \begin{minipage}{0.31\textwidth}
@@ -157,7 +160,7 @@ We employed artificial inputs that maximized the output of features and outputs 
 \begin{figure}[t]
   \caption{The plots on the left represent artificially generated data that maximally activate the classes $<10$ and $>=10$ years old with respect to component 4 (figure \ref{fig:component_4}), component 28 (figure \ref{fig:component_28}) and component 49 (figure \ref{fig:component_49}). Each row of spectrograms corresponds to components 4, 28 and 49 respectively. Plots on the right show the two real datapoints that most significantly maximized the two classes for the components of their corresponding rows.}
   \centering\includegraphics[width=\linewidth]{spectrogram_tables.png}
- \label{tab:max_spectrograms}
+ \label{fig:max_spectrograms}
 \end{figure}
 
 Throughout the learned components, there is a common patch of strong weights found in approximately the inferior frontal or perhaps dorsolateral prefrontal regions. All three components shown in figure \ref{fig:max_components} demonstrate this to some degree (although (c) has an inverse sign). The artificially generated datapoints show fairly uniform spectrograms across all components, with spectral density concentrated between approximately $0-14$ H{\em z} in the $<10$ years old class, and concentration $15-22$ H$z$ for $>=10$ years old. All of the artificial datapoints are very stationary, and show no particular emphasis around the event time $t=1.5s$. The $>=10$ artificial data spectrograms do however show more activity overall in the high $beta$, low $gamma$ rhythms and this is particularly evident in components 4 and 49.
@@ -237,7 +240,7 @@ In contrast, our implementation does not use a pre-trained CNN, but trains convo
 \begin{equation} 
   e_{t, j} = a(f_{0, j},..., f_{T-1, j}, h_{t-1}),
 \end{equation}
-Where $a()$ is an arbitrary function (we use a multi-layer network similar to the original formulation in \cite{XuKELVINXU}, but the number of layers used is a hyperparameter determined during search, and units per layer equal to the number of hidden units with the associated LSTM.). These vectors are normalized (so that they sum to 1, and range between 0 and 1) using the softmax function. This produces the {\em soft-attention} weights $\alpha_{t,j,t'}$ for each feature $j$ at time $t'$:
+Where $a()$ is an arbitrary function (we use a multi-layer network similar to the original formulation in \cite{Zhu}, but the number of layers used is a hyperparameter determined during search, and units per layer equal to the number of hidden units with the associated LSTM.). These vectors are normalized (so that they sum to 1, and range between 0 and 1) using the softmax function. This produces the {\em soft-attention} weights $\alpha_{t,j,t'}$ for each feature $j$ at time $t'$:
 
 \begin{equation} \label{eq:attn_nrg}
   \alpha_{t,j,t'} =  \frac{\exp(e_{t,j,t'})}{\sum_{i=0}^{T-1}\exp(e_{t,j,i})},
