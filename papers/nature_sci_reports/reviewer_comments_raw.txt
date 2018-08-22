@@ -1,0 +1,33 @@
+Reviewer comments:
+
+Reviewer #1 (Technical Comments to the Author):
+
+The manuscript describes the development of two convolutional neural network architectures to classify child age from MEG recordings during speech tasks.
+
+I found the technical description of the algorithms to be well written, and the authors seem to have expertise in training and evaluating networks. They show good and extensive data analysis that is innovative in the realm of MEG data.
+
+However, I found that the main claim of the manuscript is unsupported: that these networks are predicting language development. The authors have built good classifiers for the age of the subject. The relationship between age, language development, and classifier performance is speculative.
+
+
+Reviewer #1 (Remarks to the Author):
+
+The authors developed two algorithms for classifying the age of subjects (>=10 or <10) from their MEG recordings while they engaged in three speech tasks. They proposed CNNs that summarize the spatio-temporal patterns in MEG data (one of which incorporate attention), and show that they can perform significantly better than state of the art classifiers.
+
+The performance of the algorithms is encouraging and the proposed networks seem to be intelligently developed for the problem at hand. the authors applied and extended multiple current approaches for training neural networks and seem to have good expertise in the subject.
+
+However it seems to me that the potential of these methods is diluted in the task they are used for. What is the use of predicting age from MEG signals when it can be so easily predicted by much simpler metrics? If practical applications is not the goal, but the goal is a more scientific understanding of speech development, then I am not sure how a coarse metric like "age >=10" relates to it. What the algorithm is detecting brain features that are different across children of age >=10 or <10. I am not convinced that the features detected are relevant to speech development.
+
+I suggest that the authors perform some of these checks in order to make their conclusions more impactful:
+- try to predict a closer measure of language development if such a measure was recorded
+- try to predict the actual production task (which of the three production tasks each trial corresponds to) instead of age to check their algorithms: the artificial data that the authors simulate by maximizing the classifier output shows that the time dimension is not effectively utilized by the network. It seems to me from the manuscript that the networks are rather utilizing frequency band information that is different in older children from younger children. In order to see if the temporal filtering detects temporal patterns (relevant to stimulus onset and offset etc.), training the networks to distinguish between trials might showcase the power of these networks at learning temporal MEG patterns. Note: this could have happened in the BCI tasks that were used, but these results were not expanded on.
+- if the reason why the networks have a good accuracy is that they are sensitive to the difference in frequency bands, then it's important to know if these frequency bands are related to the tasks or not. If possible, the analysis can be repeated with the portion of the data before (and after) the actual onset of the spoken words. If the accuracy persists to be above chance, then maybe what is being classified is a baseline activity and not something about speech production.
+- figure 2 shows that the most relevant channels are typically the ones on the outer sides of the helmet. There is a hot spot on the upper left which could be related to left inferior frontal cortex, but of course it's hard to tell with MEG. One thing I was wondering about is how important head size is. Is it (partially) what is being classified? Head size, or movement, could easily be correlated to age. Can the authors think of additional tests to run that would clarify this issue?
+
+
+Additional comments on clarity:
+- This paper is well written in terms of explaining the techniques used.
+- The organization however makes it hard to read. Even though the Results section should be after the Introduction, there should be some quick mention in there of the experimental task and what is being classified. Otherwise it's hard to make sense of the paper without going back and forth.
+- the technical details are many. It would be good to have a diagram explaining the different analysis that were done (maybe a box/arrows diagram).
+- the label sizes in figure 3 are too small
+- it's a little unclear whether the classification is ultimately done on a single trial basis. If so, this should be highlighted since the classification results would be more significant, because single trial data is typically very noisy and hard to classify
+- in the discussion section "On the other hand the spatial projection dataset was particularly susceptible to overfitting to the training data. " it's confusing what projection is being referred to.

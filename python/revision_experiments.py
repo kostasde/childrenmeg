@@ -32,6 +32,7 @@ def load_raw_subjects():
             if file.exists():
                 print('Found: ', str(file))
                 raw = mne.read_epochs(TEST_RAW.format(subject, test), preload=True)
+                # raw = raw.filter(2, 16)
                 data = raw.pick_types(meg=True, ref_meg=False).get_data().swapaxes(2, 1)
             else:
                 file.parent.mkdir(parents=True, exist_ok=True)
@@ -132,49 +133,55 @@ if __name__ == '__main__':
     filenames = np.vstack(filenames).squeeze()[correct_filter]
     raw = load_raw_subjects()
 
-    # x, y = [], []
-    # for subject, age in zip(TEST_SUBJECTS, SUBJECT_AGE):
-    #     for test in TESTS:
-    #         try:
-    #             x.append(raw[(subject, test)] - load_rest(subject, test)[np.newaxis, ...])
-    #             y.append(age*np.ones(x[-1].shape[0]))
-    #         except KeyError:
-    #             continue
-    #
-    # rest_corr_pred = model.predict(normalize(np.vstack(x)), batch_size=BATCH_SIZE)
-    # print('Rest Corrected Test Accuracy: ', np.mean(np.concatenate(y, axis=0) == rest_corr_pred.argmax(axis=-1)))
+    x, y = [], []
+    for subject, age in zip(TEST_SUBJECTS, SUBJECT_AGE):
+        for test in TESTS:
+            try:
+                x.append(raw[(subject, test)])
+                y.append(age*np.ones(x[-1].shape[0]))
+            except KeyError:
+                continue
+
+    rest_corr_pred = model.predict(normalize(np.vstack(x)), batch_size=BATCH_SIZE)
+    print('Modified Test Accuracy: ', np.mean(np.concatenate(y, axis=0) == rest_corr_pred.argmax(axis=-1)))
 
     writer = pd.ExcelWriter('event_results/results.xlsx')
-    dest = {s: {t: dict() for t in TESTS} for s in TEST_SUBJECTS}
 
-    obs_ends_profile = []
-    obs_evnt_profile = []
+    prev_experiments = Path('event_results/dest.pkl')
+    if prev_experiments.exists():
+        print('Found existing analysis.')
+        dest, obs_evnt_profile, obs_ends_profile = pickle.load(prev_experiments.open('rb'))
+    else:
+        dest = {s: {t: dict() for t in TESTS} for s in TEST_SUBJECTS}
 
-    # Consider high confidence points
-    for subject in tqdm.tqdm(TEST_SUBJECTS, desc="Compiling results"):
-        for test in TESTS:
-            for conf in reversed(best_confidence):
-                if subject in filenames[conf].parts and test in filenames[conf].parts:
-                    epoch = int(filenames[conf].parts[-1].split('.')[0].split('_')[1])
-                    print('Subject: {}, Test: {}, Epoch: {}'.format(subject, test, epoch))
-                    i = np.argmax(correct_pred[conf, :])
+        obs_ends_profile = []
+        obs_evnt_profile = []
 
-                    rest_x = load_rest(subject, test)[np.newaxis, ...]
-                    rest_pred = model.predict(normalize(rest_x))[0, i]
+        # Consider high confidence points
+        for subject in tqdm.tqdm(TEST_SUBJECTS, desc="Compiling results"):
+            for test in TESTS:
+                for conf in reversed(best_confidence):
+                    if subject in filenames[conf].parts and test in filenames[conf].parts:
+                        epoch = int(filenames[conf].parts[-1].split('.')[0].split('_')[1])
+                        print('Subject: {}, Test: {}, Epoch: {}'.format(subject, test, epoch))
+                        i = np.argmax(correct_pred[conf, :])
 
-                    test_x = raw[(subject, test)][[epoch - 1], ...]
-                    x_minus_rest = model.predict(normalize(test_x - rest_x))[0, i]
+                        rest_x = load_rest(subject, test)[np.newaxis, ...]
+                        rest_pred = model.predict(normalize(rest_x))[0, i]
 
-                    obs_event, obs_ends = obscuring_profile(model, test_x.copy())
+                        test_x = raw[(subject, test)][[epoch - 1], ...]
+                        x_minus_rest = model.predict(normalize(test_x - rest_x))[0, i]
 
-                    obs_ends_profile.append(obs_ends[:, i, :])
-                    obs_evnt_profile.append(obs_event[:, i, :])
+                        obs_event, obs_ends = obscuring_profile(model, test_x.copy())
 
-                    dest[subject][test] = dict(test_x=correct_pred[conf, i], rest=rest_pred,
-                                               test_x_minus_rest=x_minus_rest)
-                    break
+                        obs_ends_profile.append(obs_ends[:, i, :])
+                        obs_evnt_profile.append(obs_event[:, i, :])
 
-    pickle.dump(dest, open('event_results/dest.pkl', 'wb'))
+                        dest[subject][test] = dict(test_x=correct_pred[conf, i], rest=rest_pred,
+                                                   test_x_minus_rest=x_minus_rest)
+                        break
+
+        pickle.dump([dest, obs_evnt_profile, obs_ends_profile], prev_experiments.open('wb'))
 
     for subject in tqdm.tqdm(TEST_SUBJECTS, desc="Outputting specific results to file"):
         pd.DataFrame.from_dict(dest[subject], orient='index').to_excel(writer, subject,
@@ -186,10 +193,14 @@ if __name__ == '__main__':
     obs_x_sec = np.arange(1/200, 3.5, step=1/200)[:-1]
 
     # for title, data in zip(('Obscure Event', 'Obscure Ends'), (obs_evnt_profile, obs_ends_profile)):
-    plt.fill_between(obs_x_sec, obs_ends_profile.min(axis=-1), obs_ends_profile.max(axis=-1), alpha=0.3, color='b')
-    plt.plot(obs_x_sec, obs_ends_profile.mean(axis=-1), 'b', label='Obscure Ends')
-    plt.fill_between(obs_x_sec, obs_evnt_profile.min(axis=-1), obs_evnt_profile.max(axis=-1), alpha=0.3, color='g')
-    plt.plot(obs_x_sec, obs_evnt_profile, 'g', label='Obscure Event')
+    ends_mean = obs_ends_profile.mean(axis=-1)
+    evnt_mean = obs_evnt_profile.mean(axis=-1)
+    plt.fill_between(obs_x_sec, ends_mean - obs_ends_profile.std(axis=-1),
+                     ends_mean + obs_ends_profile.std(axis=-1), alpha=0.3, color='b')
+    plt.plot(obs_x_sec, ends_mean, 'b', label='Obscure Ends')
+    plt.fill_between(obs_x_sec, evnt_mean - obs_evnt_profile.std(axis=-1),
+                     evnt_mean + obs_evnt_profile.std(axis=-1), alpha=0.3, color='g')
+    plt.plot(obs_x_sec, evnt_mean, 'g', label='Obscure Event')
     plt.legend()
     plt.title('Model Output of Obscured Trials')
     plt.xlabel('Amount Obscured (s)')
