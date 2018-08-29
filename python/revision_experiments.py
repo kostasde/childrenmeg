@@ -9,6 +9,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from pathlib import Path
+from scipy.stats import linregress
 from models import BestSCNN
 from MEGDataset import MEGRawRanges, TEST_SUBJECTS, TEST_VG, TEST_PDK, TEST_PA
 
@@ -26,6 +27,7 @@ TEST_RAW = '/ais/clspace5/spoclab/children_megdata/test_raw/{0}/{0}_{1}-epo.fif'
 
 def load_raw_subjects():
     epoched_data = dict()
+    totals = {t: 0 for t in TESTS}
     for subject in TEST_SUBJECTS:
         for test in TESTS:
             file = Path(TEST_RAW.format(subject, test))
@@ -48,7 +50,9 @@ def load_raw_subjects():
                 data = epoch.pick_types(meg=True, ref_meg=False).get_data().swapaxes(2, 1)
 
             epoched_data[(subject, test)] = data[3:, ...]
+            totals[test] += epoched_data[(subject, test)].shape[0]
 
+    print('Task amounts:', totals)
     return epoched_data
 
 
@@ -62,8 +66,12 @@ def normalize(data, ch_axis=-1, eps=1e-12):
     return (data - data.mean(ch_axis, keepdims=True)) / (data.std(ch_axis, keepdims=True) + eps)
 
 
-def load_rest(subject, test):
-    return np.load(RESTING_DATA.format(subject, test))
+def load_rest(subject, test, shape=(700, 151)):
+    try:
+        return np.load(RESTING_DATA.format(subject, test))
+    except FileNotFoundError as e:
+        print('Warning: ', e)
+        return np.zeros(shape)
 
 
 def rest_points(fnames, x_shape):
@@ -102,7 +110,7 @@ def obscuring_profile(model, x, step=1, runs=10):
     return obs_event, obs_ends
 
 
-BATCH_SIZE = 256
+BATCH_SIZE = 64
 POINTS_PER_SUBJECT = 20
 
 if __name__ == '__main__':
@@ -125,6 +133,7 @@ if __name__ == '__main__':
         predictions.append(model.predict(_x, batch_size=BATCH_SIZE, verbose=True))
 
     correct_filter = np.vstack(true_labels).argmax(axis=-1) == np.vstack(predictions).argmax(axis=-1)
+    print('Correct Preditions: {}, Incorrect: {}'.format(np.sum(correct_filter), np.sum(correct_filter == 0)))
     print('Un-modified Test Accuracy: ', np.mean(correct_filter))
 
     correct_pred = np.vstack(predictions)[correct_filter]
@@ -145,7 +154,7 @@ if __name__ == '__main__':
     rest_corr_pred = model.predict(normalize(np.vstack(x)), batch_size=BATCH_SIZE)
     print('Modified Test Accuracy: ', np.mean(np.concatenate(y, axis=0) == rest_corr_pred.argmax(axis=-1)))
 
-    writer = pd.ExcelWriter('event_results/results.xlsx')
+    writer = pd.ExcelWriter('event_results/results_multi-rest.xlsx')
 
     prev_experiments = Path('event_results/dest.pkl')
     if prev_experiments.exists():
@@ -166,7 +175,7 @@ if __name__ == '__main__':
                         print('Subject: {}, Test: {}, Epoch: {}'.format(subject, test, epoch))
                         i = np.argmax(correct_pred[conf, :])
 
-                        rest_x = load_rest(subject, test)[np.newaxis, ...]
+                        rest_x = sum([0.33*load_rest(subject, t)[np.newaxis, ...] for t in TESTS])
                         rest_pred = model.predict(normalize(rest_x))[0, i]
 
                         test_x = raw[(subject, test)][[epoch - 1], ...]

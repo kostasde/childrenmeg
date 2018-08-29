@@ -31,3 +31,47 @@ Additional comments on clarity:
 - the label sizes in figure 3 are too small
 - it's a little unclear whether the classification is ultimately done on a single trial basis. If so, this should be highlighted since the classification results would be more significant, because single trial data is typically very noisy and hard to classify
 - in the discussion section "On the other hand the spatial projection dataset was particularly susceptible to overfitting to the training data. " it's confusing what projection is being referred to.
+
+
+Reviewer #2 (Remarks to the Author): 
+
+This paper uses deep neural networks for predicting the age of children from MEG data recorded during speech tasks. In the proposed SCNN architecture, spatial and temporal correlations are performed separately. Another version of the architecture, called Ra-SCNN, uses also LTM and attention mechanisms. The networks were reported to classify the age to be below or above 10 years with over 97% accuracy. The weights of the trained models were analyzed to provide insights what aspects of the brain data were most relevant for the classification. 
+
+The proposed neural networks provide interesting end-to-end models for the MEG data. Unfortunately, the organization of the paper is such that it is difficult to follow what exactly was done. To be able to properly evaluate the results, the text should be substantially revised. I can understand that the format of putting Methods section in the end poses a challenge to this type of paper. However, the authors should try to make the text flow better, explaining the terminology and main points of the methods as needed when presenting (or discussing) the results. For example, Figure 1 is placed on page 2, but referred to in the text only on page 6. Similarly, Tables 1 and 2 contain a lot of acronyms that are not explained. Since the networks are a crucial part of the paper, the novel aspects should be indicated in the Introduction. 
+
+Specific comments: 
+
+Abstract: please spell out all acronyms (fMRI, MEG, DNN). Similarly throughout the manuscript, spell out acronyms when they first appear. 
+
+Figure 1: explain what is indicated by the different colors 
+
+Results, under “Age classification” (page 2): 
+-- line 1: it has not been explained which ones are “end-to-end approaches” in Table 1 
+-- line 2: “un-augmented raw data” has not been explained 
+-- line 3: “accuracy is over 97%” I can’t see this in Table 1. 
+
+Results, under “Secondary dataset classification” (page 2): 
+-- line 5: “excluding the dramatic outlier” Which one is this? How is the exclusion justified? 
+
+Results, under “Model analysis” (page 3): 
+-- line 4: “interpolated over a scalp image” is not clear. Was the data extrapolated from the MEG sensors to scalp surface? 
+-- line 4: what are the “three spatial features” that are maximized? 
+-- 2nd paragraph, line 3: “inverse sign” What is the interpretation of this? 
+
+Figure 2: Please indicate the color scale. Also, a “title” for the figure, simply saying what is actually shown, would be helpful. 
+
+Discussion, page 4: 
+-- 4th para, line 1: “the seven-way classification task” What task was that? 
+
+Figure 3: What do the colors represent? (Weights? Signal power? What are the units?). Also, the font size in the panels is too small to be readable. 
+
+Proposed neural network architectures 
+-- page 6, below Eq. (1): “non-linear function of choice” What function was used in this study? 
+
+Methods 
+-- page 8, line 5 under “Sensor projection: what exactly is the “grid sized h x v”? How were “h” and “v” determined? Does the projection grid mean that MEG sensors in the middle of the head were considered to be closer to each other spatially than the temporal and occipital sensors? 
+-- page 9, line 3 under “Cropping”: “used to crop many points” I don’t understand the use of the word “crop” here. Is this standard terminology? 
+-- page 9, line 5 under “Adding sensor noise”: “truncated within a single deviation” What is a “single deviation”? 
+-- page 9, line 9 under “Adding sensor noise”: “sensor projection of course increases the dimensionality of the data significantly” Why is that? Isn’t the number of sensors still the same, otherwise the data is redundant? 
+
+
