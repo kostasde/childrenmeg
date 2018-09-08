@@ -175,7 +175,8 @@ if __name__ == '__main__':
                         print('Subject: {}, Test: {}, Epoch: {}'.format(subject, test, epoch))
                         i = np.argmax(correct_pred[conf, :])
 
-                        rest_x = sum([0.33*load_rest(subject, t)[np.newaxis, ...] for t in TESTS])
+                        rest_x = np.array([load_rest(subject, t)[np.newaxis, ...] for t in TESTS])
+                        rest_x = rest_x.sum(axis=0) / rest_x.shape[0]
                         rest_pred = model.predict(normalize(rest_x))[0, i]
 
                         test_x = raw[(subject, test)][[epoch - 1], ...]

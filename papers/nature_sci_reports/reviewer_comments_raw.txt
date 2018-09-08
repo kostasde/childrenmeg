@@ -41,37 +41,46 @@ The proposed neural networks provide interesting end-to-end models for the MEG d
 
 Specific comments: 
 
-Abstract: please spell out all acronyms (fMRI, MEG, DNN). Similarly throughout the manuscript, spell out acronyms when they first appear. 
+!!! Abstract: please spell out all acronyms (fMRI, MEG, DNN). Similarly throughout the manuscript, spell out acronyms when they first appear. 
 
-Figure 1: explain what is indicated by the different colors 
+!!! Figure 1: explain what is indicated by the different colors 
 
 Results, under “Age classification” (page 2): 
 -- line 1: it has not been explained which ones are “end-to-end approaches” in Table 1 
--- line 2: “un-augmented raw data” has not been explained 
--- line 3: “accuracy is over 97%” I can’t see this in Table 1. 
+!!! -- line 2: “un-augmented raw data” has not been explained 
+!!! -- line 3: “accuracy is over 97%” I can’t see this in Table 1. 
 
 Results, under “Secondary dataset classification” (page 2): 
--- line 5: “excluding the dramatic outlier” Which one is this? How is the exclusion justified? 
+!!! -- line 5: “excluding the dramatic outlier” Which one is this? How is the exclusion justified? 
 
 Results, under “Model analysis” (page 3): 
 -- line 4: “interpolated over a scalp image” is not clear. Was the data extrapolated from the MEG sensors to scalp surface? 
 -- line 4: what are the “three spatial features” that are maximized? 
 -- 2nd paragraph, line 3: “inverse sign” What is the interpretation of this? 
 
-Figure 2: Please indicate the color scale. Also, a “title” for the figure, simply saying what is actually shown, would be helpful. 
+!!! Figure 2: Please indicate the color scale. Also, a “title” for the figure, simply saying what is actually shown, would be helpful. 
 
 Discussion, page 4: 
--- 4th para, line 1: “the seven-way classification task” What task was that? 
+-- 4th para, line 1: “the seven-way classification task” What task was that?
+>>> Before focusing on producing a very accurate classifier, and examining its workings. Our original task consider a few other models and a finer grained set of age groups. Some of this work was written in conjunction and should not have made it into this manuscript.
 
-Figure 3: What do the colors represent? (Weights? Signal power? What are the units?). Also, the font size in the panels is too small to be readable. 
+Figure 3: What do the colors represent? (Weights? Signal power? What are the units?). Also, the font size in the panels is too small to be readable.
+>>> The signal colours represent unitless input data (as all inputs are z-score normalized, and there is batch-normalization happening at each layer of the network). We have reworked the beginning of the "Model Activations" section to clarify this.
 
 Proposed neural network architectures 
--- page 6, below Eq. (1): “non-linear function of choice” What function was used in this study? 
+-- page 6, below Eq. (1): “non-linear function of choice” What function was used in this study?
+>>> The section "Model Training Procedures" does make it clear that a hyper-parameter search is used to determine which of three activation works best for a task, but we have added an ind     ication of which activation is used for the final architecture selected where there was some confusion. 
 
 Methods 
--- page 8, line 5 under “Sensor projection: what exactly is the “grid sized h x v”? How were “h” and “v” determined? Does the projection grid mean that MEG sensors in the middle of the head were considered to be closer to each other spatially than the temporal and occipital sensors? 
--- page 9, line 3 under “Cropping”: “used to crop many points” I don’t understand the use of the word “crop” here. Is this standard terminology? 
--- page 9, line 5 under “Adding sensor noise”: “truncated within a single deviation” What is a “single deviation”? 
--- page 9, line 9 under “Adding sensor noise”: “sensor projection of course increases the dimensionality of the data significantly” Why is that? Isn’t the number of sensors still the same, otherwise the data is redundant? 
+-- page 8, line 5 under “Sensor projection: what exactly is the “grid sized h x v”? How were “h” and “v” determined? Does the projection grid mean that MEG sensors in the middle of the head were considered to be closer to each other spatially than the temporal and occipital sensors?
+>>> This was discussing a model that we initially considered before some switch of focus. We believe we have now removed all artifacts of this previous draft.
+
+-- page 9, line 3 under “Cropping”: “used to crop many points” I don’t understand the use of the word “crop” here. Is this standard terminology?
+>>> Cropping is fairly standard terminology for cutting a subsection of audio or image
+
+-- page 9, line 5 under “Adding sensor noise”: “truncated within a single deviation” What is a “single deviation”?
+>>> Another artifact of work that should not have been mentioned here
+-- page 9, line 9 under “Adding sensor noise”: “sensor projection of course increases the dimensionality of the data significantly” Why is that? Isn’t the number of sensors still the same, otherwise the data is redundant?
+>>> Same as previous point
 
 
