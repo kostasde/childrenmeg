@@ -19,18 +19,24 @@ However it seems to me that the potential of these methods is diluted in the tas
 
 I suggest that the authors perform some of these checks in order to make their conclusions more impactful:
 - try to predict a closer measure of language development if such a measure was recorded
+>>> We do have PPVT and EVT, but hesitate to use these data as our subjects quite uniformly fall within average or slightly above average scores for their age, which ultimately becomes not much different than age, and the resulting performance would be less interpretable for the same result. If there were a better distribution of performances, this would of course be very helpful.
 - try to predict the actual production task (which of the three production tasks each trial corresponds to) instead of age to check their algorithms: the artificial data that the authors simulate by maximizing the classifier output shows that the time dimension is not effectively utilized by the network. It seems to me from the manuscript that the networks are rather utilizing frequency band information that is different in older children from younger children. In order to see if the temporal filtering detects temporal patterns (relevant to stimulus onset and offset etc.), training the networks to distinguish between trials might showcase the power of these networks at learning temporal MEG patterns. Note: this could have happened in the BCI tasks that were used, but these results were not expanded on.
+>>> This has been added, and further extended to compare how this performs juxtaposed to the learned age-trained model at also predicting the task.
 - if the reason why the networks have a good accuracy is that they are sensitive to the difference in frequency bands, then it's important to know if these frequency bands are related to the tasks or not. If possible, the analysis can be repeated with the portion of the data before (and after) the actual onset of the spoken words. If the accuracy persists to be above chance, then maybe what is being classified is a baseline activity and not something about speech production.
+>>> We have now added two relevant sections to this, one that considers initial rest for each of the subjects and a second that maps the accuracy of the model as a fuction of where (and to what degree) a trial is masked.
 - figure 2 shows that the most relevant channels are typically the ones on the outer sides of the helmet. There is a hot spot on the upper left which could be related to left inferior frontal cortex, but of course it's hard to tell with MEG. One thing I was wondering about is how important head size is. Is it (partially) what is being classified? Head size, or movement, could easily be correlated to age. Can the authors think of additional tests to run that would clarify this issue?
-
+>>> This is a very interesting line of thought, however we think that the new additions make a more than sufficient case that performance is dependent on the duration of the speech task itself, and the event onset plays a critical role. In particular, the "Obscuring Trials" section.
 
 Additional comments on clarity:
 - This paper is well written in terms of explaining the techniques used.
 - The organization however makes it hard to read. Even though the Results section should be after the Introduction, there should be some quick mention in there of the experimental task and what is being classified. Otherwise it's hard to make sense of the paper without going back and forth.
+>>> Agreed, this was a mistake on our part assuming that results were meant to be presented immediately with little context. The flow of the manuscript has been modified to provide sufficient explanations to understand the main points being made.
 - the technical details are many. It would be good to have a diagram explaining the different analysis that were done (maybe a box/arrows diagram).
-- the label sizes in figure 3 are too small
+!!! - the label sizes in figure 3 are too small
 - it's a little unclear whether the classification is ultimately done on a single trial basis. If so, this should be highlighted since the classification results would be more significant, because single trial data is typically very noisy and hard to classify
+>>> They are indeed done on a single trial basis and we make this clearer!
 - in the discussion section "On the other hand the spatial projection dataset was particularly susceptible to overfitting to the training data. " it's confusing what projection is being referred to.
+>>> We detail below that this is an artifact of a previous draft and has been completely removed. Very sorry for the confusion.
 
 
 Reviewer #2 (Remarks to the Author): 
@@ -41,42 +47,48 @@ The proposed neural networks provide interesting end-to-end models for the MEG d
 
 Specific comments: 
 
-!!! Abstract: please spell out all acronyms (fMRI, MEG, DNN). Similarly throughout the manuscript, spell out acronyms when they first appear. 
+Abstract: please spell out all acronyms (fMRI, MEG, DNN). Similarly throughout the manuscript, spell out acronyms when they first appear.
+> Updated as requested.
 
-!!! Figure 1: explain what is indicated by the different colors 
+Figure 1: explain what is indicated by the different colors
+> The caption has been updated and now states that these represent the sequences produced by different learned convolution kernels.
 
 Results, under “Age classification” (page 2): 
--- line 1: it has not been explained which ones are “end-to-end approaches” in Table 1 
-!!! -- line 2: “un-augmented raw data” has not been explained 
-!!! -- line 3: “accuracy is over 97%” I can’t see this in Table 1. 
+-- line 1: it has not been explained which ones are “end-to-end approaches” in Table 1
+>>> The table is now sub-divided into feature based and end-to-end.
+-- line 2: “un-augmented raw data” has not been explained
+>>> A brief addition has been added to the caption to explain this, and it is detailed extensively in the methods section.
+-- line 3: “accuracy is over 97%” I can’t see this in Table 1.
+>>> Rather than mention single-fold accuracy at all, we have modified the wording such that only the numbers clearly indicated in the table are mentioned.
 
 Results, under “Secondary dataset classification” (page 2): 
 !!! -- line 5: “excluding the dramatic outlier” Which one is this? How is the exclusion justified? 
 
 Results, under “Model analysis” (page 3): 
 -- line 4: “interpolated over a scalp image” is not clear. Was the data extrapolated from the MEG sensors to scalp surface? 
--- line 4: what are the “three spatial features” that are maximized? 
--- 2nd paragraph, line 3: “inverse sign” What is the interpretation of this? 
+-- line 4: what are the “three spatial features” that are maximized?
+>>> In response to the two points above: both the caption for figure 2 and the newly labeled Model Activations subsection emphasize that what is being shown is the set of 151 MEG channel inputs that would maximize the output of three of the kernels at the spatial summary stage.
+-- 2nd paragraph, line 3: “inverse sign” What is the interpretation of this?
+>>> Reworded to "negative compliment"
 
-!!! Figure 2: Please indicate the color scale. Also, a “title” for the figure, simply saying what is actually shown, would be helpful. 
+!!! Figure 2: Please indicate the color scale. Also, a “title” for the figure, simply saying what is actually shown, would be helpful.
 
 Discussion, page 4: 
 -- 4th para, line 1: “the seven-way classification task” What task was that?
 >>> Before focusing on producing a very accurate classifier, and examining its workings. Our original task consider a few other models and a finer grained set of age groups. Some of this work was written in conjunction and should not have made it into this manuscript.
 
-Figure 3: What do the colors represent? (Weights? Signal power? What are the units?). Also, the font size in the panels is too small to be readable.
->>> The signal colours represent unitless input data (as all inputs are z-score normalized, and there is batch-normalization happening at each layer of the network). We have reworked the beginning of the "Model Activations" section to clarify this.
+!!! Figure 3: What do the colors represent? (Weights? Signal power? What are the units?). Also, the font size in the panels is too small to be readable.
 
 Proposed neural network architectures 
 -- page 6, below Eq. (1): “non-linear function of choice” What function was used in this study?
->>> The section "Model Training Procedures" does make it clear that a hyper-parameter search is used to determine which of three activation works best for a task, but we have added an ind     ication of which activation is used for the final architecture selected where there was some confusion. 
+>>> The section "Model Training Procedures" discusses that a hyper-parameter search is used to determine which of three activations ReLU ELU and SELU work best for a task, but we have added which activation is used for the final architecture selected so that this is clearer while reading the document and not needing to refer to the methods. 
 
 Methods 
 -- page 8, line 5 under “Sensor projection: what exactly is the “grid sized h x v”? How were “h” and “v” determined? Does the projection grid mean that MEG sensors in the middle of the head were considered to be closer to each other spatially than the temporal and occipital sensors?
->>> This was discussing a model that we initially considered before some switch of focus. We believe we have now removed all artifacts of this previous draft.
+>>> This was discussing a model that we initially considered when training the seven-way (finer-grained) target. We believe we have now removed all misleading artifacts from this previous draft.
 
 -- page 9, line 3 under “Cropping”: “used to crop many points” I don’t understand the use of the word “crop” here. Is this standard terminology?
->>> Cropping is fairly standard terminology for cutting a subsection of audio or image
+>>> Cropping is fairly standard terminology for cutting a subsection of audio or image. In particular it is a common method for augmenting imgage classification networks. To address some of the previous concerns about what "augmented" means for example, we have re-worded some sections, in particular the caption of figure 1 so that cropping should be a bit clearer now.
 
 -- page 9, line 5 under “Adding sensor noise”: “truncated within a single deviation” What is a “single deviation”?
 >>> Another artifact of work that should not have been mentioned here

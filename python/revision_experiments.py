@@ -175,9 +175,12 @@ if __name__ == '__main__':
                         print('Subject: {}, Test: {}, Epoch: {}'.format(subject, test, epoch))
                         i = np.argmax(correct_pred[conf, :])
 
+                        # Load all rest points, but only predict on current test
                         rest_x = np.array([load_rest(subject, t)[np.newaxis, ...] for t in TESTS])
+                        rest_pred = model.predict(normalize(rest_x[TESTS.index(test)]))[0, i]
+
+                        # Combine rest points
                         rest_x = rest_x.sum(axis=0) / rest_x.shape[0]
-                        rest_pred = model.predict(normalize(rest_x))[0, i]
 
                         test_x = raw[(subject, test)][[epoch - 1], ...]
                         x_minus_rest = model.predict(normalize(test_x - rest_x))[0, i]
