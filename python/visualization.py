@@ -143,8 +143,8 @@ def save_viz_scnn(args, activations, model):
             im, cn = plot_topomap(topomaps[..., i], chans, show=True)
             save_loc = args.save_viz / spatial_out.name
             save_loc.mkdir(parents=True, exist_ok=True)
-            plt.title('Spatial Component {0}'.format(i))
-            # plt.colorbar()
+            # plt.title('Spatial Component {0}'.format(i))
+            plt.colorbar()
             plt.savefig(str(save_loc / 'component_{0}.png'.format(i)))
             plt.clf()
 
