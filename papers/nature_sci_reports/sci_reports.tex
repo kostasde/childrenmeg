@@ -45,17 +45,7 @@ An advantage of this approach is that expert knowledge about the data can help c
 We compare the performance of a wide-range of classifiers, including our proposed models, when trained with features extracted from the MEG recordings, and as reference the audio recordings, of each trial. We herein refer to this process as a {\em feature-based} approach. This is compared to our proposed DNNs trained with the same MEG recordings that have been minimally processed, which we call an {\em end-to-end} approach. The best performing {\em end-to-end} model is then thoroughly interrogated: we evaluate the learned weights' carry-over performance predicting which of the three speech tasks is being performed, we use activation maximization to examine the most successful network's inner workings, and finally, we demonstrate that our models are a suitable classifier for encephalographic data more generally, by comparing the performance of our DNN architectures against the state-of-the-art for a public dataset of EEG recordings used in BCI applications.
 
 \begin{figure}[t]
-  \begin{minipage}{0.47\textwidth}
-    \centering\includegraphics[width=\linewidth]{SCNN_architecture.png}
-    \subcaption{}
-    \label{fig:scnn_arch}
-  \end{minipage}
-  \hspace*{\fill} % separation between the subfigures
-  \begin{minipage}{0.47\textwidth}
-    \includegraphics[width=\linewidth]{ALSTM_architecture.png}
-     \subcaption{}
-    \label{fig:alstm_arch}
-  \end{minipage}
+  \centering\includegraphics[width=\linewidth]{architectures.png}
   \caption{The two general CNN architectures we propose. Processing of trials flows from bottom to top, where the grey arrays represent an incoming trial of $C$ channels and $T$ samples (where for our primary dataset: $C=151$ and $T=400$). \textbf{(a)} Spatial summary convolutional network (SCNN), the architecture is broken down into three stages. The {\em Spatial Summary} stage performs convolutions exclusively across channels at each timepoint, thus not impacting the number of samples (the second dimension $T$ remains unchanged). Likewise, the {\em Temporal Filtering} stage performs convolutions exclusively across the time dimension. The output stage flattens the resulting output of the previous stages and uses a feed-forward network for final classification. The colours are used to distinguish between sequences produced as a result of different learned convolution kernels at each stage. \textbf{(b)} The Ra-SCNN network, which extends the SCNN presented in \textbf{(a)}. The output of the {\em Temporal Filtering} stage in \textbf{(a)} is fed as input to an LSTM enhanced with attention weighted input layer. Finally the output of the LSTM uses a feed-forward network for final classification.}
   \label{fig:archs}
 \end{figure}
@@ -115,7 +105,7 @@ With the performance above, it is clear that these architectures show some promi
  \label{tab:task_results}
 \end{table}
 
-Both of these networks comfortably exceed the level of chance, and the $38.13\%$ majority class threshold (as there is an imbalance of classes, which is addressed during training with a penalized loss). These accuracies are not as impressive as the age prediction task, but they do have performance that is remarkably similar to each other. A paried Wilcoxon test shows these distributions to be similar with $V_{4, two-sided}=9.0$ and $p=0.8125$. Therefore, the weights (and thus features) learned to accurately perform the age classification task are usable to predict a separate speech task independent of age. We see this as evidence that the features are in some way speech related, rather than expressing characteristics correlated only to age.
+We see in table \ref{tab:task_results} that both of these networks comfortably exceed the level of chance, and the $38.13\%$ majority class threshold (as there is an imbalance of classes, which is addressed during training with a penalized loss). These accuracies are not as impressive as the age prediction task, but they do have performance that is remarkably similar to each other. A paried Wilcoxon test shows these distributions to be similar with $V_{4, two-sided}=9.0$ and $p=0.8125$. Therefore, the weights (and thus features) learned to accurately perform the age classification task are usable to predict a separate speech task independent of age. We see this as evidence that the features are in some way speech related, rather than expressing characteristics correlated only to age.
 
 \subsection*{Model Activations}
 
@@ -132,7 +122,7 @@ Maximizing the input at some point in the network with respect to an output down
 
 \begin{figure}[ht]
   \caption{Power spectral density spectrograms in dB scale for data that maximizes output classes. Plots on the left represent artificially generated data that maximally activate the classes $<10$ and $>=10$ years old with respect to component 4 (figure \ref{fig:max_components}a), component 28 (figure \ref{fig:max_components}b) and component 49 (figure \ref{fig:max_components}c). Each row of spectrograms corresponds to components 4, 28 and 49 respectively. Plots on the right show the two real datapoints that most significantly maximized the two classes for the components of their corresponding rows.}
-  \centering\includegraphics[width=\linewidth]{spectrograms.png}
+  \centering\includegraphics[width=\linewidth]{spectrograms.jpg}
  \label{fig:max_spectrograms}
 \end{figure}
 
