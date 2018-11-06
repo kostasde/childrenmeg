@@ -10,16 +10,19 @@ import matplotlib.pyplot as plt
 
 from pathlib import Path
 from scipy.stats import linregress
-from models import BestSCNN
-from MEGDataset import MEGRawRanges, TEST_SUBJECTS, TEST_VG, TEST_PDK, TEST_PA
+from models import BestSCNN, RaSCNN
+from MEGDataset import MEGRawRanges, MEGRawRangesTA, TEST_SUBJECTS, TEST_VG, TEST_PDK, TEST_PA
 
 TESTS = [TEST_PA, TEST_PDK, TEST_VG]
-SUBJECT_AGE = [1, 0, 1, 0, 0, 1, 1, 1, 0]
+SUBJECT_AGE = [13.71, 4.12, 12.93, 6.66, 8.34, 10.80, 16.54, 15.36, 5.73]
+SUBJECT_AGE_BIN = [int(x >= 10) for x in SUBJECT_AGE]
 SUBJECT_PART = 6
 TEST_PART = 9
 
-TRAINED_MODEL = Path('/ais/clspace5/spoclab/children_megdata/eeglabdatasets/models/MEGraw/scnn/bin'
-                     '/Fold-2-weights.hdf5')
+# TRAINED_MODEL = Path('/ais/clspace5/spoclab/children_megdata/eeglabdatasets/models/MEGraw/scnn/bin'
+#                      '/Fold-2-weights.hdf5')
+TRAINED_MODEL = Path('/ais/clspace5/spoclab/children_megdata/eeglabdatasets/models/MEGTAugRaw/alstm/bin/'
+                     '/Fold-1-weights.hdf5')
 RESTING_DATA = '/ais/clspace5/spoclab/children_megdata/biggerset/resting/{0}/{1}.npy'
 ORIGINAL_DATA = '/ais/clspace5/spoclab/children_megdata/Original/{0}/{0}_{1}.ds'
 TEST_RAW = '/ais/clspace5/spoclab/children_megdata/test_raw/{0}/{0}_{1}-epo.fif'
@@ -44,7 +47,7 @@ def load_raw_subjects():
                     print(e)
                     break
                 events = mne.find_events(raw, mask=0x8, mask_type='and')
-                epoch = mne.Epochs(raw, events, tmin=-0.5, tmax=3.0, preload=True,
+                epoch = mne.Epochs(raw, events, tmin=-0.5, tmax=1.5, preload=True,
                                    reject_by_annotation=False).resample(200)
                 epoch.save(TEST_RAW.format(subject, test))
                 data = epoch.pick_types(meg=True, ref_meg=False).get_data().swapaxes(2, 1)
@@ -115,10 +118,14 @@ POINTS_PER_SUBJECT = 20
 
 if __name__ == '__main__':
 
-    dataset = MEGRawRanges('/ais/clspace5/spoclab/children_megdata/biggerset')
+    # dataset = MEGRawRanges('/ais/clspace5/spoclab/children_megdata/biggerset')
+    dataset = MEGRawRangesTA('/ais/clspace5/spoclab/children_megdata/biggerset')
+
     testset = dataset.testset(batchsize=BATCH_SIZE, fnames=True, flatten=False)
 
-    model = BestSCNN(dataset.inputshape(), dataset.outputshape())
+    # model = BestSCNN(dataset.inputshape(), dataset.outputshape())
+    model = RaSCNN(dataset.inputshape(), dataset.outputshape())
+
     model.compile()
     model.load_weights(TRAINED_MODEL)
     model.summary()
@@ -143,13 +150,20 @@ if __name__ == '__main__':
     raw = load_raw_subjects()
 
     x, y = [], []
+    subject_perf = {s: np.array([0, 0]) for s in TEST_SUBJECTS}
     for subject, age in zip(TEST_SUBJECTS, SUBJECT_AGE):
+        age_bin = int(age > 10)
         for test in TESTS:
             try:
                 x.append(raw[(subject, test)])
-                y.append(age*np.ones(x[-1].shape[0]))
+                y.append(age_bin*np.ones(x[-1].shape[0]))
+                preds = model.predict(normalize(raw[(subject, test)]), batch_size=BATCH_SIZE).argmax(axis=-1)
+                subject_perf[subject] += [np.sum(preds == age_bin), np.sum(preds == (1 ^ age_bin))]
             except KeyError:
                 continue
+
+        acc = subject_perf[subject][0] / np.sum(subject_perf[subject])
+        print('{}: {:.2%}, {} -- {}'.format(subject, acc, subject_perf[subject][1], age))
 
     rest_corr_pred = model.predict(normalize(np.vstack(x)), batch_size=BATCH_SIZE)
     print('Modified Test Accuracy: ', np.mean(np.concatenate(y, axis=0) == rest_corr_pred.argmax(axis=-1)))
